@@ -5,11 +5,11 @@ A row is `[x]` only when `parity.json` names a Rust test (Proof) that demonstrat
 A row is `[m]` (model only) when its tests pass but are tests of code that nothing reachable from the application uses yet: the logic exists, the app does not do it. `[m]` rows do not count as at parity.
 A row is `[–]` (nothing to port) when it is a backend command that no file of the webview calls; this script checks that claim on every run. Those rows do not count as at parity either.
 
-**Overall: 1218/3782 rows at parity, 65 model only, 826 partial, 14 with nothing to port.**
+**Overall: 1222/3782 rows at parity, 65 model only, 827 partial, 14 with nothing to port.**
 
 | Section | At parity | Model only | Partial | Nothing to port | Total |
 |---|---|---|---|---|---|
-| Actions | 443 | 0 | 208 | 0 | 974 |
+| Actions | 443 | 0 | 209 | 0 | 974 |
 | Keymap ids with no statically registered action | 43 | 0 | 0 | 0 | 45 |
 | Keymap presets | 4 | 0 | 2 | 0 | 6 |
 | Context keys | 49 | 0 | 6 | 0 | 98 |
@@ -31,7 +31,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerGitLogChecks` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerKeyClaim` | 4 | 0 | 1 | 0 | 14 |
 | Extension point `registerLanguageMode` | 0 | 0 | 0 | 0 | 1 |
-| Extension point `registerMenuGroup` | 3 | 0 | 8 | 0 | 28 |
+| Extension point `registerMenuGroup` | 6 | 0 | 8 | 0 | 28 |
 | Extension point `registerMenuSlotItem` | 1 | 0 | 1 | 0 | 2 |
 | Extension point `registerNavigationProvider` | 0 | 0 | 0 | 0 | 6 |
 | Extension point `registerOccurrenceNavigator` | 0 | 0 | 1 | 0 | 1 |
@@ -60,13 +60,13 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Editor, platform, workbench and design-system modules | 24 | 1 | 72 | 0 | 289 |
 | Design tokens, icons and locales | 9 | 0 | 0 | 0 | 9 |
 | Native shell modules (src-tauri) | 0 | 0 | 2 | 0 | 25 |
-| IPC commands | 310 | 0 | 56 | 14 | 715 |
+| IPC commands | 311 | 0 | 56 | 14 | 715 |
 | Backend events (IdeEvent) | 11 | 0 | 9 | 0 | 31 |
 | Plugin API interfaces (wit/) | 7 | 0 | 13 | 0 | 53 |
 | Behaviour specification: unit tests (vitest) | 250 | 64 | 300 | 0 | 976 |
 | Behaviour specification: end-to-end specs (Playwright) | 7 | 0 | 11 | 0 | 113 |
 
-## Actions (443/974 at parity, 208 partial)
+## Actions (443/974 at parity, 209 partial)
 
 `(dynamic)` rows are actions whose id is built at run time (one per plugin command, tool, run configuration…).
 
@@ -279,7 +279,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | [ ] | `db.toggleBooleanCell` | `Space` | src/features/database/cellActions.ts:63 |  |
 | [ ] | `db.toggleInEditorResults` |  | src/features/database/index.ts:278 |  |
 | [x] | `db.truncate` |  | src/features/database/treeActions.ts:350 | `workbench::database_extras::tests::truncate_asks_and_deletes_every_row_of_the_table`; asks first, then deletes every row of the table |
-| [ ] | `debug` |  | src/features/run/services.tsx:624 |  |
+| [~] | `debug` |  | src/features/run/services.tsx:624 | `workbench::run_context::tests::services_debug::debug_on_the_services_toolbar_debugs_the_selected_configuration`; Debug on the Services toolbar debugs the selected configuration (the session stops at its breakpoint); missing: Rerun in the debugger from Services only logs (`src/features/run/services.tsx:624`) |
 | [ ] | `debug.attach` |  | src/features/debugger/actions.ts:475 |  |
 | [ ] | `debug.attachToProcess` | `Alt+Shift+F5` | src/features/debugger/actions.ts:865 |  |
 | [ ] | `debug.attachUnity` |  | src/features/debugger/actions.ts:873 |  |
@@ -1411,7 +1411,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [ ] | `(at) src/features/http-client/index.ts:142` | src/features/http-client/index.ts:142 |  |
 
-## Extension point `registerMenuGroup` (3/28 at parity, 8 partial)
+## Extension point `registerMenuGroup` (6/28 at parity, 8 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
@@ -1419,14 +1419,14 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `build.compileFile` | src/features/build/index.ts:150 |  |
 | [~] | `build.module` | src/features/build/index.ts:139 | `workbench::tests::proofs8_build::registers_the_build_menu_actions_shortcuts_and_an_on_use_bottom_tool_window`; in a trusted project window the menu groups of the Project view for one folder (Workbench::group_rows, which the Project view's menu is built from) offer Build Module with that folder as its argument, and Build Module is registered and enabled there; missing: no test opens the Project view's menu and finds or chooses the row (`src/features/build/index.ts:139`) |
 | [ ] | `codeInsight.eslint` | src/features/code-insight/index.ts:69 |  |
-| [ ] | `debugger.evaluate` | src/features/debugger/index.ts:99 |  |
+| [x] | `debugger.evaluate` | src/features/debugger/index.ts:99 | `workbench::run_context::tests::editor_menu_evaluate::the_editors_menu_offers_evaluate_expression_while_the_session_is_paused`; the editor's menu offers Evaluate Expression only while a session is paused, and the row opens the Evaluate dialog |
 | [ ] | `debugger.hotswap` | src/features/debugger/index.ts:104 |  |
 | [ ] | `debugger.stop` | src/features/debugger/index.ts:110 |  |
 | [ ] | `deployment` | src/features/deployment/index.ts:88 |  |
 | [ ] | `github.reviewMode` | src/features/github/reviewMode/index.ts:146 |  |
 | [ ] | `go.modules` | src/features/run/goActions.ts:103 |  |
 | [ ] | `gradle.analyzeDependencies` | src/features/build-tools/index.ts:236 |  |
-| [ ] | `http.new` | src/features/http-client/index.ts:156 |  |
+| [x] | `http.new` | src/features/http-client/index.ts:156 | `workbench::project_view_actions::tests::menu_groups::new_http_request_in_a_folders_project_view_menu_creates_the_request_file_there`; New › HTTP Request in a folder's Project view menu asks for the name and creates the request file there with the example request |
 | [x] | `http.spring` | src/features/http-client/index.ts:146 | `workbench::http_client::tests::the_spring_marks_and_the_editor_menu_offer_the_generate_actions`; the editor's menu offers the generate rows in a Spring controller |
 | [ ] | `maven.analyzeDependencies` | src/features/build-tools/index.ts:249 |  |
 | [~] | `plugins` | src/features/plugins/uiPoints.tsx:581 | `workbench::plugin_contributions::tests::the_context_menus_offer_plugin_entries_where_their_when_holds_and_run_them`, `workbench::context_menus::tests::a_plugins_editor_menu_entries_appear_under_their_submenu_and_run`, `workbench::context_menus::tests::a_plugins_find_results_entry_shows_only_while_its_when_holds`, `workbench::context_menus::tests::proofs16_menus::a_plugins_editor_tab_entry_is_offered_in_the_tabs_menu_and_runs_its_command`; the Project view's menu offers the plugin's entry after Delete… once its when holds and runs it; the editor's menu shows the plugin's entries after Send to Agent, two entries naming one submenu under it with the one whose command cannot run greyed out, and runs the chosen one; the Find results' menu shows its entry only while its when holds and runs it with the match's path, line and column. The editor tab menu offers a plugin's entry and runs its command. Missing: no test opens the Problems menu, and Open With › for the plugins' custom editors is not built |
@@ -1434,7 +1434,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `scratch.new` | src/features/scratch/index.ts:46 |  |
 | [~] | `search.bookmarks` | src/features/search/index.ts:217 | `workbench::context_menus::tests::the_gutters_menu_adds_a_bookmark_on_the_clicked_line`, `workbench::context_menus::tests::the_groups_of_a_menu_come_in_order_each_followed_by_a_separator`, `workbench::context_menus::tests::proofs16_menus::the_gutters_menu_without_a_project_offers_add_bookmark_and_bookmarks_nothing`; a right click in the gutter opens its menu with Add Bookmark first, choosing it bookmarks the clicked line, and the menu then offers Remove Bookmark. Missing: without a project the row is greyed out where the webview's row looks enabled and runs nothing (a test waits undeclared) |
 | [~] | `search.bookmarks.files` | src/features/search/index.ts:234 | `workbench::project_view_actions::tests::proofs7_project_menu::add_bookmark_in_a_folders_project_view_menu_bookmarks_the_folder`, `workbench::context_menus::tests::the_tab_menus_bookmark_row_bookmarks_the_file_of_that_tab`, `workbench::context_menus::tests::the_tab_menu_acts_on_the_tab_it_was_opened_on`; the editor tab's menu bookmarks the file of its tab, and a folder's Project view menu bookmarks the folder as a folder and then offers Remove Bookmark, which removes it. Missing: the Project view has a single selection, so several paths at once are not bookmarked, and the row is greyed out without a project where the webview's row looks enabled and runs nothing |
-| [ ] | `search.structure.selectIn` | src/features/search/index.ts:202 |  |
+| [x] | `search.structure.selectIn` | src/features/search/index.ts:202 | `workbench::project_view_actions::tests::select_in_lists_the_places_that_show_the_file_and_the_project_view_selects_it`; Select In lists Structure for the edited file between Project View and the file manager, and choosing it shows the Structure tool window |
 | [ ] | `settings.fileType` | src/features/settings/fileTypesRuntime.ts:130 |  |
 | [x] | `templates.emmet` | src/features/templates/index.ts:205 | `workbench::tests::proofs34_emmet::the_editor_menu_offers_update_tag_for_markup_files_only`, `workbench::tests::proofs34_emmet::the_editor_menus_row_opens_the_prompt_and_one_undo_reverts_the_update`; the editor menu offers Update Tag for markup files only and its row opens the prompt |
 | [~] | `templates.new` | src/features/templates/index.ts:116 | `workbench::tests::proofs34_template_actions::the_new_popup_lists_the_templates_and_a_template_row_opens_its_dialog`, `workbench::tests::proofs34_template_actions::the_new_menu_offers_the_templates_of_the_projects_type`, `workbench::tests::proofs34_template_actions::is_listed_in_the_new_menu_with_its_icon_without_duplicating_entries`; the New popup and menu list the templates of the project's type with their icons and a row opens its dialog; missing: file templates contributed by plugins are never in effect in the app (nothing hands them to the window), so they are in no list, menu or action; the project's type is read from the window's root only, not from a workspace member |
@@ -2223,7 +2223,7 @@ Desktop-shell behaviour implemented in Rust next to the webview (menus, title ba
 | [~] | `src-tauri/src/windows.rs` | 2438 | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; labels, opening a window for nothing, a project or a file, focusing the window that has a project, cycling. Not yet: restoring the windows of the last run, native window tabs and groups, auxiliary windows (settings, diff), LightEdit routing of loose files between windows, detaching a tab, the close and quit sequence, window state |
 | [ ] | `src-tauri/src/windows_error_mode.rs` | 51 |  |
 
-## IPC commands (310/715 at parity, 56 partial, 14 with nothing to port)
+## IPC commands (311/715 at parity, 56 partial, 14 with nothing to port)
 
 The GPUI app calls the implementation directly; a row is at parity when the UI behaviour that used the command is.
 
@@ -2648,7 +2648,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `plugin_revoke_net_host` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
 | [x] | `plugin_roll_back` | src-tauri/src/commands/plugin.rs | desktop shell | yes | `workbench::plugins_window::tests::proofs6_plugins::roll_back_returns_an_updated_plugin_to_its_previous_version` |
 | [~] | `plugin_run_command` | src-tauri/src/commands/plugin.rs | desktop shell | yes | `workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`, `workbench::plugin_contributions::tests::the_context_menus_offer_plugin_entries_where_their_when_holds_and_run_them`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_runtime::tests::runs_notification_buttons_as_commands_of_the_publishing_plugin_with_their_arguments`, `workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`, `workbench::plugin_contributions::tests::proofs10_menus_settings::forwards_a_menus_path_and_selection_to_the_command`, `workbench::plugin_contributions::tests::proofs10_menus_settings::a_plugin_command_reads_the_projects_setting_over_the_global_one`; the Tools menu, the Project view menu, a status item, a notification button and a settings page action run the plugin's command through PluginHost::run_command on the blocking pool, with the window, its project, the focused editor and the menu's selected paths. Missing: no test asserts a command chain, or the project settings scope of a settings page's action |
-| [ ] | `plugin_run_targets` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [x] | `plugin_run_targets` | src-tauri/src/commands/plugin.rs | desktop shell | yes | `workbench::tests::run_targets_plugins::run_targets_lists_the_target_a_plugin_registered_for_the_project`; Settings › Run Targets lists the read-only target a plugin registered for the project, through the plugin host's run-targets listing, which is the call the adapter's function makes |
 | [x] | `plugin_secrets` | src-tauri/src/commands/plugin.rs | desktop shell | yes | `workbench::plugins_window::tests::a_secret_typed_into_the_page_is_stored_through_the_host_and_never_shown_emitted_or_logged`; the Secrets section lists api-key as not set from PluginHost::secrets, and after storing reads it again and shows it set |
 | [ ] | `plugin_select_tests` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
 | [ ] | `plugin_service_detail` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
@@ -2663,7 +2663,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `plugin_set_ui_locale` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
 | [ ] | `plugin_stage_package` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
 | [x] | `plugin_status_items` | src-tauri/src/commands/plugin.rs | desktop shell | yes | `workbench::plugin_runtime::tests::proofs9_status_snapshot` |
-| [x] | `plugin_subscribe` | src-tauri/src/commands/plugin.rs | desktop shell | yes | `workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`, `workbench::plugin_runtime::tests::proofs10_host_ui::a_status_item_set_for_one_window_stays_out_of_another_window`; the window hears the host's events through the app's listener, filtered by its label, in place of a channel per window; a window-scoped item set for w1 never reaches a second window, which shows the global item set afterwards |
+| [x] | `plugin_subscribe` | src-tauri/src/commands/plugin.rs | desktop shell | yes | `workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`, `workbench::plugin_runtime::tests::proofs10_host_ui::a_status_item_set_for_one_window_stays_out_of_another_window`, `workbench::plugin_runtime::tests::proofs10_unsubscribe::a_file_the_window_opens_reaches_the_plugin_subscribed_to_file_opened`; the window hears the host's events through the app's listener, filtered by its label, in place of a channel per window; a window-scoped item set for w1 never reaches a second window, which shows the global item set afterwards A file the window opens reaches a plugin subscribed to file-opened, and no more once it unsubscribed (the test fails without the unsubscribe). |
 | [ ] | `plugin_terminal_session_close` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
 | [ ] | `plugin_terminal_session_spawn` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
 | [x] | `plugin_uninstall` | src-tauri/src/commands/plugin.rs | desktop shell | yes | `workbench::plugins_window::tests::uninstall_asks_and_removes_the_plugin`; confirmed, PluginHost::uninstall removes the plugin from the host and from the page; nothing is removed before the answer |
@@ -3138,7 +3138,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `src/editor/core/cm/iconArea.test.ts` | 7 |  |
 | [~] | `src/editor/core/cm/ideaParity.test.ts` | 27 | `editor_commands::editing::tests`, `editor_commands::paste::tests`, `editor_commands::smart_keys::tests`, `editor_commands::folding::tests`, `editor_commands::column_mode::tests`, `editor_commands::lanes::tests`, `editor_commands::gutter_drag::tests`, `editor_commands::caret_commands::tests`, `editor_commands::overwrite::tests`, `editor::command_actions::tests::proofs23_smooth_caret::glides_selection_only_moves_and_puts_the_caret_in_place_at_once_when_typing`, `editor::command_actions::tests::proofs23_smooth_caret::a_move_follows_the_chosen_movement_curve`; 26 of 27 cases: a selection-only move glides along the chosen curve and typing puts the caret in place at once. Missing: smooth blinking (the native caret does not blink) |
 | [~] | `src/editor/core/cm/indentGuides.test.ts` | 18 | `editor_commands::indent_guides::tests`; 4 of 18 cases; added upstream and not covered: 'is the guide in the caret's column whose block holds the caret line (IDEA)', 'is none in column 0, between indent units, in text, or on the closing line', 'is the matched brace colour's guide while the caret is at a brace of a multi-line block', 'draws the brace guide over the caret's', 'draws that guide on its lines in the selected colour' and 9 more; before the merge this row was model only: its tests are of code the app did not reach |
-| [~] | `src/editor/core/cm/interpolation.test.ts` | 9 | `editor::view::tests::proofs_editor_highlight_interpolation::handles_csharp_verbatim_interpolation_and_doubled_quotes`, `editor::view::tests::proofs_editor_highlight_interpolation::handles_csharp_raw_interpolation_with_multiple_dollar_delimiters`; 2 of 8 cases (the C# ones); Kotlin, Scala and Dart template code is not coloured as code, Groovy has no grammar, and the mode lookup by name and alias has no counterpart |
+| [~] | `src/editor/core/cm/interpolation.test.ts` | 9 | `editor::view::tests::proofs_editor_highlight_interpolation::handles_csharp_verbatim_interpolation_and_doubled_quotes`, `editor::view::tests::proofs_editor_highlight_interpolation::handles_csharp_raw_interpolation_with_multiple_dollar_delimiters`, `editor::view::tests::proofs_editor_highlight_interpolation_templates::keeps_nested_braces_strings_and_comments_inside_expressions`, `editor::view::tests::proofs_editor_highlight_interpolation_templates::handles_kotlin_multiline_raw_templates_and_nested_templates`; 2 of 8 cases (the C# ones); Kotlin, Scala and Dart template code is not coloured as code, Groovy has no grammar, and the mode lookup by name and alias has no counterpart |
 | [ ] | `src/editor/core/cm/interpolationIncremental.test.ts` | 2 |  |
 | [ ] | `src/editor/core/cm/jsp/jsp.test.ts` | 14 |  |
 | [ ] | `src/editor/core/cm/languages.test.ts` | 11 |  |

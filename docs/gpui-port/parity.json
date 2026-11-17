@@ -5645,7 +5645,7 @@
   },
   "unit:src/editor/core/cm/interpolation.test.ts": {
     "status": "partial",
-    "proof": "`editor::view::tests::proofs_editor_highlight_interpolation::handles_csharp_verbatim_interpolation_and_doubled_quotes`, `editor::view::tests::proofs_editor_highlight_interpolation::handles_csharp_raw_interpolation_with_multiple_dollar_delimiters`; 2 of 8 cases (the C# ones); Kotlin, Scala and Dart template code is not coloured as code, Groovy has no grammar, and the mode lookup by name and alias has no counterpart"
+    "proof": "`editor::view::tests::proofs_editor_highlight_interpolation::handles_csharp_verbatim_interpolation_and_doubled_quotes`, `editor::view::tests::proofs_editor_highlight_interpolation::handles_csharp_raw_interpolation_with_multiple_dollar_delimiters`, `editor::view::tests::proofs_editor_highlight_interpolation_templates::keeps_nested_braces_strings_and_comments_inside_expressions`, `editor::view::tests::proofs_editor_highlight_interpolation_templates::handles_kotlin_multiline_raw_templates_and_nested_templates`; 2 of 8 cases (the C# ones); Kotlin, Scala and Dart template code is not coloured as code, Groovy has no grammar, and the mode lookup by name and alias has no counterpart"
   },
   "module:src/platform/navigationModifier.ts": {
     "status": "partial",
@@ -5849,7 +5849,7 @@
   },
   "ipc:plugin_subscribe": {
     "status": "done",
-    "proof": "`workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`, `workbench::plugin_runtime::tests::proofs10_host_ui::a_status_item_set_for_one_window_stays_out_of_another_window`; the window hears the host's events through the app's listener, filtered by its label, in place of a channel per window; a window-scoped item set for w1 never reaches a second window, which shows the global item set afterwards"
+    "proof": "`workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`, `workbench::plugin_runtime::tests::proofs10_host_ui::a_status_item_set_for_one_window_stays_out_of_another_window`, `workbench::plugin_runtime::tests::proofs10_unsubscribe::a_file_the_window_opens_reaches_the_plugin_subscribed_to_file_opened`; the window hears the host's events through the app's listener, filtered by its label, in place of a channel per window; a window-scoped item set for w1 never reaches a second window, which shows the global item set afterwards A file the window opens reaches a plugin subscribed to file-opened, and no more once it unsubscribed (the test fails without the unsubscribe)."
   },
   "point.registerMenuSlotItem:(at) src/features/plugins/uiPoints.tsx:180": {
     "status": "done",
@@ -8490,5 +8490,25 @@
   "unit:src/features/run/runTabReuse.test.ts": {
     "status": "partial",
     "proof": "`run::store::tests::proofs40_run_guards::takes_the_place_of_the_same_configurations_finished_tab_then_the_selected_one`, `run::store::tests::proofs40_run_guards::keeps_an_agents_commands_out_of_other_tabs`, `run::store::tests::proofs40_run_guards::gives_runs_started_together_their_own_tabs`; 2 of 4 cases whole and one in part, on the store; not covered: the pinned clause of 'takes the place of the same configuration's finished tab, then the selected one, never a pinned one'; opens a new tab when every finished tab is pinned, pinned when the setting asks: pinned run tabs do not exist natively"
+  },
+  "point.registerMenuGroup:search.structure.selectIn": {
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::select_in_lists_the_places_that_show_the_file_and_the_project_view_selects_it`; Select In lists Structure for the edited file between Project View and the file manager, and choosing it shows the Structure tool window"
+  },
+  "point.registerMenuGroup:http.new": {
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::menu_groups::new_http_request_in_a_folders_project_view_menu_creates_the_request_file_there`; New › HTTP Request in a folder's Project view menu asks for the name and creates the request file there with the example request"
+  },
+  "point.registerMenuGroup:debugger.evaluate": {
+    "status": "done",
+    "proof": "`workbench::run_context::tests::editor_menu_evaluate::the_editors_menu_offers_evaluate_expression_while_the_session_is_paused`; the editor's menu offers Evaluate Expression only while a session is paused, and the row opens the Evaluate dialog"
+  },
+  "action:debug": {
+    "status": "partial",
+    "proof": "`workbench::run_context::tests::services_debug::debug_on_the_services_toolbar_debugs_the_selected_configuration`; Debug on the Services toolbar debugs the selected configuration (the session stops at its breakpoint); missing: Rerun in the debugger from Services only logs (`src/features/run/services.tsx:624`)"
+  },
+  "ipc:plugin_run_targets": {
+    "status": "done",
+    "proof": "`workbench::tests::run_targets_plugins::run_targets_lists_the_target_a_plugin_registered_for_the_project`; Settings › Run Targets lists the read-only target a plugin registered for the project, through the plugin host's run-targets listing, which is the call the adapter's function makes"
   }
 }
