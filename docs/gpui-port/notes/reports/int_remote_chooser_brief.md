@@ -6,6 +6,10 @@ Format only files you edited, taken from `git diff --name-only` plus the draft f
 
 This is a small slice; it may be launched together with another one. If so, the other brief says which lands first.
 
+## After the merge of upstream v0.1.46 (binding, read first)
+
+Upstream added FTP and FTPS server types to deployment. `$S/drafts/recheck_after_merge.md`, section 3: the draft is valid with changes and does not compile at HEAD as written: five exhaustive matches need an FTP arm, and three FTP rules must be followed (the `ftp:<id>` password key, the reachability check, the FTP rule in `settings_model/ssh_connection.rs`); read that section and the webview at HEAD (`src/features/settings/pages/deployment.tsx`) before applying a hunk. Section 6 of the same note lists eight mismatches of the compiled Deployment servers page against the webview at HEAD (no FTP type choice or fields, server groups, the FTP password in the connection settings, and the rest): they are this slice's too where they are on the path of the chooser; the others are listed in your report as not done. Tests never open an FTP connection: a stand-in or a refused loopback port only.
+
 ## The slice
 
 Notes (hunks A1 to A15 that put the chooser on the Deployment page, B1 that replaces `build_run_targets/folder.rs` with a thin use of the shared browser, B2 for four lines of a test; the rows; behaviours with `file:line`; hypotheses; the tests most likely to fail): `$S/drafts/remote_chooser_integration.md`; the new content of `folder.rs` for B1: `$S/drafts/remote_chooser_run_targets_folder.rs`. Report: `docs/gpui-port/notes/reports/remote_chooser_writer.md`. Draft files (committed, undeclared, never compiled): `app-gpui/src/settings_view/pages/remote_folder_browser.rs`, `remote_folder_browser/{panel,proofs37_remote_folder_browser}.rs`, `build_deployment/remote_folder.rs`, `build_deployment/proofs37_deployment_chooser_view.rs`, `app-gpui/src/workbench/tests/proofs37_settings_deployment_chooser.rs`.
