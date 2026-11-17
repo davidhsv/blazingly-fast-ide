@@ -1,0 +1,43 @@
+# Integrator brief: native behaviour that still follows the webview of before the merge, found by re-reading the spec files (no new feature)
+
+Read first: `$S/int_rules.md` (hard rules and report format), `$S/tests_brief.md`, `$S/view_rules.md`. Your own scratch subfolder: `$S/dfol2/`.
+
+Format only files you edited, taken from `git diff --name-only`. Never build a file list from `git status`. Never restore a file from a backup copy or with `git checkout`: undo your own edit by editing. Use `git diff -U3` when you read a diff.
+
+## What this is
+
+The native app copies the webview (`src/`), which is now upstream's v0.1.46 plus the fork's changes. A reader compared 97 spec files whose cases changed in the merge with the native tests (`docs/gpui-port/notes/RETRIAGE_UNIT_1.md`: one section per spec file, a table case → native test or MISSING with a note). Line 18 of that report names the native tests that still assert what the webview did before the merge: there the native behaviour is wrong, not only unproven. The reader's verdicts are hypotheses: for each item read the spec case at HEAD and at `3662ca0ea` (`git show 3662ca0ea:<spec>`), the webview's implementation at HEAD, and the upstream commit that changed it (`git log --oneline 37c2a604..v0.1.46 -- <file>`), before changing anything.
+
+## The items (each: the spec case, the stale native test, the native behaviour to change)
+
+1. Services (`src/features/run/services.test.ts`; native `run_testing::services::tests`): no type is in Services by default any more (the list starts empty for every project; spring-boot is not a default); types not added are kept out, nothing is shown for a type never added; a hidden configuration stays hidden while it runs; a picker's result is applied differently (read the case the stale test `does_not_apply_a_picker_result…` belongs to). D143 changed part of Services ("lists only added connections"): read what it did first and finish it.
+2. The run configuration chooser (`chooserPinned` spec; native `run::chooser_view::tests`): pinned configurations first, in pin order, and not again in their group; pin and unpin from the row's actions menu; the order of the configurations started last.
+3. Version control: opening the local exclude file (the ignore spec; native `vcs_ops::ignore::tests::opens_nothing_for_the_local_exclude_file`); history rewriting is offered for pushed commits too and the run confirms (native `vcs_ops::git_log::tests::disables_history_rewriting_for_pushed_commits` and `workbench::log_actions::tests::the_commit_menu_disables_history_rewriting_for_a_pushed_commit`: read what "the run confirms" is in the webview: a confirmation before rewriting pushed history must exist natively before the action is enabled, and a test asserts nothing is rewritten when it is declined); the log's branch filter lists HEAD and the favorites with Local and Remote collapsed until opened, and no remote HEAD (native `vcs::log_filters::tests::groups_head_local_and_remote_branches_and_leaves_out_the_remote_head`).
+4. Agents: placement in session menus (`agents::task_actions::tests::keeps_placement_out_of_session_menus`: the case's body changed, read what it asserts now); the composer shows the effort as its own picker beside the model, and the mode with Allow All (`agents::composer::tests::picks_the_main_settings_and_cycles_the_mode`). No test starts an agent (`spawn_guard` stays in force).
+5. Deployment: unsupported server types are no longer all normalised to SFTP (`platform_more::remote_settings::tests::normalizes_unsupported_types_to_sftp`): FTP and FTPS are types now. Only the model's rule and its test here; the page's FTP fields are another slice.
+6. Plugins: tree badges are filtered by project root but editor annotations are not, and unknown styles are dropped (`plugin_models::decorations::tests::filters_project_roots…`); indexed markers stay on their lines while typing and hide only when the entry goes away (`plugin_models::indexed_markers::tests::hides_markers_on_edit…`).
+7. The Maven and Gradle Execute popup (`ExecutePopup` spec; native `build_tools::execute::tests`): Page Up and Page Down land on a completion, not a section; Enter's behaviour changed (the reader says the old Enter behaviour was removed upstream: read the diff of `ExecutePopup.tsx`).
+8. The debugger's Attach dialog (`src/features/debugger/__tests__/attach.test.ts`, cases 0, 1 and 4): the native model checks less than the spec (the Unity working folder, the .NET count, the .NET request type): read whether the native Attach offers those debuggers at all; if not, this item is listed, not built.
+9. The editor tab's context menu order "follows IDEA's order for a file" (the native test of that name asserts the old list: read the report's row at its line 1193 for which entries are new) and the Settings label "Accent color" (five native files say "Accent colour").
+
+For each item: the stale test is rewritten to the spec's case at HEAD first (it then fails), then the native behaviour is changed, then every other native test that pinned the old behaviour is found by running the module's tests and changed with the webview's `file:line` as the reason. No assertion is loosened: an expectation changes only to what the spec at HEAD asserts. Where a case needs something not built natively (a new picker, a new dialog), say so and leave the item listed rather than half done.
+
+## Rows
+
+For each spec file touched, say which of the report's MISSING cases now have a native test by full name (the manager updates the rows). Do not write to `parity.json`.
+
+## Changed since
+
+BEFORE LAUNCH (for the manager; delete this paragraph then): name the undeclared drafts of other agents then in the tree and what the integrations before this one changed in these modules.
+
+## Gates (they replace rule 12 of `$S/int_rules.md`)
+
+The whole suite twice to files, nothing else running beside the first (write `uptime` before and after each run into the same file); during the second, every test you added or changed twenty times by filter (report passes of twenty and every test that failed at least once, with its failure); `cargo test --test web_view` once; clippy `--all-targets -- -D warnings`; `cargo build` with 0 warnings. Never pipe a test run into `head`. Start no test run with `&`, in a script or from the shell, and do not leave a polling loop behind. If any test fails in a whole-suite run, keep that run's log and quote the failure whole.
+
+## Report
+
+Besides the format of `$S/int_rules.md`: one section per item: the spec case at HEAD with `file:line`, the upstream commit, what the native app did and does now, the tests rewritten (old expectation, new expectation), the tests added, and what is left; then the table of spec cases that gained a native test.
+
+## Do not touch
+
+Every undeclared draft of other agents under `app-gpui/src` and every undeclared `proofs*` or `*_pending.rs` test file. No edits under `crates/`, `docs/`, `src/`, `src-tauri/`, `e2e/`. Do not write to `DECISIONS.md`, `parity.json` or `INVENTORY.md`. The real binary is not needed for this slice; if you run it, only through `$S/insp8/run.sh` with a temp home and project under a neutral path `/private/tmp/openidea-inspect-<random>/`, never the Agents tool window, the Agents pages of Settings, the Services window's Services tab or a debug session.
