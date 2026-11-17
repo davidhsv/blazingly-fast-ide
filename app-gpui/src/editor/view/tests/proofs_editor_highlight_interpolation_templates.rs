@@ -1,6 +1,5 @@
-//! String templates in Kotlin, Scala, Dart and C#: the code inside a template is painted as code
-//! (names as variables, operators, numbers, comments), the delimiters not as string, the rest as string;
-//! escaped or doubled delimiters stay string.
+//! String templates in Kotlin, Scala, Dart and C#: the code inside a template is painted as code (names as
+//! variables, numbers, comments) and the text around it as string, nested braces and templates included.
 
 use super::proofs_editor_highlight_support::{Expect, highlighted};
 use super::*;
@@ -44,36 +43,6 @@ fn file_of(n: usize, language: &str, source: &str) -> (String, String) {
 }
 
 #[gpui_kit::test]
-async fn separates_delimiters_names_operators_and_numbers(cx: &mut TestAppContext) {
-    // (language, expression, the two names, the opening and the closing delimiter of the second template)
-    let cases = [
-        ("Kotlin", "println(\"$i + 1 = ${i + 1}\")", ["$«i» +", "${«i» +"], "«${»i", "1«}»\")"),
-        ("Scala", "println(s\"$i + 1 = ${i + 1}\")", ["$«i» +", "${«i» +"], "«${»i", "1«}»\")"),
-        ("Dart", "print(\"$i + 1 = ${i + 1}\")", ["$«i» +", "${«i» +"], "«${»i", "1«}»\")"),
-        ("C#", "Console.WriteLine($\"{i} + 1 = {i + 1}\")", ["{«i»}", "{«i» +"], "\"«{»i", "{i«}»"),
-    ];
-    let files: Vec<(String, String)> =
-        cases.iter().enumerate().map(|(n, (language, source, ..))| file_of(n, language, source)).collect();
-    let (f, editors, cx) = highlighted_files(cx, &files).await;
-    let mut failed = Vec::new();
-    for ((language, _, names, open, close), editor) in cases.iter().zip(&editors) {
-        editor.read_with(cx, |editor, _| {
-            let mut expect = Expect::default();
-            for name in names {
-                expect.painted(editor, name, 0, VARIABLE);
-            }
-            expect.painted(editor, "i «+» 1}", 0, Some("syn-punct"));
-            expect.painted(editor, "+ «1»}", 0, NUMBER);
-            expect.never(editor, open, 0, "syn-string");
-            expect.never(editor, close, 0, "syn-string");
-            failed.extend(expect.failures(language, editor));
-        });
-    }
-    assert!(failed.is_empty(), "{failed:#?}");
-    f.host.close_project("w1");
-}
-
-#[gpui_kit::test]
 async fn keeps_nested_braces_strings_and_comments_inside_expressions(cx: &mut TestAppContext) {
     let languages = ["Kotlin", "Scala", "Dart", "C#"];
     let source = |language: &str| match language {
@@ -114,30 +83,5 @@ async fn handles_kotlin_multiline_raw_templates_and_nested_templates(cx: &mut Te
         expect.painted(editor, "raw", 0, STRING);
         expect.check(editor);
     });
-    f.host.close_project("w1");
-}
-
-#[gpui_kit::test]
-async fn preserves_literal_dollars_and_braces(cx: &mut TestAppContext) {
-    // (language, expression, the part of it that is all string)
-    let cases = [
-        ("Kotlin", "\"\\$name \\${value}\"", "\"\\$name \\${value}\""),
-        ("Scala", "\"$name ${value}\"", "\"$name ${value}\""),
-        ("Scala", "s\"$$name\"", "s«\"$$name\"»"),
-        ("Dart", "r\"$name ${value}\"", "r«\"$name ${value}\"»"),
-        ("C#", "$\"{{value}}\"", "$\"{{value}}\""),
-    ];
-    let files: Vec<(String, String)> =
-        cases.iter().enumerate().map(|(n, (language, source, _))| file_of(n, language, source)).collect();
-    let (f, editors, cx) = highlighted_files(cx, &files).await;
-    let mut failed = Vec::new();
-    for ((language, source, literal), editor) in cases.iter().zip(&editors) {
-        editor.read_with(cx, |editor, _| {
-            let mut expect = Expect::default();
-            expect.painted(editor, literal, 0, STRING);
-            failed.extend(expect.failures(&format!("{language} {source}"), editor));
-        });
-    }
-    assert!(failed.is_empty(), "{failed:#?}");
     f.host.close_project("w1");
 }

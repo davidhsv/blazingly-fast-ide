@@ -23,7 +23,7 @@ use crate::project_view::actions::{
     open_in_terminal, option_value, project_actions, select_in, select_in_project_view, select_in_targets,
     toggle_option,
 };
-use crate::project_view::context_menu::{Item, ProjectCommand};
+use crate::project_view::context_menu::{Item, MenuGroupContext as ProjectSelection, ProjectCommand};
 use crate::project_view::file_path::{FILE_PATH_TITLE, file_path_rows};
 use crate::project_view::mark_directory::mark_directory;
 use crate::project_view::operations::{
@@ -281,7 +281,13 @@ impl Workbench {
                 self.select_in_project_tree(Some(path), true, window, cx);
             }
             SelectIn::Choose(path) => {
-                let menu = self.with_menu_context(cx, |ctx, _| select_in_targets(ctx, &path, active.as_deref()));
+                // Other features add their places through the `selectIn` menu group (Structure for the edited
+                // file).
+                let selected = ProjectSelection { paths: vec![path.clone()], dirs: Vec::new() };
+                let contributed = self.project_view_contributed(&selected, None, window, cx);
+                let menu = self.with_contributed_menu_context(contributed, cx, |ctx, _| {
+                    select_in_targets(ctx, &path, active.as_deref())
+                });
                 let mut items: Vec<Item> = vec![MenuItem::entry(menu.title, None)];
                 items.extend(menu.items);
                 let position = self.select_in_popup_at(&path, window, cx);
@@ -578,6 +584,7 @@ mod tests {
     use serde_json::json;
     use std::cell::RefCell;
     use std::sync::Mutex;
+    mod menu_groups;
     mod proofs11_import;
     mod proofs20_tree;
     mod proofs7_project_menu;
@@ -770,11 +777,12 @@ mod tests {
     }
 
     /// Select In… (⌥F1) lists the places that can show the edited file, the Project view first;
-    /// choosing it selects the file in the tree. A path passed to it is selected at once, without
-    /// the list.
+    /// choosing it selects the file in the tree, and Structure shows the Structure tool window. A path
+    /// passed to it is selected at once, without the list.
     #[gpui_kit::test]
     async fn select_in_lists_the_places_that_show_the_file_and_the_project_view_selects_it(cx: &mut TestAppContext) {
         use crate::project_view::context_menu::reveal_label;
+        use crate::workbench::structure_window::STRUCTURE_TOOL_WINDOW;
         let _home = start(cx);
         let files = [("src/lib.rs", "pub fn a() {}\n"), ("b.txt", "")];
         let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &files);
@@ -784,7 +792,7 @@ mod tests {
         assert_eq!(actions_run_by("alt-f1", cx), ["navigate.selectIn"]);
         let menu = workbench.read_with(cx, |w, _| w.open_menu::<ProjectCommand>()).expect("the chooser is open");
         let rows = menu.read_with(cx, |menu, _| menu.lines()).remove(0);
-        assert_eq!(rows, ["Select In", "> Project View", reveal_label(this_os()), "Terminal"]);
+        assert_eq!(rows, ["Select In", "> Project View", "Structure", "-", reveal_label(this_os()), "Terminal"]);
         cx.simulate_keystrokes("enter");
         cx.run_until_parked();
         let at = text_of(&file);
@@ -792,6 +800,16 @@ mod tests {
             tree.read_with(cx, |tree, _| tree.selected_path() == Some(at.as_str()))
         });
         assert!(workbench.read_with(cx, |w, _| w.open_menu::<ProjectCommand>()).is_none());
+
+        // Structure shows the Structure tool window, which follows the edited file.
+        assert!(!workbench.read_with(cx, |w, _| w.is_tool_window_visible(STRUCTURE_TOOL_WINDOW)));
+        assert_eq!(actions_run_by("alt-f1", cx), ["navigate.selectIn"]);
+        cx.simulate_keystrokes("down");
+        cx.simulate_keystrokes("enter");
+        cx.run_until_parked();
+        wait_long(cx, "the Structure tool window", |cx| {
+            workbench.read_with(cx, |w, _| w.is_tool_window_visible(STRUCTURE_TOOL_WINDOW))
+        });
 
         let other = text_of(&root.join("b.txt"));
         run_action(cx, "navigate.selectIn", Some(json!({ "path": other })));

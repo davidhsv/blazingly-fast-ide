@@ -45,10 +45,18 @@ async fn a_file_the_window_opens_reaches_the_plugin_subscribed_to_file_opened(cx
         heard
     });
     ask(cx, &root, PLUGIN, "off", None);
-    let before = ask(cx, &root, PLUGIN, "count", None);
+    let count = |cx: &mut VisualTestContext| {
+        ask(cx, &root, PLUGIN, "count", None).and_then(|n| n.parse::<usize>().ok()).expect("a count")
+    };
+    let before = count(cx);
     reopen(&workbench, &file, cx);
-    // Two of the window's posting intervals and the host's delivery pass.
-    let until = std::time::Instant::now() + Duration::from_secs(2);
-    wait(cx, "two seconds", |_| std::time::Instant::now() >= until);
-    assert_eq!(ask(cx, &root, PLUGIN, "count", None), before, "an unsubscribed plugin hears nothing");
+    // The plugin still watches saves of the file. The window posts its events in the order they happen, so the
+    // save is heard with or after the opening: once the save is counted, an opening heard would be counted too.
+    let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+    editor.update(cx, |editor, cx| editor.insert(Some(0..0), "b: 2\n", cx));
+    let saving = editor.read_with(cx, |editor, cx| editor.save(cx));
+    cx.executor().spawn(saving).detach();
+    wait(cx, "the file is saved", |cx| !editor.read_with(cx, |editor, _| editor.is_dirty()));
+    wait(cx, "the plugin heard the save", |cx| count(cx) > before);
+    assert_eq!(count(cx), before + 1, "an unsubscribed plugin hears the save and not the opening");
 }

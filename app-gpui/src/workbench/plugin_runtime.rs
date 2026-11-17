@@ -1605,6 +1605,7 @@ mod tests {
     mod proofs10_events;
     mod proofs10_host_api;
     mod proofs10_host_ui;
+    mod proofs10_unsubscribe;
     mod proofs14_plugins;
     mod proofs16_runtime;
     mod proofs18_e2e_plugin_notifications;

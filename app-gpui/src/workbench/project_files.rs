@@ -1104,13 +1104,8 @@ impl Workbench {
     }
 
     /// Builds what the Project view's menus are made from: the tree's state, the project, whether it is a Git
-    /// repository, the registered actions and their shortcuts. No other feature contributes rows.
-    pub(super) fn with_menu_context<R>(&self, cx: &App, build: impl FnOnce(&MenuContext<'_>, &App) -> R) -> R {
-        self.with_contributed_menu_context(Contributed::default(), cx, build)
-    }
-
-    /// [`Self::with_menu_context`], with the groups other features contribute to the menus.
-    fn with_contributed_menu_context<R>(
+    /// repository, the registered actions and their shortcuts, and the groups other features contribute.
+    pub(super) fn with_contributed_menu_context<R>(
         &self,
         contributed: Contributed,
         cx: &App,

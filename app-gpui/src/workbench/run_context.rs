@@ -689,7 +689,9 @@ mod tests {
     use crate::workbench::debug_extras::tests::{Fixture, context, long, open_project, run};
     use gpui_kit::{TestAppContext, VisualTestContext};
     #[cfg(unix)]
+    mod editor_menu_evaluate;
     mod proofs20_run;
+    mod services_debug;
 
     /// A script without an extension, run by the absolute interpreter of its `#!` line.
     const TOOL: &str = "#!/bin/echo hello\n";

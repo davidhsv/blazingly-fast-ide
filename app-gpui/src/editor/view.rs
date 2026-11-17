@@ -2820,6 +2820,7 @@ mod tests {
     mod proofs_editor_highlight_backend;
     mod proofs_editor_highlight_cmake;
     mod proofs_editor_highlight_interpolation;
+    mod proofs_editor_highlight_interpolation_templates;
     mod proofs_editor_highlight_support;
 
     /// A project in a temporary folder with `files`, and an editor on the first of them.

@@ -66,7 +66,7 @@ fn store_ssh_configs(cx: &mut VisualTestContext) {
 }
 
 /// File › Settings… on Run Targets in This project, and the page's editor.
-fn open_run_targets(
+pub(super) fn open_run_targets(
     workbench: &Entity<Workbench>,
     cx: &mut VisualTestContext,
 ) -> (Entity<SettingsDialogView>, Entity<RunTargetsView>) {

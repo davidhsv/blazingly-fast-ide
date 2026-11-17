@@ -4617,6 +4617,7 @@ mod tests {
     mod proofs_tool_windows;
     mod proofs_vcs;
     mod recent_live_branch;
+    mod run_targets_plugins;
     mod smoke_backend_events;
     mod smoke_registered_actions;
     mod smoke_services;
