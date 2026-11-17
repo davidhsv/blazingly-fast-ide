@@ -252,8 +252,8 @@
     "proof": "`workbench::tool_windows::tests`, `workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`, `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`, `workbench::tests::proofs5_layout::maximize_tool_window_draws_the_focused_side_across_the_window`; drives both stripes and the left, right and bottom sides with their split areas, and draws a maximized side across the window. Not yet: resizing, moving windows between sides"
   },
   "module:src/workbench/toolwindows/layouts.ts": {
-    "status": "done",
-    "proof": "`workbench::tool_windows::tests`, `workbench::app_actions::tests::saves_and_restores_visible_windows_and_sizes_by_name`, `workbench::app_actions::tests::the_restore_default_layout_key_works_only_with_a_project`, `workbench::app_actions::tests::restores_by_name_through_the_action_window_tool_window_layouts_items`; the named layouts in the UI storage, saved, restored, renamed and deleted from the window's actions, and listed for Window › Tool Window Layouts"
+    "status": "partial",
+    "proof": "`workbench::tool_windows::tests`, `workbench::app_actions::tests::saves_and_restores_visible_windows_and_sizes_by_name`, `workbench::app_actions::tests::restore_default_layout_works_only_with_a_project`, `workbench::app_actions::tests::restores_by_name_through_the_action_window_tool_window_layouts_items`; the named layouts in the UI storage, saved, restored, renamed and deleted from the window's actions, and listed for Window › Tool Window Layouts; Restore Default Layout is unavailable without a project. Missing: restoreCurrentLayout and saveCurrentLayout, added upstream by 460027fd4 (Restore Current Layout, Save Changes in Current Layout): no native code has either"
   },
   "module:src/workbench/toolwindows/content.ts": {
     "status": "partial",
@@ -520,8 +520,8 @@
     "proof": "`platform::misc::copy_path::tests`"
   },
   "unit:src/platform/fileManager.test.ts": {
-    "status": "done",
-    "proof": "`platform::misc::file_manager::tests`"
+    "status": "partial",
+    "proof": "`platform::misc::file_manager::tests`; 8 of 12 cases; added upstream and not covered: 'in $window passes only paths this desktop has to the OS', 'reveals this desktop's own files from a remote window', 'in $window asks the backend only for this desktop's own files', 'reports a refused launch so the caller can fall back'"
   },
   "module:src/platform/fileManager.ts": {
     "status": "partial",
@@ -551,11 +551,11 @@
     "status": "partial",
     "proof": "`platform::misc::jdk::tests`; the download itself is not wired"
   },
-  "unit:src/platform/filePresentation.test.ts": {
+  "unit:src/ui/filePresentation.test.ts": {
     "status": "done",
     "proof": "`platform::file_presentation::tests`"
   },
-  "module:src/platform/filePresentation.ts": {
+  "module:src/ui/filePresentation.ts": {
     "status": "partial",
     "proof": "`platform::file_presentation::tests`; the batching model is not driven by a view, and file icon themes are not consulted"
   },
@@ -768,8 +768,8 @@
     "proof": "`terminal::persist::tests`, `terminal::store::tests`"
   },
   "unit:src/features/terminal/imeCommit.test.ts": {
-    "status": "done",
-    "proof": "`terminal::ime_commit::tests`"
+    "status": "partial",
+    "proof": "`terminal::ime_commit::tests`; 12 of 15 cases; added upstream and not covered: 'keeps control input out of the commit's text quota: %j', 'still drops a stale IME deletion but lets a real Backspace through', 'preserves terminal replies during an IME commit (text first: %s)'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/features/terminal/imeInput.test.ts": {
     "status": "done",
@@ -904,8 +904,8 @@
     "proof": "`vcs_ops::ignore::tests`, `workbench::vcs_operations::tests::add_to_vcs_stages_an_unversioned_file_and_the_ignore_actions_write_their_own_file`, `workbench::tests::proofs4_vcs::routes_all_paths_to_gitignore_then_refreshes_status_and_tree`, `workbench::tests::proofs11_vcs_windows::add_to_gitignore_reloads_the_project_tree_with_the_file_ignored`, `workbench::tests::proofs11_vcs_windows::add_to_local_exclude_refreshes_the_status_and_the_project_tree`, `workbench::tests::proofs11_vcs_windows::refreshes_after_a_failed_or_partially_completed_multi_repository_write`; all 7 cases on the model; through the window the ignore actions write their file, the status is read again and the project tree is reloaded, after .gitignore, after the local exclude file, and after a write that fails"
   },
   "unit:src/features/vcs/__tests__/commitChecks.test.ts": {
-    "status": "done",
-    "proof": "`vcs_ops::commit_checks::tests`"
+    "status": "partial",
+    "proof": "`vcs_ops::commit_checks::tests`; 3 of 12 cases; added upstream and not covered: 'runs checks by order, then id', 'blocks the commit on an error', 'does not block the commit on a warning', 'offers the result's fix in the commit panel, and runs it', 'reports a check that throws as an error instead of breaking the commit' and 4 more"
   },
   "unit:src/features/vcs/__tests__/commitInclusion.test.ts": {
     "status": "done",
@@ -1012,8 +1012,8 @@
     "proof": "`vcs_diff::conflict_markers::tests`"
   },
   "unit:src/features/vcs/__tests__/inlineBlame.test.ts": {
-    "status": "done",
-    "proof": "`vcs_diff::inline_blame::tests`"
+    "status": "partial",
+    "proof": "`vcs_diff::inline_blame::tests`; 15 of 20 cases; added upstream and not covered: 'splits into colourable segments that join back into the original text', 'still debounces the git call after an edit (#3396)', 'keeps the commit tooltip closed when the pointer is on a line-end lens, not the label', 'steps past a code-vision hint, including one that appears after the blame', 'is an out-of-flow, zero-width anchor so soft wrap cannot fold it onto a new row'"
   },
   "unit:src/features/vcs/__tests__/fileTree.test.ts": {
     "status": "done",
@@ -1067,7 +1067,7 @@
     "status": "done",
     "proof": "`workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`"
   },
-  "point.registerKeyClaim:(at) src/features/search/everywhere/SearchEverywhere.tsx:82": {
+  "point.registerKeyClaim:(at) src/features/search/everywhere/SearchEverywhere.tsx:86": {
     "status": "partial",
     "proof": "`workbench::tests::search_everywhere_moves_its_selection_shows_more_and_answers_the_mouse`, `workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`; Enter, Tab, the arrows and Page Up/Down are the popup's in every modifier combination while its query has the keyboard. ⌥↵, ⌘↵ and ⌥↑/⌥↓ are claimed but do nothing yet"
   },
@@ -1348,8 +1348,8 @@
     "proof": "`settings_model::language_pages::tests`, `platform::project_roots::tests`; sixteen of seventeen cases here; the folder roles case is left to the project roots tests and was not found there by name, and malformed values are refused by the typed settings instead of normalised"
   },
   "unit:src/features/settings/__tests__/mcpServer.test.ts": {
-    "status": "done",
-    "proof": "`settings_model::mcp_server::tests`"
+    "status": "partial",
+    "proof": "`settings_model::mcp_server::tests`; 3 of 5 cases; added upstream and not covered: 'keeps a fixed port by default and a new token in every run', 'listens on 127.0.0.1 by default, or on the address entered'"
   },
   "unit:src/features/settings/__tests__/pages.test.ts": {
     "status": "done",
@@ -1376,8 +1376,8 @@
     "proof": "`settings_model::window_bridge::tests`, `settings_model::settings_window::tests`"
   },
   "unit:src/features/settings/pages/deploymentModel.test.ts": {
-    "status": "done",
-    "proof": "`settings_model::deployment_model::tests`"
+    "status": "partial",
+    "proof": "`settings_model::deployment_model::tests`; 9 of 12 cases; added upstream and not covered: 'names a new group after the first free number', 'toggles members, keeping the server list's order', 'drops removed servers from groups and keeps untouched groups as they are'"
   },
   "unit:src/features/templates/__tests__/editor.test.ts": {
     "status": "done",
@@ -1472,8 +1472,8 @@
     "proof": "`run::java_launch::tests`, `run::jvm_targets::tests`, `run::application::tests`, `run::store::tests`"
   },
   "unit:src/features/run/jvmTypes.test.ts": {
-    "status": "done",
-    "proof": "`run::jvm_types::tests`"
+    "status": "partial",
+    "proof": "`run::jvm_types::tests`; 17 of 22 cases; added upstream and not covered: 'creates, edits and recovers a JAR configuration without a source module', 'uses java by default and keeps Windows JRE and JAR paths', 'starts the attach listener through an init script, ahead of the VM options' one', 'leaves the run alone when the VM options decide about the attach mechanism or on a run target', 'adds no attach listener when Gradle runs on Windows'"
   },
   "unit:src/features/run/links.test.ts": {
     "status": "done",
@@ -1544,12 +1544,12 @@
     "proof": "`run::java_launch::tests::proofs7_separator::joins_the_classpath_and_module_paths_using_the_host_separator`, `debugger::java::tests::splits_explicit_classpaths_without_damaging_paths`; 2 of 2 cases over the spec's five hosts: the join case asserts resolve_java_command, a function that renders nothing and is reached from the Java launch preparation of Run and Debug (JavaPreparation), for both ${classpath} and ${testClasspath}; the split case runs the debugger's launch flow for java-debug and the Kotlin adapter"
   },
   "unit:src/features/debugger/__tests__/launch.test.ts": {
-    "status": "done",
-    "proof": "`debugger::launch::tests`"
+    "status": "partial",
+    "proof": "`debugger::launch::tests`; 20 of 27 cases; added or renamed upstream and not covered: 'cargo run under lldb-dap builds the same way and passes the environment as strings', 'native programs under CodeLLDB / lldb-dap / GDB: program, args, cwd, env', 'Zig under CodeLLDB: no source-language mode, so evaluation stays LLDB's own', 'preserves import paths and multiple source files for Go to resolve', 'keeps a typed recursive package target and the module's selected compiler' and 2 more"
   },
   "unit:src/features/debugger/__tests__/missingAdapter.test.ts": {
-    "status": "done",
-    "proof": "`debugger::missing_adapter::tests`"
+    "status": "partial",
+    "proof": "`debugger::missing_adapter::tests`; 4 of 7 cases; added upstream and not covered: 'offers to reinstall Delve when it is too old for the Go toolchain', 'offers the reinstall even when delve exited during startup', 'keeps a Go launch that failed for another reason as a plain error'"
   },
   "unit:src/features/debugger/__tests__/quickEvaluate.test.ts": {
     "status": "partial",
@@ -1708,8 +1708,8 @@
     "proof": "`platform_more::remote::tests`"
   },
   "unit:src/platform/workflowSettings.test.ts": {
-    "status": "done",
-    "proof": "`platform_more::workflow_settings::tests`, `platform::command_line::tests`"
+    "status": "partial",
+    "proof": "`platform_more::workflow_settings::tests`, `platform::command_line::tests`; 3 of 4 cases; added upstream and not covered: 'keeps the double-click choice unset until it is made'"
   },
   "unit:src/workbench/distractionFree.test.tsx": {
     "status": "done",
@@ -1748,8 +1748,8 @@
     "proof": "`platform_more::selectable_text::tests`; 7 of 10 cases on the model; the remaining cases test the DOM of the webview (a CSS class name, text-node targets, the execCommand fallback), which has no native counterpart. The unit is called by nothing the application reaches"
   },
   "unit:src/ui/pointerDrag.test.ts": {
-    "status": "done",
-    "proof": "`platform_more::pointer_drag::tests`"
+    "status": "partial",
+    "proof": "`platform_more::pointer_drag::tests`; 6 of 8 cases; added upstream and not covered: 'clears a text selection that began before the drag threshold (#3334)', 'clears the selection and marks the drag until it ends (#3334)'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "action:navigate.gotoLine": {
     "status": "done",
@@ -1920,16 +1920,16 @@
     "proof": "`run_producers::producers::tests`"
   },
   "unit:src/features/run/contextRun.test.ts": {
-    "status": "done",
-    "proof": "`run_producers::context_run::tests`"
+    "status": "partial",
+    "proof": "`run_producers::context_run::tests`; 10 of 16 cases; added upstream and not covered: 'is offered for Maven and Gradle tests, which run with a JDWP agent', 're-debug of a saved zig file config rebuilds the build-then-debug plan', 're-debug of a saved zig test config re-targets its test', 'leaves other configurations alone', 'the gutter offers it on a Fuzz function, after Run and Debug' and 1 more"
   },
   "unit:src/features/run/npmGutter.test.ts": {
     "status": "done",
     "proof": "`run_producers::npm_gutter::tests`"
   },
   "unit:src/features/run/targets.test.ts": {
-    "status": "done",
-    "proof": "`run_producers::target_cases`"
+    "status": "partial",
+    "proof": "`run_producers::target_cases`; 20 of 26 cases; added upstream and not covered: 'adds -fuzz with the -run pattern of a Fuzz function', 'runs a fuzz target at the module root and in nested package directories', 'is offered for Fuzz functions only', 'escapes the name and replaces a saved selection', 'needs exactly one package: -fuzz cannot match across packages' and 1 more"
   },
   "unit:src/features/run/rubyTargets.test.ts": {
     "status": "done",
@@ -1988,16 +1988,16 @@
     "proof": "`vcs_more::merge_scroll::tests`"
   },
   "unit:src/features/vcs/__tests__/logLoading.test.ts": {
-    "status": "done",
-    "proof": "`vcs_more::log_loading::tests`"
+    "status": "partial",
+    "proof": "`vcs_more::log_loading::tests`; 14 of 22 cases; added upstream and not covered: 'opens a new Update Info tab per update, each repository limited to its own range', 'reveals a commit directly via seek while keeping branch filter and showDetails preference', 'does not rebuild the displayed graph for each of %i loaded commits', 'reveals a commit beyond thirty fallback pages when seek does not find it', 'finds an old parent beyond thirty pages with one graph snapshot per check' and 3 more; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/features/vcs/__tests__/logBranchMemory.test.ts": {
     "status": "done",
     "proof": "`vcs_more::log_branch_memory::tests`"
   },
   "unit:src/features/vcs/__tests__/logFilters.test.ts": {
-    "status": "done",
-    "proof": "`vcs_more::log_filters::tests`"
+    "status": "partial",
+    "proof": "`vcs_more::log_filters::tests`; 7 of 10 cases; added upstream and not covered: 'keys date values by label, not by rolling timestamps', 'does not duplicate the date preset when switching back and forth', 'heals already-stored duplicates on read'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/features/vcs/__tests__/logSearch.test.ts": {
     "status": "done",
@@ -2020,12 +2020,12 @@
     "proof": "`vcs_more::rollback::tests`"
   },
   "unit:src/features/vcs/__tests__/show-diff-chain.test.ts": {
-    "status": "done",
-    "proof": "`vcs_more::show_diff::tests`, `vcs_more::log_changes::tests`"
+    "status": "partial",
+    "proof": "`vcs_more::show_diff::tests`, `vcs_more::log_changes::tests`; 16 of 17 cases; added upstream and not covered: 'keeps the requested diff sides when opening a separate window: %j'"
   },
   "unit:src/features/vcs/__tests__/workflow.test.ts": {
-    "status": "done",
-    "proof": "`vcs_more::workflow::tests`, `vcs_more::issue_links::tests`"
+    "status": "partial",
+    "proof": "`vcs_more::workflow::tests`, `vcs_more::issue_links::tests`; 9 of 15 cases; added or renamed upstream and not covered: 'adds the missing blank line after the subject', 'lists every repository on a branch, up-to-date ones too', 'lists the commits no remote branch has when the upstream no longer resolves', 'falls back to recent history when the repository has no remote branches', 'falls back to recent history when the remote branches cannot be read' and 1 more; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/features/vcs/__tests__/pushTarget.test.ts": {
     "status": "done",
@@ -2036,12 +2036,12 @@
     "proof": "`vcs_more::push_rejected::tests`"
   },
   "unit:src/features/vcs/__tests__/remoteResults.test.ts": {
-    "status": "done",
-    "proof": "`vcs_more::remote_results::tests`"
+    "status": "partial",
+    "proof": "`vcs_more::remote_results::tests`; 6 of 14 cases; added upstream and not covered: 'shows the untracked-file error that prevented Update', 'shows progress and the result of $op', 'shows the files and commits that Update brought in', 'explains why another remote operation cannot start', 'keeps cancelled and caller-handled failures quiet' and 3 more"
   },
   "unit:src/features/vcs/__tests__/modalDiffWindow.test.ts": {
-    "status": "done",
-    "proof": "`vcs_more::log_changes::tests`"
+    "status": "partial",
+    "proof": "`vcs_more::log_changes::tests`; 4 of 5 cases; added upstream and not covered: 'opens a commit's file diff in the preview tab with the non-modal interface'"
   },
   "unit:src/features/vcs/__tests__/recentChanges.test.ts": {
     "status": "done",
@@ -2072,8 +2072,8 @@
     "proof": "`vcs_more::diff_blame::tests`"
   },
   "unit:src/features/vcs/worktrees.test.ts": {
-    "status": "done",
-    "proof": "`vcs_more::worktrees::tests`"
+    "status": "partial",
+    "proof": "`vcs_more::worktrees::tests`; 8 of 9 cases; added upstream and not covered: 'keeps the worktree's folder name unless the chosen folder already has it'"
   },
   "action:view.notifications": {
     "status": "done",
@@ -2100,8 +2100,8 @@
     "proof": "`run_testing::go::tests`"
   },
   "unit:src/features/run/testing/parsers.test.ts": {
-    "status": "done",
-    "proof": "`run_testing::parsers::tests`"
+    "status": "partial",
+    "proof": "`run_testing::parsers::tests`; 30 of 34 cases; added upstream and not covered: 'keeps the summary out of a failure's output', 'gives each test its console output, and a group that of its tests', 'nests the default reporter's failed tests under their suites', 'gives a class's own output from the gradle init script to the class'"
   },
   "unit:src/features/run/testing/phpunit.test.ts": {
     "status": "done",
@@ -2112,16 +2112,16 @@
     "proof": "`run_testing::plugin::tests`"
   },
   "unit:src/features/run/testing/rerun.test.ts": {
-    "status": "done",
-    "proof": "`run_testing::rerun::tests`"
+    "status": "partial",
+    "proof": "`run_testing::rerun::tests`; 24 of 26 cases; added upstream and not covered: 'zig: --test-filter per failed test, straight for 'zig test' and via the module root for 'zig build'', 'zig: --test-filter per failed test for 'zig test', null for build-based runs'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/features/run/testing/ruby.test.ts": {
     "status": "done",
     "proof": "`run_testing::ruby::tests`"
   },
   "unit:src/features/run/testing/states.test.ts": {
-    "status": "done",
-    "proof": "`run_testing::states::tests`"
+    "status": "partial",
+    "proof": "`run_testing::states::tests`; 5 of 6 cases; added upstream and not covered: 'matches Zig results rooted at the module stem of the file'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/features/run/testing/unittest.test.ts": {
     "status": "done",
@@ -2288,8 +2288,8 @@
     "proof": "`editor_commands::string_clipboard::tests`, `editor::command_actions::tests::proofs23_string_clipboard::copies_multiple_string_selections_as_decoded_fragments`, `editor::command_actions::tests::proofs23_string_clipboard::disables_both_escaping_and_unescaping_with_the_setting`, `editor::command_actions::tests::proofs23_string_clipboard::escapes_an_entry_pasted_from_the_history_into_a_string`, `editor::command_actions::tests::proofs23_string_clipboard::escapes_only_the_single_quoted_strings_delimiter`, `editor::command_actions::tests::proofs23_string_clipboard::escapes_ordinary_pastes_into_a_string`, `editor::command_actions::tests::proofs23_string_clipboard::escapes_per_caret_inserts_with_each_literals_delimiter_and_maps_all_carets`, `editor::command_actions::tests::proofs23_string_clipboard::handles_native_paste_copy_cut_and_rich_copy_consistently`, `editor::command_actions::tests::proofs23_string_clipboard::leaves_paste_as_plain_text_and_typing_unchanged`, `editor::command_actions::tests::proofs23_string_clipboard::replaces_a_substring_and_preserves_the_caret_undo_and_redo`, `editor::command_actions::tests::proofs23_string_clipboard::requires_every_caret_to_be_inside_a_plain_string`, `editor::command_actions::tests::proofs23_string_clipboard::round_trips_pasted_control_characters_and_unicode`, `editor::command_actions::tests::proofs23_string_clipboard::unescapes_copied_string_contents`; 15 of 16 cases, eleven of them through an editor in a window: a paste into a string literal is escaped for its delimiter and a copy out of one unescaped, per caret, with the setting, Paste as Plain Text and typing left alone, and an entry pasted from the history escaped too. Missing: Kotlin in a real editor (the native Kotlin highlighting gives no string span, so nothing is escaped), and dropped text (no native text drop)"
   },
   "unit:src/editor/core/cm/smartKeys.test.ts": {
-    "status": "done",
-    "proof": "`editor_commands::smart_keys::tests`"
+    "status": "partial",
+    "proof": "`editor_commands::smart_keys::tests`; 14 of 28 cases; added upstream and not covered: 'pairs after a type name in Java: fields, type arguments and class declarations', 'does not pair comparisons or shifts in Java', 'does not pair inside Java strings or comments', 'pairs type positions in TypeScript but not expressions', 'never pairs JSX / HTML tags in TSX' and 9 more"
   },
   "unit:src/editor/core/cm/verticalMotion.test.ts": {
     "status": "done",
@@ -2320,20 +2320,20 @@
     "proof": "`editor_commands::unwrap::tests`"
   },
   "unit:src/editor/core/cm/docComment.test.ts": {
-    "status": "done",
-    "proof": "`editor_commands::doc_comment::tests`"
+    "status": "partial",
+    "proof": "`editor_commands::doc_comment::tests`; 5 of 8 cases; added upstream and not covered: 'starts the new line with a leading asterisk aligned under the comment's', 'keeps the closing */ on its own line', 'leaves Enter alone outside a comment, before its asterisk, and in a string'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/editor/core/cm/docCommentTags.test.ts": {
     "status": "partial",
     "proof": "`editor_commands::doc_comment_tags::tests`, `editor::command_actions::tests::proofs23_doc_comment_tags::styles_the_tags_with_the_highlight_styles_classes_inside_the_comments_own`, `editor::command_actions::tests::proofs23_doc_comment_tags::rebuilds_decorations_when_the_highlighter_is_reconfigured`, `editor::command_actions::tests::proofs23_doc_comment_tags::removes_decorations_when_switching_to_an_unsupported_language`; 12 of 13 cases: the tags of a doc comment are drawn in the tag colours inside the comment's own, redrawn when the highlighter changes and removed in a language without them. Missing: tags kept inside the backend's syntax and semantic comment marks"
   },
   "unit:src/editor/core/cm/lines.test.ts": {
-    "status": "done",
-    "proof": "`editor_commands::lines::tests`"
+    "status": "partial",
+    "proof": "`editor_commands::lines::tests`; 4 of 5 cases; added upstream and not covered: 'sorts by code unit, uppercase before lowercase, as IDEA does'"
   },
   "unit:src/editor/core/cm/indentGuides.test.ts": {
-    "status": "done",
-    "proof": "`editor_commands::indent_guides::tests`"
+    "status": "partial",
+    "proof": "`editor_commands::indent_guides::tests`; 4 of 18 cases; added upstream and not covered: 'is the guide in the caret's column whose block holds the caret line (IDEA)', 'is none in column 0, between indent units, in text, or on the closing line', 'is the matched brace colour's guide while the caret is at a brace of a multi-line block', 'draws the brace guide over the caret's', 'draws that guide on its lines in the selected colour' and 9 more; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/editor/core/cm/selectionMarks.test.ts": {
     "status": "done",
@@ -2364,24 +2364,24 @@
     "proof": "`editor_commands::clipboard_history::tests`, `workbench::edit_actions::tests::records_the_selected_text_of_inputs`; 8 of 8 cases: copies made in text fields are recorded too"
   },
   "unit:src/editor/lsp/authorLens.test.ts": {
-    "status": "done",
-    "proof": "`editor_lsp::code_lens::tests`"
+    "status": "partial",
+    "proof": "`editor_lsp::code_lens::tests`; 3 of 5 cases; added upstream and not covered: 'uses the Date Formats override pattern when enabled', 'leaves the date off when the latest change has no timestamp'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/editor/lsp/availability.test.ts": {
-    "status": "done",
-    "proof": "`editor_lsp::availability::tests`"
+    "status": "partial",
+    "proof": "`editor_lsp::availability::tests`; 8 of 9 cases; added upstream and not covered: 'clears a single document or all feature back-offs explicitly'"
   },
   "unit:src/editor/lsp/codeLens.test.ts": {
-    "status": "done",
-    "proof": "`editor_lsp::code_lens::tests`"
+    "status": "partial",
+    "proof": "`editor_lsp::code_lens::tests`; 10 of 23 cases; added upstream and not covered: 'is translated', 'toggles the blame annotations on every click', 'leaves out \"no usages\" when Show “no usages” is off', 'asks again for a count that came back incomplete during a short busy spell', 'stops asking again while the server keeps saying it is indexing, until it settles' and 8 more; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/editor/lsp/completion.test.ts": {
-    "status": "done",
-    "proof": "`editor_lsp::completion::tests`, `editor_lsp::completion_items::tests`"
+    "status": "partial",
+    "proof": "`editor_lsp::completion::tests`, `editor_lsp::completion_items::tests`; 37 of 55 cases; added upstream and not covered: 'renders %s (%s) as name, signature suffix and type', 'lets Tab step out of the parentheses a completion inserted', 'lets Tab step out of a call snippet without stops', 'leaves an item its server inserts to the server, and puts the caret after what it inserted', 'does not register a scope when jumping outside closing brackets is off' and 13 more"
   },
   "unit:src/editor/lsp/configurationNavigation.test.ts": {
-    "status": "done",
-    "proof": "`editor_lsp::configuration_navigation::tests`"
+    "status": "partial",
+    "proof": "`editor_lsp::configuration_navigation::tests`; 12 of 18 cases; added or renamed upstream and not covered: 'keeps separate editors of the same document isolated', 'shares %s native navigation per word', 'discards a native answer that raced an edit and asks again afterwards', 'does not reuse an answer after replacing the editor state with equal text', 'does not share implementations, whose search streams on its own' and 1 more"
   },
   "unit:src/editor/lsp/diagnostics.test.ts": {
     "status": "done",
@@ -2408,8 +2408,8 @@
     "proof": "`editor_lsp::generate::tests`"
   },
   "unit:src/editor/lsp/hint.test.ts": {
-    "status": "done",
-    "proof": "`editor_lsp::hint::tests`"
+    "status": "partial",
+    "proof": "`editor_lsp::hint::tests`; 4 of 7 cases; added or renamed upstream and not covered: 'shows a slow request within the feedback budget and removes its hint on completion', 'marks only progress as pending', 'puts what the hint answers in its data attributes'"
   },
   "unit:src/editor/lsp/hoverPrecedence.test.ts": {
     "status": "done",
@@ -2420,8 +2420,8 @@
     "proof": "`editor_lsp::imports_on_paste::tests`, `editor_lsp::snippet::tests`"
   },
   "unit:src/editor/lsp/inlay.test.ts": {
-    "status": "done",
-    "proof": "`editor_lsp::inlay::tests`"
+    "status": "partial",
+    "proof": "`editor_lsp::inlay::tests`; 5 of 9 cases; added upstream and not covered: 'shows hints for the visible range once fetched', 'keeps the shown hints while the server is busy answering empty, and clears once it settles', 'keeps the shown hints while the server restarts instead of wiping them', 'clears the hints of a server that is down and not coming back'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/editor/lsp/inlineCompletion.test.ts": {
     "status": "done",
@@ -2432,8 +2432,8 @@
     "proof": "`editor_lsp::inplace_rename::tests`"
   },
   "unit:src/editor/lsp/intentions.test.ts": {
-    "status": "done",
-    "proof": "`editor_lsp::intentions::tests`"
+    "status": "partial",
+    "proof": "`editor_lsp::intentions::tests`; 15 of 23 cases; added upstream and not covered: 'applies each server's source.fixAll in turn, asking the next one again after an edit', 'goes on with the next server when one server's action fails', 'applies a single organize-imports action', 'keeps only actions for each problem even when another problem's fix is preferred', 'retains the range fallback only when every action omits diagnostics' and 3 more"
   },
   "unit:src/editor/lsp/links.test.ts": {
     "status": "done",
@@ -2468,24 +2468,24 @@
     "proof": "`editor_lsp::lsp::tests`"
   },
   "unit:src/editor/lsp/serverCodeLens.test.ts": {
-    "status": "done",
-    "proof": "`editor_lsp::code_lens::tests`"
+    "status": "partial",
+    "proof": "`editor_lsp::code_lens::tests`; 1 of 4 cases; added upstream and not covered: 'keeps mapped lenses across edits instead of clearing them (#2710)', 'leaves reference counts to Code Vision's usages', 'keeps the shown lenses while the server is busy answering empty or failing, until it settles'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/editor/lsp/signature.test.ts": {
     "status": "done",
     "proof": "`editor_lsp::signature::tests`"
   },
   "unit:src/editor/lsp/snippet.test.ts": {
-    "status": "done",
-    "proof": "`editor_lsp::snippet::tests`"
+    "status": "partial",
+    "proof": "`editor_lsp::snippet::tests`; 11 of 13 cases; added upstream and not covered: 'places the caret at the end of a fieldless snippet (%s)', 'preserves the selected field in %s'"
   },
   "unit:src/editor/lsp/spelling.test.ts": {
     "status": "done",
     "proof": "`editor_lsp::spelling::tests`"
   },
   "unit:src/editor/lsp/syntaxErrors.test.ts": {
-    "status": "done",
-    "proof": "`editor_lsp::syntax_errors::tests`"
+    "status": "partial",
+    "proof": "`editor_lsp::syntax_errors::tests`; 2 of 3 cases; added upstream and not covered: 'skips Django templates, whose tags the borrowed HTML grammar can't read'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/editor/lsp/typeInfo.test.ts": {
     "status": "done",
@@ -2539,7 +2539,7 @@
     "status": "partial",
     "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`; follows the bar that has the keyboard, where the component keeps the value of the last focused bar"
   },
-  "point.registerKeyClaim:(at) src/editor/core/view/FindBar.tsx:367": {
+  "point.registerKeyClaim:(at) src/editor/core/view/FindBar.tsx:411": {
     "status": "done",
     "proof": "`editor::find_bar::tests::opens_current_results_from_the_menu_and_reserves_alt_f7_while_focused`, `editor::find_bar::tests::honors_a_rebound_shortcut_and_releases_it_outside_the_bar`"
   },
@@ -2568,40 +2568,40 @@
     "proof": "`database::sql_filter::tests`, `workbench::tests::proofs13_database::does_not_automatically_complete_after_a_space_a_quote_or_a_bracket`, `workbench::tests::proofs13_database::pairs_quotes_and_brackets_without_opening_completion`, `workbench::tests::proofs13_database::suggests_the_current_table_columns`; 3 of 3 cases through the table editor's filter fields"
   },
   "unit:src/features/database/database.test.ts": {
-    "status": "done",
-    "proof": "`database::model::tests`, `database::export::tests`, `database::vendors::tests`"
+    "status": "partial",
+    "proof": "`database::model::tests`, `database::export::tests`, `database::vendors::tests`; 26 of 35 cases; added or renamed upstream and not covered: 'doubles quotes and backslashes in Snowflake SQL exports', 'right-aligns Snowflake number types', 'lists databases under PostgreSQL and SQL Server hosts unless single-database mode', 'start without a host and with key-pair authentication', 'show a JDBC URL with the account's host and the session settings' and 4 more"
   },
   "unit:src/features/database/nodes.test.ts": {
     "status": "done",
     "proof": "`database::nodes::tests`"
   },
   "unit:src/features/database/objects.test.ts": {
-    "status": "done",
-    "proof": "`database::objects::tests`"
+    "status": "partial",
+    "proof": "`database::objects::tests`; 15 of 20 cases; added upstream and not covered: 'drops an Oracle package with neither IF EXISTS nor CASCADE', 'renames within the object's schema', 'drops and truncates, and has no indexes or triggers', 'creates tables and script templates', 'alters columns with ALTER COLUMN and never sets a default on an existing column' (covered by a cited test of the same name: 'keeps unquoted names that the server folds to upper case')"
   },
   "unit:src/features/database/resultEditing.test.ts": {
     "status": "done",
     "proof": "`database::result_editing::tests`"
   },
   "unit:src/features/database/resultView.test.ts": {
-    "status": "done",
-    "proof": "`database::result_view::tests`, `database::objects::tests`"
+    "status": "partial",
+    "proof": "`database::result_view::tests`, `database::objects::tests`; 19 of 31 cases; added upstream and not covered: 'orders %s before %s in both directions', 'keeps equivalent values equal: %s and %s', 'keeps NULL and non-numeric text ordering', 'compares long significant digits without expanding the exponent', 'agrees with independent rational arithmetic across decimal scales and exponents' and 7 more"
   },
   "unit:src/features/database/results-view.test.tsx": {
     "status": "done",
     "proof": "`database::results_view::tests`, `database::store::tests`, `database::result_session::tests`, `database::results_view::tests::proofs11_results::explains_why_a_result_is_read_only`, `database::results_view::tests::proofs11_results::keeps_a_read_only_data_source_read_only`, `database::results_view::tests::proofs11_results::keeps_a_table_without_a_primary_key_read_only`, `database::results_view::tests::proofs11_results::keeps_an_unresolved_sql_server_table_schema_read_only`, `database::results_view::tests::proofs11_results::keeps_clickhouse_read_only`, `database::results_view::tests::proofs11_results::keeps_every_cell_of_a_pasted_row_in_the_submitted_edits`, `database::results_view::tests::proofs11_results::makes_a_single_table_select_with_its_primary_key_editable_and_submits_in_one_transaction`, `database::results_view::tests::proofs11_results::matches_case_sensitive_key_columns_exactly`, `database::results_view::tests::proofs11_results::uses_the_execution_schema_even_after_the_console_selection_changes`, `database::store::tests::records_the_selected_schema_or_connection_default`; 14 of 14 cases on the views and the store; the schema a console runs in (the selected one, else the connection's default) is recorded with the result"
   },
   "unit:src/features/database/sql/format.test.ts": {
-    "status": "done",
-    "proof": "`database::sql::format::tests`"
+    "status": "partial",
+    "proof": "`database::sql::format::tests`; 4 of 5 cases; added upstream and not covered: 'keeps Snowflake dollar strings, comments, casts, variant paths and stages'"
   },
   "unit:src/features/database/sql/readOnly.test.ts": {
-    "status": "done",
-    "proof": "`database::sql::read_only::tests`"
+    "status": "partial",
+    "proof": "`database::sql::read_only::tests`; 2 of 3 cases; added upstream and not covered: 'classifies Snowflake statements'"
   },
   "unit:src/features/database/sql/sql.test.ts": {
-    "status": "done",
-    "proof": "`database::sql::lexer::tests`, `database::sql::analyze::tests`, `database::sql::complete::tests`, `database::sql::resolve::tests`, `database::sql::params::tests`"
+    "status": "partial",
+    "proof": "`database::sql::lexer::tests`, `database::sql::analyze::tests`, `database::sql::complete::tests`, `database::sql::resolve::tests`, `database::sql::params::tests`; 36 of 43 cases; added upstream and not covered: 'reads Snowflake dollar strings, comments, escapes, variant paths and stages', 'offers Snowflake vocabulary and quotes names the server folds to upper case', 'completes fully qualified Snowflake names through databases and schemas, in either case', 'completes Snowflake names by their last two parts and stays out of other databases', 'leaves the caret after a %s function without parameters' and 2 more"
   },
   "unit:src/features/database/sshConfig.test.ts": {
     "status": "done",
@@ -2708,16 +2708,16 @@
     "proof": "`agents::store::tests`, `workbench::tests::proofs13_agents_new_task::disables_start_without_a_description_and_while_starting`, `agents::new_task_view::tests::reaches_commands_after_the_first_twelve_with_the_keyboard`, `agents::new_task_view::tests::groups_commands_before_skills_skips_headers_wraps_and_hides_empty_groups`, `agents::new_task_view::tests::names_the_icon_only_start_action_and_disables_it_while_starting`, `agents::new_task_view::tests::completes_the_projects_skills_merged_with_the_agents_commands`, `agents::new_task_view::tests::tags_file_references_and_skills_where_they_stand`, `agents::new_task_view::tests::offers_nothing_the_project_does_not_have`, `agents::new_task_view::tests::completes_at_the_caret_without_replacing_the_rest_of_the_message`, `agents::new_task_view::tests::completes_a_command_typed_after_other_text_in_place`, `agents::new_task_view::tests::attaches_the_clipboards_image_when_pasting_without_text`, `agents::new_task_view::tests::leaves_a_text_paste_to_the_text_box`, `agents::new_task_view::tests::sends_the_selected_project_with_local_and_worktree_isolation`, `agents::new_task_view::tests::keeps_its_popups_inside_a_short_window`, `agents::store::tests::defaults_to_the_active_member_last_used_member_then_first_member`, `workbench::tests::proofs14_agents_views::completes_the_commands_the_agent_offered_in_the_project`; 12 of 12 cases on the New Task page, one of them incomplete: the command popup with groups and keyboard, tags for file references and skills, completion at the caret, image paste, the project selector, the Start button. Missing: the isolation case does not read the member's branches, because the isolation and base-branch selectors are not built"
   },
   "unit:src/features/agents/conversation.test.ts": {
-    "status": "done",
-    "proof": "`agents::conversation::tests`"
+    "status": "partial",
+    "proof": "`agents::conversation::tests`; 7 of 13 cases; added upstream and not covered: 'reads the forms a reply names a symbol in', 'leaves words, keywords, literals, commands and code plain', 'resolves a link against the task folder', 'names no network share, however the link spells it', 'follows links in a task that is on a share' and 1 more"
   },
   "unit:src/features/agents/draft.test.ts": {
     "status": "done",
     "proof": "`agents::store::tests`"
   },
   "unit:src/features/agents/loginHint.test.ts": {
-    "status": "done",
-    "proof": "`agents::login_hint::tests`"
+    "status": "partial",
+    "proof": "`agents::login_hint::tests`; 3 of 4 cases; added upstream and not covered: 'translates Qoder CN sign-in guidance through the existing template'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/features/agents/markdownImages.test.ts": {
     "status": "done",
@@ -2728,8 +2728,8 @@
     "proof": "`agents::session_view::tests`, `agents::composer_view::tests`, `agents::message_editor::tests`, `agents::store::tests`, `workbench::tests::proofs11_agents::confirms_before_retracting_a_turn_with_later_messages_and_guards_repeated_clicks`, `workbench::tests::proofs11_agents::keeps_the_draft_and_avoids_rollback_when_the_agent_does_not_stop_in_time`, `workbench::tests::proofs11_agents::keeps_the_transcript_and_running_session_when_a_fresh_session_rerun_is_cancelled`, `workbench::tests::proofs11_agents::recovers_the_original_prompt_when_rollback_fails`, `workbench::tests::proofs11_agents::rolls_back_before_sending_the_edited_text_when_send_is_clicked`, `workbench::tests::proofs11_agents::stops_before_rollback_and_restores_text_without_sending_turn_0`, `workbench::tests::proofs11_agents::stops_before_rollback_and_restores_text_without_sending_turn_1`, `workbench::tests::proofs11_agents::waits_for_a_running_turn_to_stop_before_rolling_it_back`, `workbench::tests::proofs13_agents_images::keeps_the_images_when_editing_minus_the_removed_ones`, `workbench::tests::proofs13_agents_images::shows_the_images_and_lists_only_the_files_as_chips`, `workbench::tests::proofs13_agents_failed_send::recovers_images_after_failed_regeneration_with_a_new_draft`, `workbench::tests::proofs13_agents_failed_send::recovers_images_after_failed_regeneration_without_a_new_draft`, `workbench::tests::proofs13_agents_failed_send::recovers_the_edit_after_rollback_if_sending_fails_with_another_draft`, `workbench::tests::proofs13_agents_failed_send::recovers_the_edit_after_rollback_if_sending_fails_without_a_draft`, `workbench::tests::proofs13_agents_stale_editor::shows_a_message_sent_again_after_a_failed_edit_as_sent_not_in_an_editor`; 17 of 18 cases on the views. Missing: the image dialog (a sent image is a name tile that does not open)"
   },
   "unit:src/features/agents/permission.test.ts": {
-    "status": "done",
-    "proof": "`agents::permission::tests`"
+    "status": "partial",
+    "proof": "`agents::permission::tests`; 6 of 8 cases; added upstream and not covered: 'shows a request as a command only when it carries one, whatever its title', 'names Codex project trust explicitly instead of a generic Always Allow'"
   },
   "unit:src/features/agents/replyActions.test.ts": {
     "status": "done",
@@ -2772,8 +2772,8 @@
     "proof": "`app_models::invalidate_caches::tests`, `app_views::invalidate_caches_dialog::tests`, `workbench::app_actions::tests::invalidate_and_restart_schedules_the_chosen_caches_and_restarts`, `workbench::app_actions::tests::just_restart_cancels_a_pending_invalidation_cancel_does_nothing`; 2 of 2 cases through the dialog and the window, the restart observed through the Relaunch seam as the spec mocks app_restart"
   },
   "unit:src/features/app/__tests__/jetbrainsSettings.test.ts": {
-    "status": "done",
-    "proof": "`app_models::jetbrains_settings::tests`"
+    "status": "partial",
+    "proof": "`app_models::jetbrains_settings::tests`; 4 of 9 cases; added upstream and not covered: 'falls back to the font size when the font cannot be measured', 'imports the keymaps and makes the active one current', 'imports the terminal font', 'imports tabs and indents of the current code style scheme onto the languages' own styles', 'imports the editor options that have a setting here'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/features/app/__tests__/lightEditClose.test.ts": {
     "status": "done",
@@ -2832,8 +2832,8 @@
     "proof": "`plugin_models::run_targets::tests`, `run::store::tests::language_run_targets_apply_to_their_tools`"
   },
   "unit:src/features/plugins/__tests__/startupTheme.test.ts": {
-    "status": "done",
-    "proof": "`plugin_models::startup_theme::tests`"
+    "status": "partial",
+    "proof": "`plugin_models::startup_theme::tests`; 4 of 5 cases; added upstream and not covered: 'keeps the stylesheet when the same theme is applied again'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/features/plugins/__tests__/views.test.tsx": {
     "status": "partial",
@@ -2872,8 +2872,8 @@
     "proof": "`plugin_models::marker_store::tests`"
   },
   "unit:src/features/plugins/navigation.test.ts": {
-    "status": "done",
-    "proof": "`plugin_models::navigation::tests`"
+    "status": "partial",
+    "proof": "`plugin_models::navigation::tests`; 9 of 11 cases; added upstream and not covered: 'lets usages go ahead, marked incomplete, while a failed batch keeps failing', 'retries a failed batch before the next usages or refactoring'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/features/plugins/pluginText.test.ts": {
     "status": "done",
@@ -3100,8 +3100,8 @@
     "proof": "`editor_refactor::safe_delete::tests`"
   },
   "unit:src/editor/refactor/serverIntroduce.test.ts": {
-    "status": "done",
-    "proof": "`editor_refactor::server_introduce::tests`"
+    "status": "partial",
+    "proof": "`editor_refactor::server_introduce::tests`; 5 of 7 cases; added upstream and not covered: 'asks when the selected expression occurs more than once', 'introduces it directly when it occurs once'"
   },
   "unit:src/editor/structure/structure.test.ts": {
     "status": "done",
@@ -3116,8 +3116,8 @@
     "proof": "`editor_model::controller::tests`; 6 of 13 cases by name"
   },
   "unit:src/editor/core/customDocuments.test.ts": {
-    "status": "done",
-    "proof": "`editor_model::removal::tests`"
+    "status": "partial",
+    "proof": "`editor_model::removal::tests`; 31 of 33 cases; added upstream and not covered: 'keeps discarded changes when ending a busy tab's session is cancelled', 'asks about a tab that becomes busy while changes are discarded'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/editor/core/detachTab.test.ts": {
     "status": "done",
@@ -3132,8 +3132,8 @@
     "proof": "`editor_model::guard::tests`; 13 of 14 cases by name"
   },
   "unit:src/editor/core/fileAttributes.test.ts": {
-    "status": "done",
-    "proof": "`editor_model::file_attributes::tests`"
+    "status": "partial",
+    "proof": "`editor_model::file_attributes::tests`; 3 of 5 cases; added upstream and not covered: 'offers to make it writable once, then lets edits through', 'refuses edits without asking for library, binary and too-large documents'"
   },
   "unit:src/editor/core/inputClose.test.ts": {
     "status": "done",
@@ -3152,8 +3152,8 @@
     "proof": "`editor_model::workspace_history::tests`"
   },
   "unit:src/editor/core/view/navBar.test.ts": {
-    "status": "done",
-    "proof": "`editor_model::nav_bar::tests`"
+    "status": "partial",
+    "proof": "`editor_model::nav_bar::tests`; 4 of 5 cases; added upstream and not covered: 'navigates folders and the project root without adding a file segment'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/editor/core/virtual.test.ts": {
     "status": "partial",
@@ -3200,8 +3200,8 @@
     "proof": "`features_a::http_client::route_index::tests`"
   },
   "unit:src/features/http-client/spring/spring.test.ts": {
-    "status": "done",
-    "proof": "`features_a::http_client::spring::tests`, `features_a::http_client::request::tests`"
+    "status": "partial",
+    "proof": "`features_a::http_client::spring::tests`, `features_a::http_client::request::tests`; 17 of 20 cases; added upstream and not covered: 'reads the active profiles' files over the base ones', 'finds a DTO in another module through the index, with its superclass fields', 'reads Java and Kotlin superclasses'"
   },
   "unit:src/features/logcat/history.test.ts": {
     "status": "done",
@@ -3220,8 +3220,8 @@
     "proof": "`features_a::notebook::outputs::tests`"
   },
   "unit:src/features/notebook/session.test.ts": {
-    "status": "done",
-    "proof": "`features_a::notebook::session::tests`"
+    "status": "partial",
+    "proof": "`features_a::notebook::session::tests`; 16 of 18 cases; added upstream and not covered: 'fetches the code cells' language-server documents when the code cells change', 'asks the editor to show a revealed location'"
   },
   "unit:src/features/todo/PreviewEditor.test.tsx": {
     "status": "partial",
@@ -3304,24 +3304,24 @@
     "proof": "`features_b::dotnet::tests`"
   },
   "unit:src/features/libraries/libraries.test.ts": {
-    "status": "done",
-    "proof": "`features_b::libraries::tests`"
+    "status": "partial",
+    "proof": "`features_b::libraries::tests`; 7 of 8 cases; added upstream and not covered: 'lists SDKs first, then libraries by name, whatever order they were detected in'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/features/macros/model.test.ts": {
     "status": "done",
     "proof": "`features_b::macros::tests`"
   },
   "unit:src/features/mcp/reporters.test.ts": {
-    "status": "done",
-    "proof": "`features_b::mcp::tests`"
+    "status": "partial",
+    "proof": "`features_b::mcp::tests`; 4 of 5 cases; added upstream and not covered: 'reports window focus %s immediately during continuous editing'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/features/perf/__tests__/perf.test.ts": {
     "status": "done",
     "proof": "`features_b::perf::tests`"
   },
   "unit:src/features/profiler/profiler.test.ts": {
-    "status": "done",
-    "proof": "`features_b::profiler::tests`"
+    "status": "partial",
+    "proof": "`features_b::profiler::tests`; 3 of 5 cases; added upstream and not covered: 'offers allocation profiling only for JVM programs', 'formats byte weights with the Memory view's rounding'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/features/remote-dev/ConnectDialog.test.tsx": {
     "status": "done",
@@ -3348,20 +3348,20 @@
     "proof": "`features_b::run_anything::tests`"
   },
   "unit:src/features/ssh/ssh.test.ts": {
-    "status": "done",
-    "proof": "`features_b::ssh::tests`"
+    "status": "partial",
+    "proof": "`features_b::ssh::tests`; 6 of 10 cases; added upstream and not covered: 'classifies what a failed connection needs', 'opens with the saved credentials without asking', 'trusts a new host key and asks for a missing password, then connects', 'stops when a prompt is declined or the error has no remedy'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/features/terminal/session.test.ts": {
-    "status": "done",
-    "proof": "`features_b::terminal::tests`, `terminal::windows_pty::tests::configures_local_terminals_for_the_os_and_build`"
+    "status": "partial",
+    "proof": "`features_b::terminal::tests`, `terminal::windows_pty::tests::configures_local_terminals_for_the_os_and_build`; 16 of 23 cases; added upstream and not covered: 'keeps scrollback when a program erases the viewport with %s', 'keeps scrollback after ConPTY's full-screen row repaint', 'removes prompts left in the viewport after empty commands and cls', 'clears old history in order and retains multi-screen output after a split marker', 'keeps scrollback for partial row erases and alternate-screen redraws' and 2 more; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/features/viewers/file-probe.test.ts": {
     "status": "done",
     "proof": "`features_b::viewers::file_kinds::tests`"
   },
   "unit:src/features/viewers/markdown/mermaid.test.ts": {
-    "status": "done",
-    "proof": "`features_b::viewers::mermaid::tests`"
+    "status": "partial",
+    "proof": "`features_b::viewers::mermaid::tests`; 13 of 20 cases; added upstream and not covered: 'leaves a diagram it already drew in place on the next pass', 'lifts dark-theme shapes off the editor background and paints labels with the foreground', 'records a diagram's natural width so preview font zoom scales it without clamping', 'puts full-screen and download tools on a drawn diagram', 'previews a diagram over the window and closes on Escape' and 2 more"
   },
   "unit:src/features/viewers/markdown/previewDetails.test.tsx": {
     "status": "done",
@@ -3376,16 +3376,16 @@
     "proof": "`features_b::viewers::preview_host::tests`, `workbench::tests::a_markdown_file_opens_as_text_with_its_layouts_and_a_preview_that_follows_the_typing`"
   },
   "unit:src/features/viewers/markdown/render.test.ts": {
-    "status": "done",
-    "proof": "`features_b::viewers::render::tests`"
+    "status": "partial",
+    "proof": "`features_b::viewers::render::tests`; 16 of 18 cases; added upstream and not covered: 'lets only a link name another host', 'resolves no link to a network share, however the file spells it'"
   },
   "unit:src/features/viewers/markdown/zoom.test.tsx": {
     "status": "partial",
     "proof": "`features_b::viewers::preview_host::tests`, `features_b::viewers::font_zoom::tests`; 1 of 7 cases on the view; the preview's font zoom is not wired"
   },
   "unit:src/features/viewers/viewers.test.ts": {
-    "status": "done",
-    "proof": "`features_b::viewers::file_kinds::tests`, `features_b::viewers::hex::tests`, `features_b::viewers::image_zoom::tests`"
+    "status": "partial",
+    "proof": "`features_b::viewers::file_kinds::tests`, `features_b::viewers::hex::tests`, `features_b::viewers::image_zoom::tests`; 11 of 12 cases; added upstream and not covered: 'matches files opened with an associated application'"
   },
   "unit:src/features/vcs/__tests__/diffDialog.test.tsx": {
     "status": "done",
@@ -3401,11 +3401,11 @@
   },
   "unit:src/features/settings/__tests__/dialog.test.tsx": {
     "status": "partial",
-    "proof": "`settings_view::dialog::tests`, `settings_view::keymap::tests`, `settings_model::builtin_pages::tests`, `workbench::tests::settings_searches_the_pages_applies_a_ticked_checkbox_and_ok_closes`, `workbench::tests::settings_cancel_after_an_edit_writes_nothing`, `workbench::tests::settings_write_the_project_layer_under_this_project_and_the_global_one_under_global`, `workbench::tests::settings_keymap_assigns_a_recorded_shortcut_that_the_keymap_then_resolves`, `settings_view::custom_controls::tests::a_stored_attach_for_open_project_in_shows_ask`, `settings_model::builtin_pages::tests::offers_only_new_window_current_window_and_ask_including_old_attach_settings`, `workbench::tests::proofs22_settings_units::stages_properties_conversion_and_applies_the_checkbox`, `workbench::tests::proofs22_settings_units::edits_cmake_profiles_in_project_settings_and_persists_them_on_apply`, `workbench::tests::proofs22_settings_units::finds_gradle_jvm_and_applies_project_gradle_settings`, `workbench::tests::proofs22_settings_units::persists_maven_toolchains_and_profiles_in_project_settings`, `workbench::tests::proofs22_settings_units::finds_the_maven_active_profiles_setting`, `workbench::tests::proofs22_settings_units::finds_the_maven_toolchains_setting`, `settings_view::dialog::tests::searches_pages_and_highlights_matching_option_labels`, `settings_view::dialog::tests::esc_in_the_search_field_clears_the_filter_first_and_down_selects_the_next_page`, `settings_view::dialog::tests::stages_edits_and_writes_them_on_apply`, `settings_view::custom_controls::tests::editor_font_family_and_weight_apply_and_cancel_discards`, `settings_view::dialog::tests::keeps_global_and_project_font_edits_separate_when_switching_scope`, `workbench::tests::proofs22_settings_units::enables_saves_and_clears_the_custom_ui_fallback_font`, `settings_view::dialog::tests::enables_apply_and_reset_for_a_secret_only_edit_and_reset_discards_it`, `settings_view::dialog::tests::cancel_discards_staged_edits`, `settings_view::keymap::tests::records_a_shortcut_shows_conflicts_and_applies_it_to_the_keymap_on_ok`, `settings_view::keymap::tests::opens_the_shortcut_menu_on_double_click_and_clears_mouse_recording_mode`, `settings_view::keymap::tests::opens_the_shortcut_menu_on_enter_and_clears_mouse_recording_mode`, `settings_view::keymap::tests::duplicates_the_keymap_from_the_gear_menu_and_edits_the_copy`, `settings_view::dialog::tests::edit_the_project_first_global_shows_and_writes_the_global_layer`, `workbench::tests::proofs19_settings_languages::java_level_and_shared_jdt_ls_apply_and_reset_discards_jvm_options`, `workbench::tests::proofs22_settings_units::keeps_the_global_shared_jdt_ls_preference_separate_from_the_projects_override`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`, `settings_view::pages::languages_controls::tests::proofs22_language_controls::disables_shared_jdt_ls_only_in_a_native_workspaces_project_scope`, `workbench::tests::proofs22_settings_units::disables_sharing_for_a_java_language_server_target_only_in_project_scope`, `workbench::tests::proofs22_settings_units::keeps_sharing_available_when_java_runs_locally`, `workbench::tests::proofs22_settings_units::uses_a_staged_project_java_language_server_target_before_apply`, `settings_view::dialog::tests::settings_for_new_projects_edits_the_global_layer_on_every_page`, `workbench::tests::proofs22_settings_units::keeps_object_settings_stable_when_child_keys_are_staged`, `settings_view::dialog::tests::survives_invalid_settings_values`, `settings_view::pages::build_run_targets::proofs30_run_targets_view::uses_the_attached_primary_name_for_run_target_paths`; 30 of 41 cases (16 by earlier tests, 14 new), 2 plumbing (the separate Settings window's Linux edge class and the hex colour sent to windowOpenSettings). Missing (9): the editor.encodings.toggleNativeToAscii action is not registered (nativeToAscii.ts:6-10); Editor › Font has no preview, so the CJK fallback, Typography weights and custom weights cases lack their preview assertions (font.tsx:155-175); no Project Structure dialog (ProjectStructurePage.tsx: own dialog, pending edits, disabled controls, module source tree, module labels and artifact defaults)"
+    "proof": "`settings_view::dialog::tests`, `settings_view::keymap::tests`, `settings_model::builtin_pages::tests`, `workbench::tests::settings_searches_the_pages_applies_a_ticked_checkbox_and_ok_closes`, `workbench::tests::settings_cancel_after_an_edit_writes_nothing`, `workbench::tests::settings_write_the_project_layer_under_this_project_and_the_global_one_under_global`, `workbench::tests::settings_keymap_assigns_a_recorded_shortcut_that_the_keymap_then_resolves`, `settings_view::custom_controls::tests::a_stored_attach_for_open_project_in_shows_ask`, `settings_model::builtin_pages::tests::offers_only_new_window_current_window_and_ask_including_old_attach_settings`, `workbench::tests::proofs22_settings_units::stages_properties_conversion_and_applies_the_checkbox`, `workbench::tests::proofs22_settings_units::edits_cmake_profiles_in_project_settings_and_persists_them_on_apply`, `workbench::tests::proofs22_settings_units::finds_gradle_jvm_and_applies_project_gradle_settings`, `workbench::tests::proofs22_settings_units::persists_maven_toolchains_and_profiles_in_project_settings`, `workbench::tests::proofs22_settings_units::finds_the_maven_active_profiles_setting`, `workbench::tests::proofs22_settings_units::finds_the_maven_toolchains_setting`, `settings_view::dialog::tests::searches_pages_and_highlights_matching_option_labels`, `settings_view::dialog::tests::esc_in_the_search_field_clears_the_filter_first_and_down_selects_the_next_page`, `settings_view::dialog::tests::stages_edits_and_writes_them_on_apply`, `settings_view::custom_controls::tests::editor_font_family_and_weight_apply_and_cancel_discards`, `settings_view::dialog::tests::keeps_global_and_project_font_edits_separate_when_switching_scope`, `workbench::tests::proofs22_settings_units::enables_saves_and_clears_the_custom_ui_fallback_font`, `settings_view::dialog::tests::enables_apply_and_reset_for_a_secret_only_edit_and_reset_discards_it`, `settings_view::dialog::tests::cancel_discards_staged_edits`, `settings_view::keymap::tests::records_a_shortcut_shows_conflicts_and_applies_it_to_the_keymap_on_ok`, `settings_view::keymap::tests::opens_the_shortcut_menu_on_double_click_and_clears_mouse_recording_mode`, `settings_view::keymap::tests::opens_the_shortcut_menu_on_enter_and_clears_mouse_recording_mode`, `settings_view::keymap::tests::duplicates_the_keymap_from_the_gear_menu_and_edits_the_copy`, `settings_view::dialog::tests::edit_the_project_first_global_shows_and_writes_the_global_layer`, `workbench::tests::proofs19_settings_languages::java_level_and_shared_jdt_ls_apply_and_reset_discards_jvm_options`, `workbench::tests::proofs22_settings_units::keeps_the_global_shared_jdt_ls_preference_separate_from_the_projects_override`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`, `settings_view::pages::languages_controls::tests::proofs22_language_controls::disables_shared_jdt_ls_only_in_a_native_workspaces_project_scope`, `settings_view::dialog::tests::settings_for_new_projects_edits_the_global_layer_on_every_page`, `workbench::tests::proofs22_settings_units::keeps_object_settings_stable_when_child_keys_are_staged`, `settings_view::dialog::tests::survives_invalid_settings_values`, `settings_view::pages::build_run_targets::proofs30_run_targets_view::uses_the_attached_primary_name_for_run_target_paths`; 27 of 40 cases (upstream's 2b80c7531 removed the three Java language server target cases, covered before), 2 plumbing (the separate Settings window's Linux edge class and the hex colour sent to windowOpenSettings). Missing (11): added upstream and not covered: 'selects the page a search names over pages that mention it', 'keeps Project Structure out of the Settings page tree'; the editor.encodings.toggleNativeToAscii action is not registered (nativeToAscii.ts:6-10); Editor › Font has no preview, so the CJK fallback, Typography weights and custom weights cases lack their preview assertions (font.tsx:155-175); no Project Structure dialog (ProjectStructurePage.tsx: own dialog, pending edits, disabled controls, module source tree, module labels and artifact defaults)"
   },
   "unit:src/features/debugger/__tests__/toolWindow.test.tsx": {
-    "status": "done",
-    "proof": "`debugger::window_view::tests`, `workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`"
+    "status": "partial",
+    "proof": "`debugger::window_view::tests`, `workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`; 8 of 22 cases; added upstream and not covered: 'evaluates expressions in the variable field and dialog under %s', 'shows the Memory tab only for sessions with jvmMemory', 'shows the Memory tab for a java-debug attach session', 'shows the Memory tab of a JVM session while it starts, before its capabilities arrive', 'keeps the Memory tab selected when the session pauses' and 9 more"
   },
   "action:vcs.showDiff": {
     "status": "partial",
@@ -3496,12 +3496,12 @@
     "proof": "`vcs::branches_popup::tests`"
   },
   "unit:src/features/vcs/__tests__/promptDialog.test.tsx": {
-    "status": "done",
-    "proof": "`vcs::prompt_dialogs::tests`"
+    "status": "partial",
+    "proof": "`vcs::prompt_dialogs::tests`; 3 of 8 cases; added upstream and not covered: 'selects the prefilled value so typing replaces it', 'leaves an empty field alone', 'keeps the caret when an edited field is programmatically focused again', 'is offered unchecked and reported back', 'is missing when the branch tracks nothing'"
   },
   "unit:src/features/vcs/__tests__/multiPushTarget.test.tsx": {
-    "status": "done",
-    "proof": "`vcs::prompt_dialogs::tests`"
+    "status": "partial",
+    "proof": "`vcs::prompt_dialogs::tests`; 1 of 7 cases; added upstream and not covered: 'lists every repository on Push all, checks those with commits, expands none and shows no files', 'shows only the repository Push was invoked from without a checkbox, its files shown at once', 'asks to confirm each forced target and pushes nothing when one is declined', 'force pushes with lease once every target is confirmed', 'does not ask about a protected target, which is never forced' and 1 more"
   },
   "unit:src/features/vcs/__tests__/mergeRebaseWidget.test.tsx": {
     "status": "done",
@@ -4004,24 +4004,24 @@
     "proof": "`workbench::tests::go_to_declaration_without_a_server_finds_a_local_through_the_syntax_tree`"
   },
   "unit:src/features/code-insight/ServerStatus.test.tsx": {
-    "status": "done",
-    "proof": "`code_insight::server_status::tests`"
+    "status": "partial",
+    "proof": "`code_insight::server_status::tests`; 3 of 5 cases; added upstream and not covered: 'checks again for a missing server installed outside the IDE', 'restarts a server that is still starting (an import can take minutes)'"
   },
   "unit:src/features/code-insight/hierarchy.test.ts": {
-    "status": "done",
-    "proof": "`code_insight::hierarchy::tests`"
+    "status": "partial",
+    "proof": "`code_insight::hierarchy::tests`; 6 of 12 cases; added upstream and not covered: 'loads each shown type's level ahead, so a type without subtypes shows no expand arrow', 'builds subtypes from the graph when the server answers unavailable', 'merges a Python server's partial answer with the graph (attached project)', 'builds the supertype chain from the graph, each node expanding on demand', 'clears the tree and hides the tool window' and 1 more"
   },
   "unit:src/features/code-insight/problemsReport.test.ts": {
     "status": "done",
     "proof": "`code_insight::problems_report::tests`"
   },
   "unit:src/features/code-insight/problemsStore.test.ts": {
-    "status": "done",
-    "proof": "`code_insight::problems::tests`"
+    "status": "partial",
+    "proof": "`code_insight::problems::tests`; 7 of 10 cases; added upstream and not covered: 'follows a non-text tab such as a notebook, else the text editor', 'includes a notebook's cell documents', 'lists errors before warnings with their places, leaving out hints, up to a limit'"
   },
   "unit:src/features/code-insight/servers.test.ts": {
-    "status": "done",
-    "proof": "`code_insight::servers::tests`"
+    "status": "partial",
+    "proof": "`code_insight::servers::tests`; 4 of 8 cases; added upstream and not covered: 'says a missing server is still not installed when checking again finds nothing', 'names a server by the program that serves in its place', 'shows a running server busy only once it stays busy', 'covers files of its languages below its configuration while it runs'"
   },
   "unit:src/features/code-insight/syntaxUsages.test.ts": {
     "status": "done",
@@ -4036,12 +4036,12 @@
     "proof": "`code_insight::usages::tests`, `code_insight::usages_view::tests::proofs26_usage_preview::colours_the_usage_line_with_its_file_as_context`, `code_insight::usages_view::tests::proofs26_usage_preview::keeps_comment_colours_outside_the_match_and_the_search_foreground_inside_it`, `code_insight::usages_view::tests::shows_a_plain_count_for_unclassified_searches_after_a_java_access_mode_was_selected`; 3 of 3 cases by name. Missing: the two colour cases fill the row's colours directly, so they prove the view, not the backend's read of the file's highlights (seen only in the real window)"
   },
   "unit:src/features/code-insight/usageResults.test.ts": {
-    "status": "done",
-    "proof": "`code_insight::usage_search::tests`, `code_insight::usages::tests`"
+    "status": "partial",
+    "proof": "`code_insight::usage_search::tests`, `code_insight::usages::tests`; 7 of 10 cases; added upstream and not covered: 'asks the server only once the editor's edits reached it', 'still searches, and says plugin usages may be missing', 'take the tool window and its stripe button away with the last one'"
   },
   "unit:src/features/code-insight/usagesPopup.test.tsx": {
-    "status": "done",
-    "proof": "`code_insight::usages_popup::tests`, `code_insight::usages::tests`, `code_insight::usage_search::tests`"
+    "status": "partial",
+    "proof": "`code_insight::usages_popup::tests`, `code_insight::usages::tests`, `code_insight::usage_search::tests`; 15 of 16 cases; added upstream and not covered: 'says at the caret that it is searching until the popup shows'"
   },
   "unit:src/features/code-insight/views.test.ts": {
     "status": "done",
@@ -4523,19 +4523,19 @@
     "status": "done",
     "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`; the session finishes with exit code 0, which only RunExited sets (run/driver.rs backend_event)"
   },
-  "action:(dynamic) src/features/plugins/points.tsx:199": {
+  "action:(dynamic) src/features/plugins/points.tsx:200": {
     "status": "done",
     "proof": "`plugins::tests::a_plugins_command_is_refused_on_a_file_of_its_own_and_runs_its_wasm_in_a_trusted_project`, `workbench::plugin_contributions::tests::untrusted_windows::a_plugin_command_run_as_an_action_is_refused_in_restricted_mode_and_runs_once_trusted`; a linked, consented plugin's command becomes a registered action (title, category) before its code loads and is unavailable without an editor; run through the registry in a single-file window or in Restricted Mode it is refused with the error notification <title> failed carrying the guard's reason, rewrites nothing and loads no code, and in a trusted project's window it rewrites the editor's selection and activates the plugin"
   },
-  "action:(dynamic) src/features/search/index.ts:476": {
+  "action:(dynamic) src/features/search/index.ts:484": {
     "status": "done",
     "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; the per-digit ids come from one loop (workbench/mod.rs:652), and the test runs navigate.toggleBookmark7 through the registry and asserts the bookmark gets mnemonic 7"
   },
-  "action:(dynamic) src/features/search/index.ts:486": {
+  "action:(dynamic) src/features/search/index.ts:494": {
     "status": "done",
     "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; the per-digit ids come from one loop (workbench/mod.rs:662), and the test runs navigate.gotoBookmark7 through the registry and asserts the caret lands on that bookmark in the other file"
   },
-  "action:(dynamic) src/workbench/toolwindows/actions.ts:160": {
+  "action:(dynamic) src/workbench/toolwindows/actions.ts:186": {
     "status": "done",
     "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`, `workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`, `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; the per-window ids come from one loop over the declared tool windows (workbench/mod.rs:519); the tests run them by keystroke (Cmd-1) and through the registry and assert the window shown, hidden and focused"
   },
@@ -5519,7 +5519,7 @@
     "status": "done",
     "proof": "`workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`, `run::store::tests::reads_the_http_port_of_a_started_server`, `run_testing::services::tests::reads_the_port_from_the_started_line`; the startup lines of Tomcat, Netty, Undertow and Jetty give the port and other lines none; a real process printing Tomcat started on port 8123 shows :8123 on its Services row"
   },
-  "action:(dynamic) src/workbench/toolwindows/actions.ts:247": {
+  "action:(dynamic) src/workbench/toolwindows/actions.ts:303": {
     "status": "done",
     "proof": "`workbench::tests::proofs_tool_windows::resize_up_and_down_move_a_bottom_tool_windows_edge`, `workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`; Stretch to Left and Right resize a side tool window, Stretch to Top and Bottom move the focused Run window's edge and back"
   },
@@ -5583,7 +5583,7 @@
     "status": "done",
     "proof": "`find::popup_view::tests::proofs_editor_project_masks::the_masks_list_offers_the_projects_most_common_language_file_types_after_the_recent_ones`; the masks list leaves out the project's most numerous extension because no language claims it; the native path reads host.languages.all(), the same LanguageRegistry the adapter's state.languages.all() reads (the adapter is not an ide_host::ops function)"
   },
-  "point.registerKeyClaim:(at) src/features/run/ConsoleView.tsx:346": {
+  "point.registerKeyClaim:(at) src/features/run/ConsoleView.tsx:362": {
     "status": "done",
     "proof": "`workbench::tests::proofs_editor_actions_run_console::the_run_consoles_find_bar_keeps_its_keys_from_the_ide_keymap`; while the console's find field has the keyboard F3 and Cmd+G go to the next match without toggling a bookmark, Cmd+E opens no Recent Files, and Escape closes the bar with the keyboard back in the console"
   },
@@ -5695,9 +5695,9 @@
     "status": "done",
     "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the webview's IDE mode choice: its controls are those of the webview's page, all drawn natively; the test changes one with the mouse and reads the stored value back after Apply"
   },
-  "settings:tools.agents.chat": {
-    "status": "done",
-    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the webview's four checkboxes: its controls are those of the webview's page, all drawn natively; the test changes one with the mouse and reads the stored value back after Apply"
+  "settings:agents.chat": {
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the four checkboxes of Shown in the Task Header are drawn natively and the test changes one with the mouse and reads the stored value back after Apply. Missing: upstream (9e46d61dc) renamed the page from tools.agents.chat under Tools › Agents to agents.chat in the Agents group, and the native app still has it at the old id and place; the native page lacks the nine controls upstream added (New tasks start, Send messages with, While the agent works sending, Fold a finished turn's work, Tool calls, Reasoning, Show tool output without opening it, Reveal streaming text smoothly, Fit conversation to the window width; no native file names their keys agents.newTaskApprovals … agents.fitWindowWidth)"
   },
   "settings:vcs.shelf": {
     "status": "done",
@@ -5723,9 +5723,9 @@
     "status": "done",
     "proof": "`settings_view::custom_controls::tests::terminal_environment_cursor_and_shell_apply`, `settings_view::custom_controls::tests::the_login_shell_is_read_after_the_dialog_opens`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; every control of the page is drawn; the tests operate some of its own controls and the others were compared with the original page by reading"
   },
-  "settings:tools.mcpServer": {
+  "settings:agents.mcpServer": {
     "status": "partial",
-    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; Endpoint say This page is not available yet"
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; Endpoint say This page is not available yet. Missing: upstream (9e46d61dc, fe69210ef) renamed the page from tools.mcpServer (Tools, MCP Server) to agents.mcpServer (Agents, IDE MCP Server) and the native app still has the old id, title and place; the native page lacks the options upstream added (Run tools without confirmation, Listen address, Use a fixed port, Port, Keep the token, Finished agent tabs to show, Archived agent tabs to keep: no native file names their mcpServer.* keys) and the token regeneration"
   },
   "settings:vcs.commit": {
     "status": "done",
@@ -5851,7 +5851,7 @@
     "status": "done",
     "proof": "`workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`, `workbench::plugin_runtime::tests::proofs10_host_ui::a_status_item_set_for_one_window_stays_out_of_another_window`; the window hears the host's events through the app's listener, filtered by its label, in place of a channel per window; a window-scoped item set for w1 never reaches a second window, which shows the global item set afterwards"
   },
-  "point.registerMenuSlotItem:(at) src/features/plugins/uiPoints.tsx:177": {
+  "point.registerMenuSlotItem:(at) src/features/plugins/uiPoints.tsx:180": {
     "status": "done",
     "proof": "`workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`; Tools lists the plugin's entries in order, greyed out while their command's when fails and enabled once it holds, and the chosen entry runs the command in the editor"
   },
@@ -5859,7 +5859,7 @@
     "status": "partial",
     "proof": "`workbench::plugin_contributions::tests::the_context_menus_offer_plugin_entries_where_their_when_holds_and_run_them`, `workbench::context_menus::tests::a_plugins_editor_menu_entries_appear_under_their_submenu_and_run`, `workbench::context_menus::tests::a_plugins_find_results_entry_shows_only_while_its_when_holds`, `workbench::context_menus::tests::proofs16_menus::a_plugins_editor_tab_entry_is_offered_in_the_tabs_menu_and_runs_its_command`; the Project view's menu offers the plugin's entry after Delete… once its when holds and runs it; the editor's menu shows the plugin's entries after Send to Agent, two entries naming one submenu under it with the one whose command cannot run greyed out, and runs the chosen one; the Find results' menu shows its entry only while its when holds and runs it with the match's path, line and column. The editor tab menu offers a plugin's entry and runs its command. Missing: no test opens the Problems menu, and Open With › for the plugins' custom editors is not built"
   },
-  "point.registerStatusItem:(at) src/features/plugins/runtimeUi.tsx:159": {
+  "point.registerStatusItem:(at) src/features/plugins/runtimeUi.tsx:164": {
     "status": "done",
     "proof": "`workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`; declared items show before the code runs, named after the plugin in the bar's menu, a click runs the item's command, and items the code sets, overrides for this window and removes show as set"
   },
@@ -5875,11 +5875,11 @@
     "status": "partial",
     "proof": "`workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`, `plugin_views::log_tab::tests`, `workbench::plugin_runtime::tests::proofs16_runtime::keeps_a_plugin_log_tab_and_its_program_while_another_tab_is_shown`; a log tab opened by plugin code shows its program's output, its toggles restart the program, Clear and Soft-wrap work. The tab and its program stay while another tab is shown. Missing: Find in Logs"
   },
-  "settings:(at) src/features/plugins/settings.tsx:327": {
+  "settings:(at) src/features/plugins/settings.tsx:376": {
     "status": "partial",
     "proof": "`workbench::plugin_contributions::tests::a_plugins_settings_page_saves_its_value_and_the_plugin_hears_the_change`, `plugin_views::settings_page::tests::preserves_the_legacy_single_schema_page`; file.settings opens the plugin's page, a ticked setting saved with OK is in the global settings and the plugin hears settings-changed with its key. Missing: the This project scope of the page has no test, and multi-line strings are edited on one line"
   },
-  "settings:(at) src/features/plugins/settings.tsx:337": {
+  "settings:(at) src/features/plugins/settings.tsx:386": {
     "status": "partial",
     "proof": "`workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`, `plugin_views::settings_page::tests::stages_table_edits_and_discards_them_on_cancel`, `plugin_views::settings_page::tests::adds_edits_reorders_and_removes_list_entries`; the plugin's page links its child pages, a child page's table rows are added and staged, and its action applies them before the command reads them, with the error shown under the button. Missing: Reset per page, the project scope, and an apply that fails before the command"
   },
@@ -5979,7 +5979,7 @@
     "status": "partial",
     "proof": "`workbench::project_view_actions::tests::proofs7_project_menu::add_bookmark_in_a_folders_project_view_menu_bookmarks_the_folder`, `workbench::context_menus::tests::the_tab_menus_bookmark_row_bookmarks_the_file_of_that_tab`, `workbench::context_menus::tests::the_tab_menu_acts_on_the_tab_it_was_opened_on`; the editor tab's menu bookmarks the file of its tab, and a folder's Project view menu bookmarks the folder as a folder and then offers Remove Bookmark, which removes it. Missing: the Project view has a single selection, so several paths at once are not bookmarked, and the row is greyed out without a project where the webview's row looks enabled and runs nothing"
   },
-  "point.registerMenuSlotItem:(at) src/features/plugins/uiPoints.tsx:182": {
+  "point.registerMenuSlotItem:(at) src/features/plugins/uiPoints.tsx:185": {
     "status": "partial",
     "proof": "`workbench::context_menus::tests::renders_toolbar_slots_with_command_icons_and_honors_when_clauses`, `workbench::context_menus::tests::a_plugins_editor_menu_entries_appear_under_their_submenu_and_run`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_main_toolbar_entry_is_a_title_bar_button_that_runs_its_command`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_commit_message_entry_is_a_button_of_the_commit_message_toolbar`; a plugin's editor.title, mainToolbar and commit.message entries are buttons of the tab strip, the title bar and the commit message toolbar that run their command, and an entry whose when fails has no button until it holds. Missing: a button without an action icon falls back to the plugin icon instead of the plugin's own"
   },
@@ -6477,7 +6477,7 @@
   },
   "action:layout.restoreDefault": {
     "status": "done",
-    "proof": "`workbench::app_actions::tests::saves_and_restores_visible_windows_and_sizes_by_name`, `workbench::app_actions::tests::the_restore_default_layout_key_works_only_with_a_project`; through the registry and by its key (Shift-F12) it shows the default layout and clears the active name; without a project the key does nothing and the action is unavailable"
+    "proof": "`workbench::app_actions::tests::saves_and_restores_visible_windows_and_sizes_by_name`, `workbench::app_actions::tests::restore_default_layout_works_only_with_a_project`; through the registry it shows the default layout and clears the active name; without a project the action is unavailable and nothing is restored. Upstream (460027fd4) moved Shift-F12 to layout.restoreCurrent: this action has no key in any preset at v0.1.46 (keymaps and app-gpui/assets/gen/keymaps.json bind it to nothing)"
   },
   "action:layout.rename": {
     "status": "partial",
@@ -6711,7 +6711,7 @@
     "status": "done",
     "proof": "`workbench::terminal_actions::tests::close_session_asks_before_terminating_a_running_command_and_closes_an_idle_shell_at_once`, `workbench::terminal_actions::tests::proofs15_terminal::close_session_asks_before_ending_a_shell_whose_foreground_runs_a_command`; Close Terminal Session on an idle shell asks ide_host::ops::term::is_busy, the same Terminals::is_busy the adapter calls, and closes the tab without a question. A shell whose foreground runs a command answers busy and the close asks first"
   },
-  "point.registerUndoHandler:(at) src/features/project-tree/index.ts:209": {
+  "point.registerUndoHandler:(at) src/features/project-tree/index.ts:242": {
     "status": "partial",
     "proof": "`workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`, `workbench::project_view_actions::tests::proofs20_tree::undo_in_the_project_view_takes_back_its_last_move_and_rename`; Edit › Undo (edit.undo) while the Project view has the keyboard brings its last deleted file back from Local History and selects it. Undo also takes back the view's last move and its last rename. Missing: ⌘Z pressed in the tree (the tests run edit.undo through the registry)"
   },
@@ -6919,7 +6919,7 @@
     "status": "partial",
     "proof": "`workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`; the status bar shows Next / Previous Occurrence's 1 of 3, a newer message replaces it and it goes after eight seconds. Missing: nothing else feeds it (the webview's debugger, Vim and Stop Background Processes messages), and it is not shown in a light-edit window"
   },
-  "point.registerOccurrenceNavigator:(at) src/workbench/contributions.ts:1362": {
+  "point.registerOccurrenceNavigator:(at) src/workbench/contributions.ts:1628": {
     "status": "partial",
     "proof": "`workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`, `workbench::editor_extras::tests::the_occurrence_keys_do_nothing_without_a_project`, `workbench::editor_extras::tests::levels_and_choosers::next_and_previous_occurrence_step_the_usages_and_say_which_of_how_many`; Next / Previous Occurrence step the Problems, TODO and Find Usages tool windows, in the order focused, last active, last used, visible, and Find Usages says which of how many. Missing: the navigators are a fixed list (Usages, Problems, TODO), not registered by the views; Find, Inspection and Hierarchy have none, and the TODO window's step gives no index and total"
   },
@@ -7523,10 +7523,6 @@
     "status": "none",
     "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
   },
-  "ipc:index_status": {
-    "status": "none",
-    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
-  },
   "ipc:plugin_link": {
     "status": "none",
     "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
@@ -7797,7 +7793,7 @@
   },
   "settings:languages.node": {
     "status": "partial",
-    "proof": "`workbench::tests::proofs19_settings_languages::node_package_manager_is_written_to_the_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`; the Node interpreter and the package manager (with the version and place found, in the open list) are drawn and stored in the project after Apply; Reset and Cancel discard an edit. Missing: the run targets a plugin contributes (Run in target, Language server runs on); Browse… opens the folder prompt without the webview's title and start folder (the platform's prompt takes neither)"
+    "proof": "`workbench::tests::proofs19_settings_languages::node_package_manager_is_written_to_the_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`; the Node interpreter and the package manager (with the version and place found, in the open list) are drawn and stored in the project after Apply; Reset and Cancel discard an edit. Missing: the run targets a plugin contributes (Run in target); Browse… opens the folder prompt without the webview's title and start folder (the platform's prompt takes neither)"
   },
   "settings:languages.oxfmt": {
     "status": "done",
@@ -7805,11 +7801,7 @@
   },
   "settings:languages.php": {
     "status": "partial",
-    "proof": "`workbench::tests::proofs19_settings_languages::php_include_path_and_level_are_written_to_the_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`, `settings_view::pages::languages_controls::tests::the_selected_php_shows_its_version_and_xdebug`, `settings_view::pages::languages_controls::tests::a_stored_target_shows_as_unavailable_and_local_machine_is_staged`; the language level, include paths, stubs, PHPStan file and the interpreter with its version and Xdebug are drawn and stored in the project after Apply; a stored run target that is gone shows as unavailable; Reset and Cancel discard an edit. Missing: the run targets a plugin contributes; Browse… opens the folder prompt without the webview's title and start folder (the platform's prompt takes neither)"
-  },
-  "settings:languages.pluginFormatters": {
-    "status": "partial",
-    "proof": "`workbench::tests::proofs19_settings_languages::plugin_formatters_format_on_save_applies`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`, `settings_view::pages::languages_controls::tests::a_plugin_formatter_is_offered_for_the_languages_it_covers`, `workbench::tests::proofs19_settings_languages::plugin_formatters_offer_a_choice_per_covered_language_and_store_the_pick`; Format on save is stored after Apply and a plugin's formatter is offered for the languages it covers; Reset and Cancel discard an edit. In a project window the page lists one choice per covered language, a pick is stored after Apply and Reset discards a second pick. Missing: the formatters are handed to the page by the test, not read from a loaded plugin (no test runs the backend's list), and the extra choice for a stored formatter that no plugin offers is not proven through the page"
+    "proof": "`workbench::tests::proofs19_settings_languages::php_include_path_and_level_are_written_to_the_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`, `settings_view::pages::languages_controls::tests::the_selected_php_shows_its_version_and_xdebug`; the language level, include paths, stubs, PHPStan file and the interpreter with its version and Xdebug are drawn and stored in the project after Apply; Reset and Cancel discard an edit. Missing: the run targets a plugin contributes; Browse… opens the folder prompt without the webview's title and start folder (the platform's prompt takes neither)"
   },
   "settings:languages.prettier": {
     "status": "done",
@@ -7819,17 +7811,13 @@
     "status": "partial",
     "proof": "`workbench::tests::proofs19_settings_languages::ruby_interpreter_is_written_to_the_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`; the interpreter is chosen and stored in the project after Apply; Reset and Cancel discard an edit. Missing: Browse… opens the folder prompt without the webview's title and start folder (the platform's prompt takes neither)"
   },
-  "settings:languages.ruff": {
+  "settings:python.ruff": {
     "status": "partial",
-    "proof": "`workbench::tests::proofs19_settings_languages::ruff_configuration_directory_is_chosen_with_browse_and_written_to_the_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`; the configuration directory is chosen with Browse… and stored in the project after Apply; Reset and Cancel discard an edit. Missing: Browse… opens the folder prompt without the webview's title and start folder (the platform's prompt takes neither)"
+    "proof": "`workbench::tests::proofs19_settings_languages::ruff_configuration_directory_is_chosen_with_browse_and_written_to_the_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`; the configuration directory is chosen with Browse… and stored in the project after Apply; Reset and Cancel discard an edit. Missing: Browse… opens the folder prompt without the webview's title and start folder (the platform's prompt takes neither); upstream (bff6a12e2) renamed the page to python.ruff and the native app still has it as languages.ruff"
   },
   "settings:languages.rust": {
     "status": "partial",
     "proof": "`workbench::tests::proofs19_settings_languages::rust_linter_and_rustfmt_arguments_apply_and_reset_and_cancel_discard`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`; the toolchain, the linter and the rustfmt arguments are drawn and stored after Apply; Reset and Cancel discard an edit. Missing: Browse… opens the folder prompt without the webview's title and start folder (the platform's prompt takes neither)"
-  },
-  "settings:languages.serverTargets": {
-    "status": "partial",
-    "proof": "`workbench::tests::proofs19_settings_languages::language_server_targets_local_machine_is_written_to_the_project`, `workbench::tests::proofs19_settings_languages::language_server_targets_are_not_editable_without_a_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`; Local machine is stored in the project after Apply and the page is not editable without a project; Reset and Cancel discard an edit. Missing: the run targets a plugin contributes"
   },
   "settings:languages.typescript": {
     "status": "partial",
@@ -7850,10 +7838,6 @@
   "unit:src/features/settings/__tests__/cmakeEditor.test.tsx": {
     "status": "done",
     "proof": "`workbench::tests::proofs22_settings_units::round_trips_spaces_quotes_and_empty_values_in_the_cmake_and_build_arguments`, `workbench::tests::proofs22_settings_units::displays_each_profiles_arguments_when_switching_profiles`; 2 of 2 cases through Settings in a project: the stored CMake and build arguments (spaces, quotes, an empty word, a backslash path) are shown as a command line that reads back as the same words, text typed stays as typed and is staged as its words, and Settings reopened shows the words applied; switching profiles after an unfinished quote shows the other profile's arguments"
-  },
-  "unit:src/features/settings/__tests__/languageServerTargets.test.tsx": {
-    "status": "partial",
-    "proof": "`workbench::tests::proofs19_settings_languages::language_server_targets_are_not_editable_without_a_project`; 1 of 2 cases: without a project the choice is shown but not editable. Missing: plugin run targets are not offered (ServerTargetView::target_choices lists the host and a stored target only), so an unmapped target cannot be shown disabled with 'Requires a container root for path mapping' and a mapped one cannot be chosen with its server (LanguageServerTarget.tsx:33,44-45)"
   },
   "unit:src/features/settings/__tests__/mavenRunner.test.tsx": {
     "status": "done",
