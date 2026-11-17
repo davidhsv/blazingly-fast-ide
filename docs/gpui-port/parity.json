@@ -1336,8 +1336,8 @@
     "proof": "`settings_model::runtime::tests`"
   },
   "unit:src/features/settings/__tests__/inspections.test.ts": {
-    "status": "done",
-    "proof": "`settings_model::inspections_model::tests`"
+    "status": "partial",
+    "proof": "`settings_model::inspections_model::tests::list_each_plugin_by_name_under_plugins_from_seen_codes_and_stored_overrides`, `settings_model::inspections_model::tests::list_each_identifier_below_phpstan_from_seen_codes_and_stored_overrides`, `settings_model::inspections_model::tests::filters_by_name_code_and_group_keeping_ancestors`, `settings_model::inspections_model::tests::derives_tri_state_checkboxes_and_toggles_whole_subtrees`, `settings_model::inspections_model::tests::keeps_an_inspection_that_is_off_by_default_off_until_turned_on`, `settings_model::inspections_model::tests::keeps_severity_and_enabled_overrides_independent`, `settings_model::inspections_model::tests::registers_as_editor_inspections`, `settings_model::inspections_model::tests::copies_at_either_level_and_selects_the_copy`, `settings_model::inspections_model::tests::renames_and_deletes_copies_only`, `settings_model::inspections_model::tests::registers_natural_languages_spelling_under_editor`, `settings_model::inspections_model::tests::stores_typo_options_apart_from_defaults_and_keeps_them_through_validation`, `settings_model::inspections_model::tests::opens_settings_on_an_inspection_ancestors_to_expand`, `settings_model::staging::tests::opens_settings_on_an_inspection_page_and_id`; 12 of 13 cases; not covered: groups servers by language with seen and configured codes, built-ins by category; no Gherkin inspection group and no Python built-in class-rule inspections natively"
   },
   "unit:src/features/settings/__tests__/keymap.test.ts": {
     "status": "partial",
@@ -1392,8 +1392,8 @@
     "proof": "`templates::files_model::tests`, `templates::files_builtins::tests`, `templates::files_create::tests`, `templates::files_model::tests::an_extension_that_is_not_a_plain_extension_plans_no_file`; every case on the model; the app reaches only the check of a template's extension (the Settings page and the store): planning and rendering a file are not reached until New from Template is wired"
   },
   "unit:src/features/templates/__tests__/live.test.ts": {
-    "status": "done",
-    "proof": "`templates::live_model::tests`, `templates::live_builtins::tests`, `templates::live_store::tests`"
+    "status": "partial",
+    "proof": "`templates::live_model::tests::splits_variables_end_selection_and_double_dollar`, `templates::live_model::tests::evaluates_calls_literals_and_references`, `templates::live_model::tests::formats_dates`, `templates::live_model::tests::numbers_stops_links_repeats_and_ends_at_end`, `templates::live_model::tests::appends_the_final_caret_when_end_is_missing`, `templates::live_model::tests::inlines_skip_if_defined_values_and_keeps_empty_ones_as_stops`, `templates::live_model::tests::flags_complete_on_the_first_stop`, `templates::live_model::tests::flags_completing_stops_in_tab_order`, `templates::live_model::tests::indents_selection_lines_relative_to_the_template`, `templates::live_model::tests::escapes_braces_from_selections_and_predefined_values`, `templates::live_builtins::tests::filters_by_context_and_scope`, `templates::live_builtins::tests::ships_the_requested_built_ins`, `templates::live_builtins::tests::writes_php_variables_with_their_dollar`, `templates::live_store::tests::merges_user_edits_deletions_and_user_templates`, `templates::editor_context::tests::finds_enclosing_class_and_method_via_the_syntax_tree`, `templates::editor_context::tests::falls_back_to_text_scanning_without_a_parser`, `templates::editor_context::tests::binds_file_and_comment_functions`, `templates::editor_context::tests::suggests_variable_names`; 17 of 18 cases; not covered: ships the requested built-ins; no Zig live templates natively"
   },
   "unit:src/features/templates/__tests__/pluginPackages.test.ts": {
     "status": "partial",
@@ -1468,8 +1468,8 @@
     "proof": "`run::jvm_targets::tests::finds_a_spring_boot_main_with_annotations_on_earlier_lines`, `run::jvm_targets::tests::ignores_non_main_methods_named_main_and_java_25_instance_mains_count`, `run::jvm_targets::tests::finds_junit_tests_nested_classes_and_multi_line_annotations`, `run::jvm_targets::tests::treats_the_public_void_methods_of_a_testng_class_level_test_as_tests`, `run::jvm_targets::tests::is_the_first_top_level_class_interface_enum_record_or_annotation_with_the_package`, `run::jvm_targets::tests::top_level_main_runs_the_file_facade_objects_and_companions_with_jvm_static`, `run::jvm_targets::tests::finds_backticked_test_names`, `run::application::tests::derives_the_module_directory`, `run::application::tests::takes_the_innermost_module_the_build_model_knows_like_ideas_file_index`, `run::java_debug::tests::adds_jdwp_to_a_script_explicitly_assigned_the_kotlin_debugger`, `run::application::tests::routes_kotlin_facade_and_file_jvm_name_application_configurations_to_kotlin`, `run::targets::tests::creates_an_application_or_spring_boot_config_named_after_the_class`, `run::application::tests::scopes_maven_and_gradle_test_configs_to_a_class_or_method`, `run::java_launch::tests::lists_the_first_errors_counts_the_rest_and_adds_hints`, `run::java_launch::tests::parses_vm_options_main_class_and_program_arguments`, `run::java_launch::tests::substitutes_the_classpath_and_the_project_jdk`, `run::java_launch::tests::colours_a_spring_boot_console_unless_the_configuration_sets_the_property`, `run::java_launch::tests::joins_arguments_for_java_debug_and_reads_jdwps_port`, `run::java_debug::tests::keeps_plain_maven_builds_out_of_the_debugger_unless_set_to_the_java_debugger`, `run::java_debug::tests::leaves_application_configurations_and_other_debuggers_alone`, `run::store::tests::junit_reports_become_tree_results_with_failure_output_and_source_location`, `run::store::tests::junit_reports_locate_kotlin_tests_with_spaces_in_their_names_behind_a_class_loader_prefix`, `run::store::tests::temporary_configurations_are_added_selected_capped_and_persisted`, `run::store::tests::temporary_configurations_reuse_a_saved_configuration_with_the_same_id`, `run::store::tests::temporary_configurations_reuse_a_configuration_of_the_same_main_class_and_module_whatever_its_id`, `run::config_chooser::tests::offers_save_in_the_chooser_while_a_temporary_configuration_is_selected`, `run::jvm_targets::tests::finds_the_class_from_the_report_at_its_name`, `run::jvm_targets::tests::main_candidates_by_class_shape`, `run::jvm_targets::tests::accepts_java_lang_string_and_flags_instance_main`, `run::java_debug::tests::plugin_detectors_start_the_command_with_the_detectors_debug_arguments_once`, `run::java_debug::tests::plugin_detectors_need_both_a_jvm_debugger_and_debug_arguments`; 31 of 42 cases; not covered: adds a waiting JDWP agent to spring-boot:run, Surefire and Gradle; debugs Maven's own JVM for the in-process goal %s; honours Rebuild on a Maven debug command; starts a %s configuration set to the Java debugger with an agent in JAVA_TOOL_OPTIONS; debugs a single Java file: the agent before the file, or for java only on a javac line; adds the agent without the attach listener when the JVM runs on Windows; keeps the user's attach opt-out: the agent is still added, the listener is not; detects VM options that decide about the attach mechanism; is shown for passed tests, and before a failure; goes before the failure Surefire's console reported, once; and 1 more; the JVM attach listener (-XX:+StartAttachListener) and the stdout of JUnit XML reports do not exist natively"
   },
   "unit:src/features/run/javaModule.test.ts": {
-    "status": "done",
-    "proof": "`run::java_launch::tests`, `run::jvm_targets::tests`, `run::application::tests`, `run::store::tests`"
+    "status": "partial",
+    "proof": "`run::store::tests::passes_the_build_policy_to_the_resolver`, `run::store::tests::always_applies_the_launch_policy_after_a_before_launch_build_project`, `run::java_launch::tests::does_not_start_a_configuration_whose_build_failed`, `run::store::tests::starts_with_the_last_compiled_classes_for_make_and_continue_on_errors`, `run::store::tests::does_not_launch_scoped_compilation_error_bytecode`, `run::java_launch::tests::finds_the_source_module_for_an_old_saved_configuration_without_a_module`, `run::store::tests::finds_the_source_module_for_an_old_saved_configuration_without_a_module`, `run::store::tests::keeps_plain_java_runs_with_an_explicit_classpath_free_of_spring_boot_options`, `run::store::tests::adds_the_spring_boot_console_option_once_when_resolving_the_module_classpath`, `run::java_launch::tests::keeps_an_explicitly_stored_root_module`, `run::store::tests::stores_the_source_module_when_a_manually_created_application_is_saved`, `run::types::tests::stores_the_module_at_context_creation_and_forgets_it_when_the_main_class_changes`, `run::java_launch::tests::does_not_substitute_the_working_directory_when_sources_are_missing_or_ambiguous`, `run::store::tests::explains_how_to_import_a_module_when_run_fails`, `run::java_launch::tests::preserves_other_launch_errors`, `run::java_launch::tests::translates_import_recovery_guidance_for_a_root_spring_boot_configuration`, `run::java_launch::tests::does_not_resolve_or_launch_when_saving_fails`; 13 of 19 cases; not covered: runs from %s using the stored module's classpath; finds the source module for an old saved configuration without a module; colours Spring Boot runs without classpath resolution (%j); preserves an explicit Spring Boot console setting (%s); keeps plain Java runs with an explicit classpath free of Spring Boot options; adds the Spring Boot console option once when resolving the module classpath; the native start of a run process passes no cancellable request id to the backend (ops::run::start, not start_request)"
   },
   "unit:src/features/run/jvmTypes.test.ts": {
     "status": "partial",
@@ -1652,8 +1652,8 @@
     "proof": "`ui::popup_menu::tests`, `workbench::tests::a_tabs_menu_closes_pins_and_splits`, `workbench::context_menus::tests::the_editor_menu_leaves_out_the_actions_the_window_does_not_register`, `workbench::context_menus::tests::right_click_in_a_plain_file_opens_the_editor_menu_and_moves_the_caret`, `workbench::context_menus::tests::in_a_git_repository_the_editor_menus_git_rows_are_enabled`, `workbench::context_menus::tests::the_menus_show_the_shortcuts_of_the_active_keymap`; rows from actions and from the menu's own entries, separators tidied, an action row left out while its action is not registered, greyed out while its when fails, with the shortcut of the active keymap, keyboard (arrows, Home, End, typed letter, Right and Left for submenus, Enter, Space, Escape), pointer selection with the submenu delay, the menu kept inside the window. Not yet: header rows, check marks on rows of the menu's own (drawn as a check icon), the pointer's aim towards an open submenu (its model is `ui::menu_aim::tests`)"
   },
   "unit:src/platform/keymaps/ideaParity.test.ts": {
-    "status": "done",
-    "proof": "`platform::keymap::tests::lets_scoped_actions_win_shared_keys`; 1 of 2 cases; the remaining case checks seventy bindings of the webview's preset files against IDEA's, data of the webview the GPUI app loads from those same files: it has no copy of its own to check"
+    "status": "partial",
+    "proof": "`platform::keymap::tests::lets_scoped_actions_win_shared_keys`; 0 of 2 cases; not covered: %s; lets scoped actions win shared keys"
   },
   "unit:src/platform/keymaps/newElement.test.ts": {
     "status": "done",
@@ -1704,8 +1704,8 @@
     "proof": "`platform_more::remote::tests::routes_served_commands_keeps_opening_and_closing_local_and_sets_global_settings_on_both_sides`, `platform_more::remote::tests::keeps_routing_when_a_window_with_no_project_of_its_own_updates_the_settings_only`, `platform_more::remote::tests::ends_routing_when_the_windows_project_leaves_the_sessions_root`, `platform_more::remote::tests::keeps_routing_while_the_project_still_sits_at_the_sessions_root`; 4 of 7 cases; not covered: replaces channels with ids and keeps the rest; routes %s to the agent's host; encodes no arguments as an empty object; the Tauri bridge's argument encoding (channels to ids, no arguments as {}) has no native counterpart"
   },
   "unit:src/platform/remoteSettings.test.ts": {
-    "status": "done",
-    "proof": "`platform_more::remote::tests`"
+    "status": "partial",
+    "proof": "`platform_more::remote::tests::routes_window_reports_through_the_commands_advertised_by_the_remote_host`, `platform_more::remote::tests::accepts_the_released_and_current_remote_gradle_build_models`, `platform_more::remote::tests::ends_remote_routing_before_a_successful_local_open_is_published_even_at_the_same_path`, `platform_more::remote::tests::preserves_remote_routing_when_opening_a_local_project_fails`, `platform_more::remote::tests::merges_settings_before_publishing_a_newly_connected_project`, `platform_more::remote::tests::overlays_the_project_snapshot_used_by_the_settings_window`, `platform_more::remote::tests::keeps_client_preferences_after_a_remote_tooling_write`, `platform_more::remote::tests::keeps_local_overrides_through_a_settings_changed_runtime_reload`, `platform_more::remote::tests::reloads_local_preferences_instead_of_retaining_stale_or_remote_overrides`, `platform_more::remote::tests::does_not_inherit_remote_ui_values_when_a_local_field_is_absent`, `platform_more::remote::tests::leaves_local_windows_unchanged`, `platform_more::remote::tests::preserves_client_keymaps_and_ui_settings_when_loading_remote_settings`, `platform_more::remote::tests::shows_client_preferences_in_the_global_settings_dialog_snapshot`, `platform_more::remote::tests::writes_a_client_preference_only_to_local_global_settings_and_returns_merged_settings`; 13 of 16 cases; not covered: keeps %s writes local in either scope; preserves routing for host setting %s; preserves client keymaps and UI settings when loading remote settings"
   },
   "unit:src/platform/workflowSettings.test.ts": {
     "status": "partial",
@@ -2384,8 +2384,8 @@
     "proof": "`editor_lsp::configuration_navigation::tests`; 12 of 18 cases; added or renamed upstream and not covered: 'keeps separate editors of the same document isolated', 'shares %s native navigation per word', 'discards a native answer that raced an edit and asks again afterwards', 'does not reuse an answer after replacing the editor state with equal text', 'does not share implementations, whose search streams on its own' and 1 more"
   },
   "unit:src/editor/lsp/diagnostics.test.ts": {
-    "status": "done",
-    "proof": "`editor_lsp::diagnostics::tests`"
+    "status": "partial",
+    "proof": "`editor_lsp::diagnostics::tests::identifies_fresh_backend_publications_including_empty_replacements_separately_from_local_inspections`, `editor_lsp::diagnostics::tests::keeps_one_list_per_source_and_notifies_subscribers_of_the_path`, `editor_lsp::diagnostics::tests::converts_ranges_sorts_and_adds_mark_classes`, `editor_lsp::diagnostics::tests::widens_empty_ranges_to_one_character`, `editor_lsp::diagnostics::tests::skips_a_hidden_view_and_catches_up_when_it_is_shown_again`; 4 of 5 cases; not covered: converts ranges, sorts and adds mark classes"
   },
   "unit:src/editor/lsp/features.test.ts": {
     "status": "partial",
@@ -2448,8 +2448,8 @@
     "proof": "`editor_lsp::markdown::tests::keeps_raw_markup_from_reaching_the_page`, `editor_lsp::markdown::tests::keeps_the_links_and_tables_comments_and_docs_rely_on`, `editor_lsp::markdown::tests::shows_plain_text_until_the_parser_loads_then_the_rendered_markup`, `editor_lsp::markdown::tests::renders_synchronously_once_loaded`, `editor_lsp::markdown::tests::finds_where_documentation_links_point`; 5 of 6 cases; not covered: names no share the project is not on"
   },
   "unit:src/editor/lsp/navigationMouse.test.ts": {
-    "status": "done",
-    "proof": "`editor_lsp::navigation::tests`; the case left keeps WebKit's force-click Look Up popover away, which has no counterpart here"
+    "status": "partial",
+    "proof": "`editor_lsp::navigation::tests::uses_plugin_navigation_for_clicks_without_asking_the_language_server`, `editor_lsp::navigation::tests::opens_the_implementation_of_the_symbol_clicked_with_option_command`, `editor_lsp::navigation::tests::preserves_declaration_navigation_on_os`, `editor_lsp::navigation::tests::opens_the_definition_from_a_plain_middle_button_click`, `editor_lsp::navigation::tests::ignores_other_button_modifier_combinations`, `editor_lsp::navigation::tests::reports_missing_implementations_without_navigating_to_the_declaration`, `editor_lsp::navigation::tests::opens_the_implementation_with_ctrl_alt_click_on_os`, `editor_lsp::navigation::tests::does_not_navigate_with_option_command_when_the_binding_is_removed`, `editor_lsp::navigation::tests::follows_a_different_mouse_binding_assigned_to_the_implementation_action`, `editor_lsp::navigation::tests::does_not_run_the_binding_if_the_click_has_no_document_position`, `editor_lsp::navigation::tests::allows_the_same_gesture_to_be_reassigned_to_another_action`, `editor_lsp::navigation::tests::goes_to_the_declaration_under_the_pointer_like_command_click`, `editor_lsp::navigation::tests::leaves_a_modified_force_click_to_the_click_gesture`; 13 of 14 cases; not covered: keeps the system Look Up popover away; WebKit's force-click Look Up popover has no counterpart in the native app"
   },
   "unit:src/editor/lsp/navigationPending.test.ts": {
     "status": "partial",
@@ -2580,8 +2580,8 @@
     "proof": "`database::objects::tests`; 15 of 20 cases; added upstream and not covered: 'drops an Oracle package with neither IF EXISTS nor CASCADE', 'renames within the object's schema', 'drops and truncates, and has no indexes or triggers', 'creates tables and script templates', 'alters columns with ALTER COLUMN and never sets a default on an existing column' (covered by a cited test of the same name: 'keeps unquoted names that the server folds to upper case')"
   },
   "unit:src/features/database/resultEditing.test.ts": {
-    "status": "done",
-    "proof": "`database::result_editing::tests`"
+    "status": "partial",
+    "proof": "`database::result_editing::tests::accepts_a_plain_select_of_one_table`, `database::result_editing::tests::accepts_a_schema_qualified_table_aliases_and_plain_column_references`, `database::result_editing::tests::accepts_qualified_stars_and_for_update`, `database::result_editing::tests::separates_an_implicit_alias_from_a_schema_qualified_table`, `database::result_editing::tests::keeps_a_quoted_identifier_a_column_reference`, `database::result_editing::tests::rejects_joins_comma_lists_and_derived_tables_as_joined_plain`, `database::result_editing::tests::rejects_aggregates_distinct_group_by_having_and_windows_as_aggregated`, `database::result_editing::tests::rejects_set_operations`, `database::result_editing::tests::rejects_anything_that_is_not_a_plain_single_table_select`, `database::result_editing::tests::refuses_ambiguous_provenance`, `database::result_editing::tests::rejects_executable_comments`, `database::result_editing::tests::folds_unquoted_identifiers_per_dialect_and_preserves_quoted_case`, `database::result_editing::tests::keeps_aliased_columns_and_expressions_read_only_per_column`, `database::result_editing::tests::reads_the_table_of_a_statement_with_trailing_semicolon_and_comments`, `database::result_editing::tests::keeps_a_known_schema_table`, `database::result_editing::tests::preserves_explicit_qualification_even_with_incomplete_completion_metadata`, `database::result_editing::tests::uses_the_execution_schema_for`, `database::result_editing::tests::passes_an_unknown_schema_table_through`, `database::result_editing::tests::refuses_unresolved_defaults_and_sql_server_database_schema_ambiguity`, `database::result_editing::tests::does_not_touch_unqualified_or_explicitly_aliased_names`, `database::result_editing::tests::maps_plain_columns_positionally_and_stars_against_the_table_s_columns`, `database::result_editing::tests::aligns_mixed_items_positionally`, `database::result_editing::tests::honours_the_star_qualifier_only_through_the_caller_s_qualifier_check`, `database::result_editing::tests::maps_nothing_when_the_items_cannot_line_up_with_the_result`, `database::result_editing::tests::refuses_duplicate_result_labels_that_could_shadow_a_primary_key`, `database::result_editing::tests::collects_the_result_columns_of_every_key_column_or_null_when_one_is_missing`, `database::result_editing::tests::renders_the_update_insert_delete_the_backend_applies`; 25 of 27 cases; not covered: folds unquoted identifiers per dialect and preserves quoted case; renders the UPDATE / INSERT / DELETE the backend applies"
   },
   "unit:src/features/database/resultView.test.ts": {
     "status": "partial",
@@ -2628,8 +2628,8 @@
     "proof": "`github::create::tests`"
   },
   "unit:src/features/github/data/data.test.ts": {
-    "status": "done",
-    "proof": "`github::data_model::tests`, `github::search_history::tests`, `github::repository::tests`, `github::batches::tests`"
+    "status": "partial",
+    "proof": "`github::data_model::tests::builds_intellijs_terms_in_order`, `github::data_model::tests::prefixes_the_repository_for_issue_search`, `github::data_model::tests::keeps_githubs_boolean_syntax_inside_the_repository`, `github::data_model::tests::counts_filters_and_normalizes_stored_values`, `github::search_history::tests::keeps_searches_with_filters_in_the_history_newest_first_at_most_10`, `github::data_model::tests::lets_the_newest_opinionated_review_win_over_later_comments`, `github::data_model::tests::surfaces_a_dismissed_latest_review_as_a_comment`, `github::data_model::tests::skips_reviewers_with_only_pending_reviews`, `github::data_model::tests::excludes_the_author_and_marks_requests_as_re_requested_or_needing_review`, `github::data_model::tests::counts_reviews_of_deleted_users_under_the_ghost_user`, `github::data_model::tests::orders_the_rows_avatars_approved_changes_commented_re_requested_needs_review`, `github::data_model::tests::counts_unresolved_current_threads`, `github::data_model::tests::only_applies_to_pull_requests_the_user_wrote_or_is_asked_to_review`, `github::data_model::tests::compares_the_last_seen_time_with_a_5_s_margin_with_the_update`, `github::data_model::tests::maps_statuses_and_check_runs_to_ci_jobs`, `github::data_model::tests::follows_the_merge_state_and_branch_protection`, `github::data_model::tests::decides_the_merge_actions_from_permission_settings_and_state`, `github::data_model::tests::names_states_like_intellij`, `github::data_model::tests::prefills_and_splits_merge_commit_messages`, `github::data_model::tests::shows_the_owner_only_when_owners_differ`, `github::repository::tests::recognizes_github_com_remotes`, `github::batches::tests::appends_pages_as_they_arrive_and_loads_once`, `github::batches::tests::keeps_what_loaded_before_a_failure_and_retries_on_the_next_load`, `github::data_model::tests::finds_the_remote_behind_an_ssh_host_alias_by_the_urls_path`; 23 of 24 cases; not covered: recognizes github.com remotes"
   },
   "unit:src/features/github/data/repository.test.ts": {
     "status": "done",
@@ -2860,12 +2860,12 @@
     "proof": "`plugin_models::language_visuals::tests`; 2 of 3 cases: highlighting an embedded slice with its own grammar needs the editor"
   },
   "unit:src/features/plugins/lineMarkerGutter.test.ts": {
-    "status": "done",
-    "proof": "`plugin_models::line_markers::tests`"
+    "status": "partial",
+    "proof": "`plugin_models::line_markers::tests::withdraws_old_interactive_markers_on_reload_and_does_not_refresh_on_idle_status_changes`, `plugin_models::line_markers::tests::renders_ordinary_and_custom_registered_icons_alongside_legacy_marker_aliases`; 1 of 3 cases; not covered: withdraws old interactive markers on reload and does not refresh on idle status changes; refreshes a fallback when the package icon declaration arrives after its markers; the shared gutter icon area (one column for run icons, inheritance and plugin markers) does not exist natively"
   },
   "unit:src/features/plugins/markerIcons.test.ts": {
-    "status": "done",
-    "proof": "`plugin_models::marker_icons::tests`"
+    "status": "partial",
+    "proof": "`plugin_models::marker_icons::tests::resolves_declared_package_paths_within_their_plugin_and_uses_the_dark_svg`, `plugin_models::marker_icons::tests::keeps_a_replacement_when_an_older_declaration_is_disposed`, `plugin_models::marker_icons::tests::preserves_line_marker_lookup_with_projected_indexed_marker_defaults`; 3 of 5 cases; not covered: retains built-in names, legacy aliases and unknown-icon fallback; falls back when an asset fails to load"
   },
   "unit:src/features/plugins/markerStore.test.ts": {
     "status": "done",
@@ -3136,8 +3136,8 @@
     "proof": "`editor_model::file_attributes::tests`; 3 of 5 cases; added upstream and not covered: 'offers to make it writable once, then lets edits through', 'refuses edits without asking for library, binary and too-large documents'"
   },
   "unit:src/editor/core/inputClose.test.ts": {
-    "status": "done",
-    "proof": "`editor_model::documents::tests`"
+    "status": "partial",
+    "proof": "`editor_model::documents::tests::notifies_once_when_the_last_split_showing_an_input_closes`; 0 of 1 cases; not covered: notifies once when the last split showing an input closes; a per-tab close hook of an editor kind (onTabClose) does not exist natively"
   },
   "unit:src/editor/core/model/attachment.test.ts": {
     "status": "partial",
@@ -3260,8 +3260,8 @@
     "proof": "`features_b::color_preview::colors::tests::finds_every_format_in_style_sheets`, `features_b::color_preview::colors::tests::skips_names_that_are_no_property_value_keywords_and_non_colors`, `features_b::color_preview::colors::tests::takes_only_quoted_hex_values_in_code_and_no_names`, `features_b::color_preview::colors::tests::leaves_prose_alone`, `features_b::color_preview::colors::tests::keeps_hex_case_length_and_alpha`, `features_b::color_preview::colors::tests::keeps_a_functions_name_and_separators`; 6 of 7 cases; not covered: round-trips opaque and alpha hex and reads computed colors"
   },
   "unit:src/features/color-preview/pluginColors.test.ts": {
-    "status": "done",
-    "proof": "`features_b::color_preview::plugin_colors::tests`"
+    "status": "partial",
+    "proof": "0 of 1 cases; not covered: uses plugin presentations to replace precisely the reported range; the IDE's own colour picker (hex field with alpha, Escape commits) does not exist natively"
   },
   "unit:src/features/coverage/coverage.test.ts": {
     "status": "done",
@@ -3288,8 +3288,8 @@
     "proof": "`features_b::deployment::comparison::tests`"
   },
   "unit:src/features/deployment/model.test.ts": {
-    "status": "done",
-    "proof": "`features_b::deployment::model::tests`"
+    "status": "partial",
+    "proof": "`features_b::deployment::model::tests::reads_paths_passed_by_menus`, `features_b::deployment::model::tests::prefers_the_passed_paths_over_the_selection_and_the_editor`, `features_b::deployment::model::tests::uses_the_project_view_selection_when_it_had_focus_last_else_the_editor_file`, `features_b::deployment::model::tests::drops_paths_outside_the_project_and_paths_inside_selected_folders`, `features_b::deployment::model::tests::picks_the_action_from_the_status`, `features_b::deployment::model::tests::offers_only_actions_possible_for_the_row`, `features_b::deployment::model::tests::turns_choices_into_steps_without_the_skipped_rows`, `features_b::deployment::model::tests::resolves_the_default_server`, `features_b::deployment::model::tests::names_the_menus_transfers_after_the_default_server`, `features_b::deployment::model::tests::summarizes_transfer_reports`, `features_b::deployment::model::tests::classifies_ssh_failures`, `features_b::deployment::model::tests::joins_and_splits_remote_paths`, `features_b::deployment::model::tests::maps_remote_paths_back_to_project_paths_through_the_most_specific_mapping`, `features_b::deployment::model::tests::uses_the_backend_folder_for_aliases_and_does_not_invent_mappings`; 13 of 14 cases; not covered: classifies SSH failures"
   },
   "unit:src/features/deployment/remoteHost.test.ts": {
     "status": "partial",
@@ -3316,8 +3316,8 @@
     "proof": "`features_b::mcp::tests`; 4 of 5 cases; added upstream and not covered: 'reports window focus %s immediately during continuous editing'; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/features/perf/__tests__/perf.test.ts": {
-    "status": "done",
-    "proof": "`features_b::perf::tests`"
+    "status": "partial",
+    "proof": "`features_b::perf::tests::formats_bytes_like_ideas_memory_indicator`, `features_b::perf::tests::formats_sizes_for_tooltips_and_the_breakdown`, `features_b::perf::tests::formats_durations_and_counts`, `features_b::perf::tests::computes_nearest_rank_percentiles`, `features_b::perf::tests::keeps_a_rolling_window`, `features_b::perf::tests::keeps_only_typing_events_inside_codemirror`, `features_b::perf::tests::collapses_one_keystrokes_entries_into_its_slowest`, `features_b::perf::tests::feature_detects_entry_types`, `features_b::perf::tests::pauses_while_the_document_is_hidden`, `features_b::perf::tests::sums_per_group_and_labels_the_indicator_without_a_fake_denominator`, `features_b::perf::tests::falls_back_to_the_backends_resident_memory_without_a_breakdown`, `features_b::perf::tests::builds_popup_sections_in_category_order`; 11 of 12 cases; not covered: builds popup sections in category order; the native memory popup sections carry no CPU share and no End Process (endable) flag"
   },
   "unit:src/features/profiler/profiler.test.ts": {
     "status": "partial",
@@ -3388,8 +3388,8 @@
     "proof": "`features_b::viewers::file_kinds::tests`, `features_b::viewers::hex::tests`, `features_b::viewers::image_zoom::tests`; 11 of 12 cases; added upstream and not covered: 'matches files opened with an associated application'"
   },
   "unit:src/features/vcs/__tests__/diffDialog.test.tsx": {
-    "status": "done",
-    "proof": "`vcs_diff::dialog_view::tests`, `workbench::tests::proofs12_diff_window::owns_the_close_shortcut_with_body_or_titlebar_focus`, `workbench::tests::proofs12_diff_window::remembers_the_resized_size_for_the_next_opening`, `workbench::tests::proofs12_diff_tabs::opens_an_editor_tab_instead_once_the_non_modal_interface_is_chosen`; 8 of 8 cases: the window owns the close shortcut, is resizable and remembers its size, and an editor tab opens instead once the non-modal commit interface is chosen"
+    "status": "partial",
+    "proof": "`workbench::tests::proofs12_diff_window::opens_the_diff_in_a_front_dialog_not_in_an_editor_tab`, `vcs_diff::dialog_view::tests::keeps_the_changes_tree_mounted_underneath_and_closes_on_esc`, `workbench::tests::proofs12_diff_window::opens_the_context_menus_show_diff_in_a_front_dialog_not_in_an_editor_tab`, `vcs_diff::dialog_view::tests::moves_along_the_chain_inside_the_dialog_instead_of_opening_editor_tabs`, `workbench::tests::proofs12_diff_window::remembers_the_resized_size_for_the_next_opening`, `vcs_diff::dialog_view::tests::closes_on_jump_to_source_so_the_editor_it_opens_is_not_hidden_behind_it`, `workbench::tests::proofs12_diff_tabs::opens_an_editor_tab_instead_once_the_non_modal_interface_is_chosen`; 7 of 8 cases; not covered: owns the close shortcut with %s focus"
   },
   "unit:src/features/vcs/__tests__/diffToolbar.test.tsx": {
     "status": "partial",
