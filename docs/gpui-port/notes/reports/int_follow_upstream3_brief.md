@@ -35,7 +35,7 @@ Say for each of `ipc:settings_export`, `ipc:doc_set_encoding`, `ipc:lsp_completi
 
 ## Changed since
 
-BEFORE LAUNCH (for the manager; delete this paragraph then): name the undeclared drafts of other agents then in the tree and whether the line numbers above moved.
+HEAD is `616b6ab84` (the New from Template slice landed in `11014c6eb`: it touched `workbench/mod.rs`, `workbench/debug.rs`, `workbench/run_context.rs`, `workbench/context_menus.rs`, `workbench/editor_extras.rs`, `run/mod.rs`, `project_view/mod.rs` and the templates modules; none of the files this brief names except `workbench/mod.rs`, so its line numbers there moved: find each place by its text). The line numbers in this brief are a reader's, taken two commits earlier: treat every one as "near". Other agents' undeclared drafts in the tree, not yours: `app-gpui/src/settings_view/pages/tools_agents.rs`, `tools_agents/`, `workbench/settings_agents.rs`, `settings_view/pages/agents_list.rs`, `agents_list/`, `agents/agent_list.rs`, `agents/agent_list/`, `workbench/agent_list_backend.rs`, `workbench/settings_agents_list.rs`, `settings_view/pages/remote_folder_browser.rs`, `remote_folder_browser/`, `build_deployment/remote_folder.rs`, every `proofs36_*`, `proofs37_*` and `proofs38_*` file, `templates/proofs34_extension_guard_pending.rs`, `templates/proofs34_chooser_pending.rs`, `workbench/tests/proofs26_code_preview_pending.rs`, `workbench/tests/proofs32_settings_templates_pending.rs`, `platform/error_log_sink.rs`.
 
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 
