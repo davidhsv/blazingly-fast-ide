@@ -1,6 +1,7 @@
 #!/bin/bash
 cd ${W}/app-gpui || exit 1
 export PATH=${S}/bin:$PATH
+df -k /System/Volumes/Data | tail -1 > ${S}/verify_agv_df.log
 for n in 1 2; do
   { echo "uptime before: $(uptime)"; cargo test --lib 2>&1; echo "rc=$?"; echo "uptime after: $(uptime)"; } > ${S}/verify_agv_suite$n.log
 done
