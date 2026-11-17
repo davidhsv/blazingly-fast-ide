@@ -211,7 +211,7 @@ fn highlighted(text: &str, indices: &[usize]) -> Vec<(String, bool)> {
 }
 
 /// `text` with its matched characters on the search-match colour.
-fn marked_text(cx: &App, text: &str, indices: &[usize]) -> Div {
+pub(crate) fn marked_text(cx: &App, text: &str, indices: &[usize]) -> Div {
     let (match_bg, match_fg) = (theme::color(cx, "bg-search-match"), theme::color(cx, "fg-search-match"));
     div().flex().children(highlighted(text, indices).into_iter().map(|(part, matched)| {
         let part = div().child(SharedString::from(part));

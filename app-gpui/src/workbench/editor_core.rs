@@ -26,6 +26,7 @@ use crate::vcs_ops::dialogs::ConfirmRequest;
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
 use gpui_kit::{App, AppContext as _, ClipboardItem, Context, Entity, Focusable, Window};
 use serde_json::Value;
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 /// The action that copies the edited file's absolute path.
@@ -36,6 +37,9 @@ const COPY_PATH: &str = "editor.copyPath";
 pub(super) struct EditorCore {
     nav: NavigationHistory,
     edits: EditHistory,
+    /// The files the user changed in this window's project (typing, deleting, pasting, undo and redo; not
+    /// the backend's own changes): what Recent Files' Show edited only lists.
+    pub(super) edited: HashSet<String>,
 }
 
 pub(super) fn register_actions(registry: &mut ActionRegistry) {
@@ -155,6 +159,10 @@ impl Workbench {
         cx.subscribe_in(editor, window, |workbench, editor, event: &EditorEvent, _, cx| match event {
             EditorEvent::SelectionMoved => workbench.record_place(editor, false, cx),
             EditorEvent::Edited { origin, .. } => {
+                if !matches!(origin, EditOrigin::External) {
+                    let path = editor.read(cx).path().to_string_lossy().into_owned();
+                    workbench.editor_core.edited.insert(path);
+                }
                 if !matches!(origin, EditOrigin::External | EditOrigin::History) {
                     let place = place_of(editor.read(cx));
                     workbench.editor_core.edits.record(place);

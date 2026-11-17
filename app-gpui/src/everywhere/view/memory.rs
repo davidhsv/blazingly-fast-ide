@@ -1,13 +1,15 @@
-//! What Search Everywhere keeps beyond one query: the scope of its tab (project items only, or everything,
-//! widened by itself when the project has nothing), the queries typed in each tab and the actions run
-//! from it. The queries and actions are stored under the keys of [`crate::everywhere::store`], so the
-//! next popup starts with the tab's last query and ranks recently run actions first.
+//! What Search Everywhere keeps beyond one query: the shown tab and its scope (project items only, or
+//! everything, widened by itself when the project has nothing), the queries typed in each tab and the
+//! actions run from it. The queries and actions are stored under the keys of [`crate::everywhere::store`]
+//! in the app's UI storage, which every window shares, so the next popup starts with the tab's last query
+//! and ranks recently run actions first.
 
 use super::{SearchEverywhere, SearchEverywhereEvent};
 use crate::everywhere::model::{SeItem, SeRow, SeTab};
 use crate::everywhere::open::StorageWrite;
 use crate::everywhere::store::{
-    HISTORY_KEY, RECENT_ACTIONS_KEY, SearchEverywhereState, push_recent_action, recent_actions, search_history,
+    HISTORY_KEY, RECENT_ACTIONS_KEY, SearchEverywhereState, push_recent_action, push_search_history, recent_actions,
+    search_history,
 };
 use crate::platform::context::ContextKeys;
 use crate::platform::storage::UiStorage;
@@ -19,10 +21,10 @@ pub(super) const ASSIGN_SHORTCUT: &str = "settings.assignShortcut";
 /// The action that opens Find in Files, given `{ "query": … }`.
 pub(super) const FIND_IN_PATH: &str = "find.inPath";
 
-/// The popup's scope and its walk through the search history.
+/// The popup's tab, its scope and its walk through the search history.
 pub(super) struct SeMemory {
-    /// Only the scope fields (`include_non_project`, `auto_everywhere`, `not_found`) and, when the popup
-    /// closes, the tab and the query are read: the popup keeps its own tab and query while it is open.
+    /// The tab and the scope fields (`include_non_project`, `auto_everywhere`, `not_found`). The query is
+    /// the field's text while the popup is open: it is copied here when the popup closes.
     pub(super) state: SearchEverywhereState,
     /// Position in the tab's history while ⌥↑ and ⌥↓ walk it; `None` while the field holds what was typed.
     pub(super) history: Option<usize>,
@@ -31,11 +33,11 @@ pub(super) struct SeMemory {
 }
 
 impl SeMemory {
-    /// The scope of a popup opening on `tab` with `query`: project items only, widened when nothing is
-    /// found.
-    pub(super) fn new(tab: SeTab, query: &str) -> Self {
+    /// A popup opening on `tab` with `query`, or without one with the tab's last query: project items
+    /// only, widened when nothing is found.
+    pub(super) fn new(tab: SeTab, query: Option<&str>, cx: &App) -> Self {
         let mut state = SearchEverywhereState::new(None, None);
-        state.show(tab, Some(query), None, ContextKeys::new());
+        state.show(tab, query, stored(cx, HISTORY_KEY).as_deref(), ContextKeys::new());
         Self { state, history: None, draft: String::new() }
     }
 }
@@ -49,11 +51,6 @@ fn save(write: StorageWrite, cx: &mut App) {
     if cx.has_global::<UiStorage>() {
         cx.global_mut::<UiStorage>().set(&write.key, write.value);
     }
-}
-
-/// The last query typed in `tab`: what a popup opened there without a selection starts with.
-pub(super) fn last_query(tab: SeTab, cx: &App) -> String {
-    search_history(stored(cx, HISTORY_KEY).as_deref(), tab).into_iter().next().unwrap_or_default()
 }
 
 /// The ids of the actions run from the popup, most recent first.
@@ -81,7 +78,7 @@ impl SearchEverywhere {
     /// The popup's action asked for again: on the shown tab it switches the non-project items (the
     /// disabled actions on Actions) on or off; on another tab it moves there and keeps the query.
     pub fn show_again(&mut self, tab: SeTab, cx: &mut Context<Self>) {
-        if self.tab == tab {
+        if self.tab() == tab {
             let include = !self.memory.state.include_non_project;
             self.set_include_non_project(include, cx);
         } else {
@@ -103,7 +100,6 @@ impl SearchEverywhere {
         let typed = self.field.read(cx).text().to_owned();
         let widened = self.memory.state.include_non_project;
         self.memory.state.on_query(&typed);
-        self.memory.state.query = typed;
         if widened != self.memory.state.include_non_project {
             self.extra.clear();
         }
@@ -112,7 +108,7 @@ impl SearchEverywhere {
     /// ⌥↑ (`older`) and ⌥↓: the tab's earlier queries, newest first, in the field; ⌥↓ past the newest gives
     /// back what was typed before the walk started. The walk stops at either end.
     pub(super) fn browse_history(&mut self, older: bool, cx: &mut Context<Self>) {
-        let history = search_history(stored(cx, HISTORY_KEY).as_deref(), self.tab);
+        let history = search_history(stored(cx, HISTORY_KEY).as_deref(), self.tab());
         let next = if older {
             let next = self.memory.history.map_or(0, |at| at + 1);
             if next >= history.len() {
@@ -136,10 +132,18 @@ impl SearchEverywhere {
     }
 
     /// The popup goes away: the query is remembered for the shown tab, whether or not anything was opened.
-    pub(super) fn remember_query(&mut self, cx: &mut App) {
-        self.memory.state.tab = self.tab;
+    /// Once is enough: a popup closed by its window and then released remembers it once.
+    pub fn remember_query(&mut self, cx: &mut App) {
         self.memory.state.query = self.field.read(cx).text().to_owned();
         if let Some(write) = self.memory.state.hide(stored(cx, HISTORY_KEY).as_deref()) {
+            save(write, cx);
+        }
+    }
+
+    /// A result is opened or run: the query is remembered for the shown tab, also when the popup stays open.
+    pub(super) fn remember_history(&mut self, cx: &mut App) {
+        let query = self.field.read(cx).text().to_owned();
+        if let Some(write) = push_search_history(stored(cx, HISTORY_KEY).as_deref(), self.tab(), &query) {
             save(write, cx);
         }
     }
@@ -160,10 +164,15 @@ impl SearchEverywhere {
         self.memory.state.widen(&searched);
         if self.memory.state.include_non_project {
             self.extra.clear();
-            // After this refresh: the rows being built are those of the narrower search.
+            // After this refresh: the rows being built are those of the narrower search. A query typed in
+            // between has narrowed the scope again and is searched for by itself.
             let popup = cx.weak_entity();
             cx.defer(move |cx| {
-                let _ = popup.update(cx, |popup, cx| popup.run(cx));
+                let _ = popup.update(cx, |popup, cx| {
+                    if popup.memory.state.not_found.as_deref() == Some(searched.as_str()) {
+                        popup.run(cx);
+                    }
+                });
             });
         }
     }

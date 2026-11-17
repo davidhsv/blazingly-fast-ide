@@ -3071,6 +3071,7 @@ impl Workbench {
             active_path: self.editor().map(|editor| editor.read(cx).path().to_string_lossy().into_owned()),
             tabs: self.open_editor_tabs(),
             tool_windows: self.tool_windows().map(|layout| layout.windows().cloned().collect()).unwrap_or_default(),
+            edited: self.editor_core.edited.clone(),
             ..RecentFilesInput::default()
         };
         let popup = cx.new(|cx| RecentFiles::new(kind, input, cx));
@@ -3155,6 +3156,8 @@ impl Workbench {
         }
         self.save_session(cx);
         self.popup = None;
+        // Recent Files' edited files are those of the project left.
+        self.editor_core.edited.clear();
         crate::ui::code_preview::leave(&self.label, cx);
         self.drop_settings(cx);
     }
@@ -3504,6 +3507,9 @@ impl Workbench {
     /// against the window as it is without it.
     pub fn close_popup(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(popup) = self.popup.take() else { return };
+        if let Ok(everywhere) = popup.view.clone().downcast::<SearchEverywhere>() {
+            everywhere.update(cx, |everywhere, cx| everywhere.remember_query(cx));
+        }
         self.run_popup_closed(&popup.view, cx);
         self.vcs_popup_closed(&popup.view, cx);
         self.structure_popup_closed(&popup.view, cx);
@@ -3730,7 +3736,7 @@ impl Workbench {
     /// line of the editor is what it starts searching for.
     pub fn show_search_everywhere(&mut self, tab: SeTab, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(open) = self.search_everywhere() {
-            open.update(cx, |popup, cx| popup.select_tab(tab, cx));
+            open.update(cx, |popup, cx| popup.show_again(tab, cx));
             return;
         }
         let selected = self.editor().map(|editor| editor.read(cx).selected_text());
@@ -3777,6 +3783,14 @@ impl Workbench {
                             let _ = workbench.update(cx, |workbench, cx| workbench.close_popup(window, cx));
                         }
                         execute_action_from(ActionSource::Search, &id, None, window, cx);
+                    });
+                }
+                SearchEverywhereEvent::RunWith { id, arg } => {
+                    workbench.close_popup(window, cx);
+                    let (id, arg) = (id.clone(), arg.clone());
+                    // Once this update is over: the action may open a dialog over the workbench.
+                    window.defer(cx, move |window, cx| {
+                        execute_action_from(ActionSource::Search, &id, Some(&arg), window, cx);
                     });
                 }
                 SearchEverywhereEvent::OpenSettings(page) => {
@@ -4583,6 +4597,9 @@ mod tests {
     mod proofs3_run;
     mod proofs3_windows;
     mod proofs40_run_start;
+    mod proofs41_e2e_search_everywhere;
+    mod proofs41_e2e_search_layout;
+    mod proofs41_recent_edited;
     mod proofs4_run;
     mod proofs4_shell;
     mod proofs4_vcs;
@@ -6079,7 +6096,8 @@ mod tests {
     }
 
     /// A short selection on one line of the editor is what Search Everywhere starts with, selected
-    /// so that typing replaces it; a selection over several lines is not taken.
+    /// so that typing replaces it; a selection over several lines is not taken, and the tab's last
+    /// query is shown instead.
     #[gpui_kit::test]
     async fn search_everywhere_starts_with_the_editor_selection(cx: &mut TestAppContext) {
         use crate::platform::actions::execute_action_or_throw;
@@ -6097,7 +6115,9 @@ mod tests {
 
         editor.update(cx, |editor, cx| editor.select(0, editor.offset_of(1, 4), cx));
         cx.update(|window, cx| execute_action_or_throw("navigate.searchText", None, window, cx)).expect("it runs");
-        assert_eq!(popup(&workbench, cx).read_with(cx, |popup, cx| popup.field().read(cx).text().to_owned()), "");
+        // The lines are not taken: the field starts with the tab's last query, remembered when it closed.
+        let text = popup(&workbench, cx).read_with(cx, |popup, cx| popup.field().read(cx).text().to_owned());
+        assert_eq!(text, "needle");
     }
 
     /// The title an action is listed under.
@@ -10821,7 +10841,8 @@ for line in sys.stdin:
         assert!(everywhere.read_with(cx, |popup, _| popup.lines()).is_empty(), "no action was run yet");
 
         type_query(cx, "zzqqxx");
-        settle(cx, |cx| cx.debug_bounds("search-everywhere-empty:Nothing found in project files").is_some());
+        // Nothing in the project: the popup searches everywhere and says so.
+        settle(cx, |cx| cx.debug_bounds("search-everywhere-empty:Nothing found").is_some());
         cx.simulate_keystrokes("escape");
         cx.run_until_parked();
 

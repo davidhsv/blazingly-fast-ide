@@ -65,6 +65,9 @@ async fn alt_up_and_alt_down_browse_the_tab_s_search_history_and_restore_the_dra
     cx.simulate_keystrokes("escape");
     cx.run_until_parked();
     assert!(workbench.read_with(cx, |w, _| w.search_everywhere().is_none()));
+    // The popup goes once nothing holds it any more.
+    drop(everywhere);
+    cx.run_until_parked();
     assert_eq!(all(cx), ["draft", "newer", "older"], "closing remembers the query of the tab");
     let files = search_history(stored(cx, HISTORY_KEY).as_deref(), SeTab::Files);
     assert_eq!(files, ["other tab"]);
@@ -85,15 +88,17 @@ async fn tab_cycles_scopes_and_repeating_the_scope_action_toggles_non_project_it
     cx.simulate_keystrokes("shift-tab shift-tab");
     assert_eq!(everywhere.read_with(cx, |popup, _| popup.tab()), SeTab::Text);
 
-    type_query(cx, "kept");
+    // A query the project has: nothing widens the scope by itself.
+    type_query(cx, "alpha");
     run_action(cx, "navigate.searchEverywhere", None);
     assert_eq!(popup(&workbench, cx), everywhere);
     assert_eq!(everywhere.read_with(cx, |popup, _| (popup.tab(), popup.include_non_project())), (SeTab::All, false));
-    assert_eq!(query(&everywhere, cx), "kept");
+    assert_eq!(query(&everywhere, cx), "alpha");
     run_action(cx, "navigate.searchEverywhere", None);
     assert!(everywhere.read_with(cx, |popup, _| popup.include_non_project()), "the shown tab's action widens it");
-    assert_eq!(query(&everywhere, cx), "kept");
-    assert!(cx.debug_bounds("search-everywhere-scope").is_some(), "the scope check box is drawn");
+    assert_eq!(query(&everywhere, cx), "alpha");
+    let scope = "search-everywhere-scope:Include non-project items";
+    assert!(cx.debug_bounds(scope).is_some(), "the scope check box is drawn");
     run_action(cx, "navigate.searchEverywhere", None);
     assert!(!everywhere.read_with(cx, |popup, _| popup.include_non_project()), "and again narrows it");
     cx.simulate_keystrokes("escape");
@@ -113,9 +118,10 @@ async fn labels_the_actions_tab_s_checkbox_and_assigns_a_shortcut_with_alt_enter
     run_action(cx, "navigate.findAction", None);
     let everywhere = popup(&workbench, cx);
     assert_eq!(everywhere.read_with(cx, |popup, _| popup.tab()), SeTab::Actions);
-    assert_eq!(crate::everywhere::view::scope_label(SeTab::Actions), "Include disabled actions");
-    assert_eq!(crate::everywhere::view::scope_label(SeTab::All), "Include non-project items");
     type_query(cx, "order pizza");
+    cx.run_until_parked();
+    assert!(cx.debug_bounds("search-everywhere-scope:Include disabled actions").is_some());
+    assert!(cx.debug_bounds("search-everywhere-scope:Include non-project items").is_none());
     settle(cx, |cx| everywhere.read_with(cx, |popup, _| popup.selected().as_deref() == Some("Order Pizza")));
     cx.simulate_keystrokes("alt-enter");
     settle(cx, |_| !assign.borrow().is_empty());
@@ -165,6 +171,9 @@ async fn actions_run_from_the_popup_are_recent_and_the_footer_describes_the_sele
     cx.simulate_keystrokes("enter");
     settle(cx, |_| runs.borrow().len() == 1);
     assert_eq!(recent_actions(stored(cx, RECENT_ACTIONS_KEY).as_deref()), ["test.zymurgy"]);
+    let actions = search_history(stored(cx, HISTORY_KEY).as_deref(), SeTab::Actions);
+    assert_eq!(actions, ["Zymurgy Plain"], "running a result remembers the query");
+    drop(everywhere);
 
     run_action(cx, "navigate.findAction", None);
     let everywhere = popup(&workbench, cx);
@@ -199,6 +208,130 @@ async fn cmd_enter_on_text_opens_find_in_files_with_the_query(cx: &mut TestAppCo
     assert!(workbench.read_with(cx, |w, _| w.search_everywhere().is_none()));
     let find = workbench.read_with(cx, |w, _| w.find_popup()).expect("Find in Files is open");
     assert_eq!(find.read_with(cx, |find, cx| find.pattern_field().read(cx).text().to_owned()), "needle");
+    cx.simulate_keystrokes("escape");
+    close_backend_project(cx);
+}
+
+/// ⌘↵ on any other tab is Enter: it opens the selected file.
+#[gpui_kit::test]
+async fn cmd_enter_off_the_text_tab_opens_the_selection(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = search_project(cx);
+    run_action(cx, "navigate.gotoFile", None);
+    let everywhere = popup(&workbench, cx);
+    type_query(cx, "alpha");
+    settle(cx, |cx| everywhere.read_with(cx, |popup, _| popup.selected().as_deref() == Some("src/alpha.rs")));
+    cx.simulate_keystrokes("cmd-enter");
+    let showing = |cx: &mut VisualTestContext| {
+        workbench.read_with(cx, |w, cx| w.editor().map(|editor| editor.read(cx).path().to_path_buf()))
+    };
+    settle(cx, |cx| showing(cx) == Some(root.join("src/alpha.rs")));
+    assert!(workbench.read_with(cx, |w, _| w.search_everywhere().is_none()));
+    assert!(workbench.read_with(cx, |w, _| w.find_popup().is_none()), "Find in Files is not asked for");
+    close_backend_project(cx);
+}
+
+/// An action that shows a state, run from the popup, keeps the popup open; its query is remembered for the
+/// tab at once, and the action is listed among the recent ones.
+#[gpui_kit::test]
+async fn a_toggled_action_run_from_the_popup_remembers_the_query_while_it_stays_open(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, _root, workbench, cx) = search_project(cx);
+    let on = Rc::new(std::cell::Cell::new(false));
+    let (flip, shown) = (Rc::clone(&on), Rc::clone(&on));
+    cx.update(|_, cx| {
+        let meta = ActionMeta::new("test.quokka", "Quokka Mode").category("Test");
+        let action = Action::new(meta, move |_, _, _| {
+            flip.set(!flip.get());
+            Ok(())
+        })
+        .toggled(move |_, _| shown.get());
+        cx.global_mut::<ActionRegistry>().register(action);
+    });
+    run_action(cx, "navigate.findAction", None);
+    let everywhere = popup(&workbench, cx);
+    type_query(cx, "Quokka Mode");
+    settle(cx, |cx| everywhere.read_with(cx, |popup, _| popup.selected().as_deref() == Some("Quokka Mode")));
+    cx.simulate_keystrokes("enter");
+    settle(cx, |_| on.get());
+    assert_eq!(workbench.read_with(cx, |w, _| w.search_everywhere()), Some(everywhere), "the popup stays open");
+    let actions = search_history(stored(cx, HISTORY_KEY).as_deref(), SeTab::Actions);
+    assert_eq!(actions, ["Quokka Mode"], "the query is remembered without closing the popup");
+    assert_eq!(recent_actions(stored(cx, RECENT_ACTIONS_KEY).as_deref()), ["test.quokka"]);
+    cx.simulate_keystrokes("escape");
+    close_backend_project(cx);
+}
+
+/// The search history and the recent actions belong to the app, not to a window: a query left in one
+/// project window's popup is where another window's popup starts, and an action run in the first is listed
+/// first in the second.
+#[gpui_kit::test]
+async fn two_project_windows_share_the_search_history_and_the_recent_actions(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, _root, workbench, cx) = search_project(cx);
+    let runs = recording_action(cx, ActionMeta::new("test.wombat", "Wombat Plain").category("Test"));
+    run_action(cx, "navigate.gotoFile", None);
+    type_query(cx, "alpha");
+    cx.simulate_keystrokes("escape");
+    cx.run_until_parked();
+    run_action(cx, "navigate.findAction", None);
+    let everywhere = popup(&workbench, cx);
+    type_query(cx, "Wombat Plain");
+    settle(cx, |cx| everywhere.read_with(cx, |popup, _| popup.selected().as_deref() == Some("Wombat Plain")));
+    cx.simulate_keystrokes("enter");
+    settle(cx, |_| runs.borrow().len() == 1);
+    drop(everywhere);
+
+    let other_folder = tempfile::tempdir().expect("a temporary folder");
+    let other_root = other_folder.path().canonicalize().expect("the folder exists");
+    std::fs::write(other_root.join("gamma.rs"), "pub fn gamma() {}\n").expect("the file is written");
+    let (other, handle) = {
+        let (other, other_cx) = cx.add_window_view(|window, cx| Workbench::new("w2", window, cx));
+        (other, other_cx.update(|window, _| window.window_handle()))
+    };
+    let other_cx = &mut VisualTestContext::from_window(handle, cx);
+    other_cx.update(|window, _| window.activate_window());
+    other.update_in(other_cx, |w, window, cx| w.open_project(other_root.clone(), window, cx));
+    settle(other_cx, |cx| other.read_with(cx, |w, _| w.project_tree().is_some()));
+
+    run_action(other_cx, "navigate.gotoFile", None);
+    let there = popup(&other, other_cx);
+    assert_eq!(query(&there, other_cx), "alpha", "the query left in the other window comes back");
+    other_cx.simulate_keystrokes("escape");
+    other_cx.run_until_parked();
+    run_action(other_cx, "navigate.findAction", None);
+    let there = popup(&other, other_cx);
+    assert_eq!(query(&there, other_cx), "Wombat Plain");
+    other_cx.simulate_keystrokes("backspace");
+    other_cx.executor().advance_clock(crate::everywhere::view::DEBOUNCE);
+    settle(other_cx, |cx| there.read_with(cx, |popup, _| popup.lines().starts_with(&recent_header())));
+    other_cx.simulate_keystrokes("escape");
+    other_cx.run_until_parked();
+    let host = other_cx.update(|_, cx| cx.global::<Backend>().host.clone());
+    host.close_project("w2");
+    close_backend_project(cx);
+}
+
+/// The first two lines of Find Action with an empty query after Wombat Plain was run.
+fn recent_header() -> [String; 2] {
+    ["[Recent Actions]".to_owned(), "Wombat Plain".to_owned()]
+}
+
+/// A scope chosen by hand is kept: with the non-project items switched off by asking for the shown tab
+/// twice, a query with nothing in the project is not searched everywhere, and the popup says so.
+#[gpui_kit::test]
+async fn a_scope_chosen_by_hand_says_nothing_was_found_in_the_project_files(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, _root, workbench, cx) = search_project(cx);
+    run_action(cx, "navigate.searchEverywhere", None);
+    let everywhere = popup(&workbench, cx);
+    run_action(cx, "navigate.searchEverywhere", None);
+    run_action(cx, "navigate.searchEverywhere", None);
+    assert!(!everywhere.read_with(cx, |popup, _| popup.include_non_project()));
+    type_query(cx, "zzqqxx");
+    settle(cx, |cx| cx.debug_bounds("search-everywhere-empty:Nothing found in project files").is_some());
+    let scope = everywhere.read_with(cx, |popup, _| (popup.include_non_project(), popup.not_found().is_none()));
+    assert_eq!(scope, (false, true), "the scope stays the project's");
     cx.simulate_keystrokes("escape");
     close_backend_project(cx);
 }

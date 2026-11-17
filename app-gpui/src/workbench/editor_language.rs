@@ -1144,6 +1144,13 @@ impl Workbench {
         self.language.applied.len()
     }
 
+    /// How many remembered workspace edits are undone, so that Edit › Redo has one to apply again. The
+    /// window learns it from the backend's answer, after the files are already back on disk.
+    #[cfg(test)]
+    pub(super) fn undone_edits(&self) -> usize {
+        self.language.applied.iter().filter(|edit| edit.undone).count()
+    }
+
     /// The project the window shows, as the refactoring history knows it.
     fn undo_project(&self, cx: &App) -> Option<String> {
         self.project_root(cx).map(|root| to_ipc(&root))

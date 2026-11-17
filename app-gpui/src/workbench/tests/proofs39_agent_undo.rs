@@ -117,6 +117,8 @@ async fn edit_undo_takes_back_an_agents_edit_over_two_files_and_redo_applies_it_
     settle(cx, |cx| text(&editor_a, cx) == "old a\n" && text(&editor_b, cx) == "old b\n");
     settle(cx, |_| on_disk(&a) == b"old a\n" && on_disk(&b) == b"old b\n");
 
+    // Redo applies the edit the window knows as undone, which it learns from the backend's answer.
+    settle(cx, |cx| workbench.read_with(cx, |w, _| w.undone_edits()) == 1);
     run_action(cx, "edit.redo", None);
     settle(cx, |cx| text(&editor_a, cx) == "new a\n" && text(&editor_b, cx) == "new b\n");
     settle(cx, |_| on_disk(&a) == b"new a\n" && on_disk(&b) == b"new b\n");
@@ -245,6 +247,8 @@ async fn undoing_an_agents_edit_touches_only_the_files_it_changed_created_or_del
     assert_eq!(tree(&root), before);
     assert_eq!(tree(outside.path()), outside_before);
 
+    // Redo applies the edit the window knows as undone, which it learns from the backend's answer.
+    settle(cx, |cx| workbench.read_with(cx, |w, _| w.undone_edits()) == 1);
     run_action(cx, "edit.redo", None);
     settle(cx, |cx| text(&editor_a, cx) == "new a\n");
     settle(cx, |_| tree(&root) == after);

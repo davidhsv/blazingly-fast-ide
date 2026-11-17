@@ -15,6 +15,7 @@ use crate::platform::actions::{ActionMeta, ActionRegistry, is_action_enabled, is
 use crate::platform::context::ContextKeys;
 use crate::platform::i18n::Localization;
 use crate::platform::input;
+use crate::platform::keymap::{has_primary_modifier, is_mac_host};
 use crate::platform::local_time::now_ms;
 use crate::theme;
 use crate::ui::text_field::{TextField, TextFieldEvent};
@@ -30,6 +31,13 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
+
+mod memory;
+mod parts;
+#[cfg(test)]
+mod proofs41_stale;
+
+pub use parts::scope_label;
 
 /// How long the query rests before it is searched for.
 pub const DEBOUNCE: Duration = Duration::from_millis(60);
@@ -49,12 +57,16 @@ pub enum SearchEverywhereEvent {
     RunAction(String),
     /// Open Settings on page `0`.
     OpenSettings(String),
+    /// Run action `id` with `arg` once the popup has closed: ⌥↵ records a shortcut, ⌘↵ finds in files.
+    RunWith {
+        id: String,
+        arg: serde_json::Value,
+    },
 }
 
 pub struct SearchEverywhere {
     window_label: String,
     field: Entity<TextField>,
-    tab: SeTab,
     controller: SeController,
     /// Extra rows asked for with "Show more", per section.
     extra: BTreeMap<SectionId, usize>,
@@ -82,6 +94,9 @@ pub struct SearchEverywhere {
     scroll: UniformListScrollHandle,
     /// The claim on the keys the popup handles itself, ahead of the keymap.
     key_claim: u64,
+    /// The shown tab, its scope, the walk through the search history and what is remembered when the
+    /// popup closes.
+    memory: memory::SeMemory,
     _field_events: Subscription,
 }
 
@@ -89,7 +104,7 @@ impl EventEmitter<SearchEverywhereEvent> for SearchEverywhere {}
 
 impl SearchEverywhere {
     /// The popup on `tab`, for the project at `root` of the window `window_label`. It starts
-    /// with `query` selected, so that typing replaces it.
+    /// with `query` selected, so that typing replaces it; without one, with the tab's last query.
     pub fn new(
         window_label: &str,
         tab: SeTab,
@@ -99,11 +114,13 @@ impl SearchEverywhere {
         settings: Vec<SettingsSearchEntry>,
         cx: &mut Context<Self>,
     ) -> Self {
+        let memory = memory::SeMemory::new(tab, query, cx);
+        let query = memory.state.query.clone();
         let placeholder = cx.default_global::<Localization>().0.tx("Type to search");
         let field = cx.new(|cx| {
             let mut field = TextField::new(cx).with_placeholder(placeholder);
-            if let Some(query) = query {
-                field.set_text(query, cx);
+            if !query.is_empty() {
+                field.set_text(&query, cx);
                 field.select_all(cx);
             }
             field
@@ -122,6 +139,7 @@ impl SearchEverywhere {
         );
         cx.on_release(|popup, cx| {
             input::release_keys(popup.key_claim, cx);
+            popup.remember_query(cx);
             let Some(backend) = cx.try_global::<Backend>() else { return };
             for effect in popup.controller.dispose() {
                 if let SeEffect::Cancel(request) = effect {
@@ -133,7 +151,6 @@ impl SearchEverywhere {
         let mut popup = Self {
             window_label: window_label.to_owned(),
             field,
-            tab,
             controller: SeController::default(),
             extra: BTreeMap::new(),
             rows: Rc::default(),
@@ -141,7 +158,7 @@ impl SearchEverywhere {
             selected_key: None,
             lead: None,
             moved: false,
-            searched: query.unwrap_or_default().to_owned(),
+            searched: query,
             debounce: None,
             pending_enter: false,
             context,
@@ -150,6 +167,7 @@ impl SearchEverywhere {
             fetches: Vec::new(),
             scroll: UniformListScrollHandle::new(),
             key_claim,
+            memory,
             _field_events: events,
         };
         popup.run(cx);
@@ -161,7 +179,7 @@ impl SearchEverywhere {
     }
 
     pub fn tab(&self) -> SeTab {
-        self.tab
+        self.memory.state.tab
     }
 
     pub fn is_loading(&self) -> bool {
@@ -204,10 +222,11 @@ impl SearchEverywhere {
             .collect();
         let actions: Vec<&ActionMeta> = metas.iter().collect();
         let is_enabled = move |meta: &ActionMeta| is_action_enabled(meta, &context);
+        let recent = memory::recent_action_ids(cx);
         let env = SeEnv {
             actions: &actions,
             is_enabled: &is_enabled,
-            recent_actions: &[],
+            recent_actions: &recent,
             root: self.root.as_deref(),
             now: now_ms(),
             in_file_set: None,
@@ -221,11 +240,19 @@ impl SearchEverywhere {
     /// The field's text changed: `/files foo` moves to that tab with `foo`, anything else is
     /// searched for once it has rested.
     fn query_changed(&mut self, cx: &mut Context<Self>) {
+        self.memory.history = None;
+        self.requery(cx);
+    }
+
+    /// Searches for the field's text once it has rested: after every change, and when ⌥↑ or ⌥↓ put an
+    /// earlier query in the field.
+    fn requery(&mut self, cx: &mut Context<Self>) {
         let typed = self.field.read(cx).text().to_owned();
         if let Some(ParsedCommand::Run { tab, rest }) = parse_command(&typed) {
             self.field.update(cx, |field, cx| field.set_text(&rest, cx));
-            self.tab = tab;
+            self.memory.state.select_tab(tab);
         }
+        self.note_query(cx);
         self.reset_selection();
         self.refresh(cx);
         self.debounce = Some(cx.spawn(async move |popup, cx| {
@@ -269,13 +296,16 @@ impl SearchEverywhere {
         let text = self.query_text();
         self.debounce.is_none()
             && self.field.read(cx).text() == self.searched
-            && top_result_settled(self.controller.sections(), (self.tab == SeTab::All).then_some(text.as_str()))
+            && top_result_settled(self.controller.sections(), (self.tab() == SeTab::All).then_some(text.as_str()))
     }
 
     /// Asks for what the query on the current tab needs.
     fn run(&mut self, cx: &mut Context<Self>) {
-        let mut request = SeRequest::new(self.search_query(), self.tab);
+        let mut request = SeRequest::new(self.search_query(), self.tab());
         request.extra = self.extra.clone();
+        request.include_non_project = self.memory.state.include_non_project;
+        // The Actions tab's check box is Include disabled actions.
+        request.include_disabled = (self.tab() == SeTab::Actions).then_some(self.memory.state.include_non_project);
         self.fetches.clear();
         let effects = self.with_env(cx, |controller, env| controller.run(&request, env, &mut Backend::next_request_id));
         self.carry_out(effects.unwrap_or_default(), cx);
@@ -394,7 +424,7 @@ impl SearchEverywhere {
     /// chose, and on the top result until they choose one.
     fn refresh(&mut self, cx: &mut Context<Self>) {
         let text = self.query_text();
-        let mix = (self.tab == SeTab::All).then_some(text.as_str());
+        let mix = (self.tab() == SeTab::All).then_some(text.as_str());
         let rows =
             self.listing(cx).unwrap_or_else(|| build_rows(self.controller.sections(), text.trim().is_empty(), mix));
         self.active = stable_index(&rows, self.selected_key.as_deref(), self.lead, self.moved);
@@ -403,13 +433,15 @@ impl SearchEverywhere {
             self.pending_enter = false;
             self.activate(cx);
         }
+        self.widen_when_nothing_found(cx);
         cx.notify();
     }
 
     /// Shows the results of `tab` for the query.
     pub fn select_tab(&mut self, tab: SeTab, cx: &mut Context<Self>) {
-        if self.tab != tab {
-            self.tab = tab;
+        if self.tab() != tab {
+            self.memory.state.select_tab(tab);
+            self.memory.history = None;
             self.extra.clear();
             self.reset_selection();
             self.run(cx);
@@ -460,7 +492,8 @@ impl SearchEverywhere {
             SeRow::Section { .. } => return,
             SeRow::Command { tab, .. } => {
                 self.field.update(cx, |field, cx| field.set_text("", cx));
-                (self.tab, self.debounce) = (tab, None);
+                self.memory.state.select_tab(tab);
+                (self.memory.history, self.debounce) = (None, None);
                 self.searched.clear();
                 self.extra.clear();
                 self.reset_selection();
@@ -468,22 +501,29 @@ impl SearchEverywhere {
                 return;
             }
             SeRow::More { section, .. } => {
-                let step = if self.tab == SeTab::All { MORE_STEP_ALL } else { MORE_STEP_TAB };
+                let step = if self.tab() == SeTab::All { MORE_STEP_ALL } else { MORE_STEP_TAB };
                 *self.extra.entry(section).or_default() += step;
                 // The selection stays where "Show more" was: on the first of the new rows.
                 (self.selected_key, self.lead, self.moved) = (None, self.active, true);
                 self.run(cx);
                 return;
             }
-            SeRow::Item { item, .. } => match item {
-                SeItem::File(file) => open(&file.path, file.line.map(|line| (line, file.col.unwrap_or(0)))),
-                SeItem::Symbol(symbol) => open(&symbol.path, Some((symbol.line, symbol.col))),
-                SeItem::Text(text) => open(&text.path, Some((text.line, text.col))),
-                // An action that cannot run here is listed but does nothing.
-                SeItem::Action(action) if !action.enabled => return,
-                SeItem::Action(action) => SearchEverywhereEvent::RunAction(action.id),
-                SeItem::Setting(setting) => SearchEverywhereEvent::OpenSettings(setting.page_id),
-            },
+            // An action that cannot run here is listed but does nothing.
+            SeRow::Item { item: SeItem::Action(action), .. } if !action.enabled => return,
+            SeRow::Item { item, .. } => {
+                // A result opened or run is remembered as the tab's query, also when the popup stays open.
+                self.remember_history(cx);
+                match item {
+                    SeItem::File(file) => open(&file.path, file.line.map(|line| (line, file.col.unwrap_or(0)))),
+                    SeItem::Symbol(symbol) => open(&symbol.path, Some((symbol.line, symbol.col))),
+                    SeItem::Text(text) => open(&text.path, Some((text.line, text.col))),
+                    SeItem::Action(action) => {
+                        memory::remember_action(&action.id, cx);
+                        SearchEverywhereEvent::RunAction(action.id)
+                    }
+                    SeItem::Setting(setting) => SearchEverywhereEvent::OpenSettings(setting.page_id),
+                }
+            }
         };
         cx.emit(event);
     }
@@ -498,13 +538,16 @@ impl SearchEverywhere {
         match key {
             // Tab moves along the tabs, Shift+Tab back.
             "tab" => {
-                let at = TABS.iter().position(|tab| *tab == self.tab).unwrap_or(0);
+                let at = TABS.iter().position(|tab| *tab == self.tab()).unwrap_or(0);
                 let next = if modifiers.shift { at + TABS.len() - 1 } else { at + 1 } % TABS.len();
                 self.select_tab(TABS[next], cx);
             }
-            "enter" if !modifiers.alt && !modifiers.platform => self.enter(cx),
-            "enter" => {}
-            "up" | "down" if modifiers.alt => {}
+            "enter" if modifiers.alt => self.assign_shortcut(cx),
+            "enter" if self.tab() == SeTab::Text && has_primary_modifier(&modifiers, is_mac_host()) => {
+                self.find_in_files(cx);
+            }
+            "enter" => self.enter(cx),
+            "up" | "down" if modifiers.alt => self.browse_history(key == "up", cx),
             "up" | "down" | "pageup" | "pagedown" => {
                 // Page Up, Page Down and the primary modifier with an arrow go to the neighbouring
                 // group of results, where there is one.
@@ -544,26 +587,38 @@ impl Focusable for SearchEverywhere {
 }
 
 impl Render for SearchEverywhere {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let (fg, muted) = (theme::color(cx, "fg-strong"), theme::color(cx, "fg-muted"));
         let selected_bg = theme::color(cx, "bg-tree-selected");
-        let tab_bg = theme::color(cx, "bg-tab-selected");
-        let tabs =
-            div().flex_none().flex().items_center().gap(px(2.0)).px(px(8.0)).children(TABS.into_iter().map(|tab| {
-                let label = cx.default_global::<Localization>().0.tx(tab.label());
-                div()
-                    .id(tab.id())
-                    .h(theme::length(cx, "h-tab"))
-                    .px(px(10.0))
-                    .flex()
-                    .items_center()
-                    .rounded(px(6.0))
-                    .text_color(if tab == self.tab { fg } else { muted })
-                    .when(tab == self.tab, |el| el.bg(tab_bg))
-                    .hover(|el| el.bg(theme::color(cx, "bg-tab-hover")))
-                    .child(SharedString::from(label))
-                    .on_click(cx.listener(move |popup, _, _, cx| popup.select_tab(tab, cx)))
-            }));
+        let shown = self.tab();
+        let tabs = div().flex().items_center().gap(px(2.0)).children(TABS.into_iter().map(|tab| {
+            let label = cx.default_global::<Localization>().0.tx(tab.label());
+            let on = tab == shown;
+            div()
+                .id(tab.id())
+                .debug_selector(move || format!("search-everywhere-tab-{}", tab.id()))
+                .flex_none()
+                .h(px(parts::TAB_HEIGHT))
+                .px(px(9.0))
+                .flex()
+                .items_center()
+                .whitespace_nowrap()
+                .border_1()
+                .rounded(theme::length(cx, "radius-small"))
+                .text_color(theme::color(cx, if on { "fg-strong" } else { "fg" }))
+                .when(on, |el| {
+                    el.bg(theme::color(cx, "bg-tab-selected")).border_color(theme::color(cx, "border-tab-selected"))
+                })
+                .when(!on, |el| {
+                    el.border_color(gpui_kit::transparent_black())
+                        .hover(|el| el.bg(theme::color(cx, "bg-toolbar-hover")))
+                })
+                .child(SharedString::from(label))
+                .on_click(cx.listener(move |popup, _, window, cx| {
+                    popup.select_tab(tab, cx);
+                    window.focus(&popup.field.focus_handle(cx), cx);
+                }))
+        }));
         let rows = Rc::clone(&self.rows);
         let active = self.active;
         let list = uniform_list(
@@ -575,55 +630,37 @@ impl Render for SearchEverywhere {
                         let line = div()
                             .id(index)
                             .debug_selector(|| format!("search-everywhere-row-{index}"))
-                            .h(theme::length(cx, "h-row"))
-                            .w_full()
+                            .h_full()
+                            .flex_1()
+                            .min_w_0()
                             .flex()
                             .items_center()
                             .gap(px(6.0))
-                            .px(px(10.0))
+                            .px(px(8.0))
+                            .rounded(px(5.0))
                             .whitespace_nowrap()
                             .overflow_hidden()
                             .text_color(fg)
-                            .when(active == Some(index), |el| el.bg(selected_bg));
-                        let detail = |text: String| div().text_color(muted).child(SharedString::from(text));
+                            .when(active == Some(index), |el| el.bg(selected_bg))
+                            .when(active != Some(index), |el| el.hover(|el| el.bg(theme::color(cx, "bg-tree-hover"))));
                         let line = match &rows[index] {
                             SeRow::Section { title, .. } => {
                                 let title = cx.default_global::<Localization>().0.tx(title);
-                                return line.text_color(muted).child(SharedString::from(title));
+                                line.text_color(muted)
+                                    .text_size(theme::length(cx, "fs-small"))
+                                    .child(SharedString::from(title))
                             }
-                            SeRow::Command { name, label, .. } => {
-                                line.child(SharedString::from(*name)).child(detail((*label).to_owned()))
+                            SeRow::Command { .. } | SeRow::More { .. } | SeRow::Item { .. } => {
+                                parts::row_line(line, index, &rows[index], cx).on_click(cx.listener(
+                                    move |popup, _, _, cx| {
+                                        popup.select(index, cx);
+                                        popup.activate(cx);
+                                    },
+                                ))
                             }
-                            SeRow::More { .. } => {
-                                let more = cx.default_global::<Localization>().0.tx("Show more");
-                                line.text_color(muted).child(SharedString::from(more))
-                            }
-                            SeRow::Item { item, .. } => match item {
-                                SeItem::File(file) => line
-                                    .child(theme::icon(cx, theme::icons::file_icon_name(&file.name), 16.0, fg))
-                                    .child(SharedString::from(file.name.clone()))
-                                    .child(detail(file.dir.clone())),
-                                SeItem::Symbol(symbol) => line
-                                    .child(SharedString::from(symbol.display.clone()))
-                                    .children(symbol.container.clone().map(detail))
-                                    .child(detail(symbol.rel.clone())),
-                                SeItem::Action(action) => line
-                                    .text_color(if action.enabled { fg } else { muted })
-                                    .children(action.icon.as_deref().map(|icon| theme::icon(cx, icon, 16.0, fg)))
-                                    .child(SharedString::from(action.title.clone()))
-                                    .children(action.category.clone().map(detail)),
-                                SeItem::Text(text) => line
-                                    .child(SharedString::from(text.text.trim().to_owned()))
-                                    .child(detail(format!("{}:{}", text.rel, text.line + 1))),
-                                SeItem::Setting(setting) => line
-                                    .child(SharedString::from(setting.title.clone()))
-                                    .child(detail(setting.path.join(" | "))),
-                            },
                         };
-                        line.on_click(cx.listener(move |popup, _, _, cx| {
-                            popup.select(index, cx);
-                            popup.activate(cx);
-                        }))
+                        // The rows sit 6 px in from the list's sides, as the selection is drawn.
+                        div().h(theme::length(cx, "h-row")).w_full().flex().px(px(6.0)).child(line)
                     })
                     .collect::<Vec<_>>()
             }),
@@ -633,47 +670,81 @@ impl Render for SearchEverywhere {
         // Nothing to list once the sources answered: what to do next, as a line in the list's place.
         // The All tab with no query lists nothing without saying so.
         let empty_query = self.query_text().trim().is_empty();
-        let show_empty =
-            self.rows.is_empty() && !self.controller.is_loading() && (!empty_query || self.tab != SeTab::All);
+        let show_empty = self.rows.is_empty() && !self.controller.is_loading() && (!empty_query || shown != SeTab::All);
         let body = if show_empty {
-            let text = if empty_query { "Type to search" } else { "Nothing found in project files" };
+            let text = match (empty_query, self.memory.state.include_non_project) {
+                (true, _) => "Type to search",
+                (false, true) => "Nothing found",
+                (false, false) => "Nothing found in project files",
+            };
             let text = cx.default_global::<Localization>().0.tx(text);
             let selector = format!("search-everywhere-empty:{text}");
+            Some(
+                div()
+                    .debug_selector(move || selector)
+                    .h(px(64.0))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .text_color(theme::color(cx, "fg-faint"))
+                    .child(SharedString::from(text))
+                    .into_any_element(),
+            )
+        } else {
+            (!self.rows.is_empty()).then(|| {
+                // Without a preview the list is as high as its rows, between ten rows while a query is
+                // typed and 672 px.
+                let typed = !empty_query && self.listing(cx).is_none();
+                let height = parts::list_height(self.rows.len(), typed);
+                div()
+                    .debug_selector(|| "search-everywhere-results".to_owned())
+                    .min_h_0()
+                    .h(px(height + parts::LIST_BOTTOM))
+                    .pb(px(parts::LIST_BOTTOM))
+                    .child(list)
+                    .into_any_element()
+            })
+        };
+        let viewport = window.viewport_size();
+        let width = parts::popup_width(f32::from(viewport.width));
+        let narrow = parts::is_narrow(width);
+        let hint = if narrow { None } else { parts::hint(shown, cx) };
+        let header = self.header(tabs, narrow, cx);
+        let footer = self.footer(cx);
+        let faint = theme::color(cx, "fg-faint");
+        let query =
             div()
-                .debug_selector(move || selector)
-                .h(px(64.0))
+                .debug_selector(|| "search-everywhere-query".to_owned())
+                .h(px(parts::FIELD_HEIGHT))
                 .flex()
                 .items_center()
-                .justify_center()
-                .text_color(theme::color(cx, "fg-faint"))
-                .child(SharedString::from(text))
-                .into_any_element()
-        } else {
-            list.into_any_element()
-        };
+                .gap(px(6.0))
+                .pl(px(8.0))
+                .pr(px(10.0))
+                .bg(theme::color(cx, "bg-input"))
+                .border_2()
+                .border_color(theme::color(cx, "border"))
+                .rounded(theme::length(cx, "radius-small"))
+                .child(theme::icon(cx, "search", 16.0, theme::color(cx, "fg-subtle")))
+                .child(div().flex_1().min_w_0().child(self.field.clone()))
+                .children(hint.map(|hint| {
+                    div().flex_none().whitespace_nowrap().text_color(faint).child(SharedString::from(hint))
+                }));
         div()
-            .w(px(680.0))
-            .h(px(440.0))
+            .debug_selector(|| "search-everywhere".to_owned())
+            .w(px(width))
+            .max_h(viewport.height * 0.8)
             .flex()
             .flex_col()
             .bg(theme::color(cx, "bg-popup"))
             .border_1()
-            .border_color(theme::color(cx, "border"))
-            .rounded(px(10.0))
+            .border_color(theme::color(cx, "border-popup"))
+            .rounded(theme::length(cx, "radius-dialog"))
             .overflow_hidden()
             .text_size(theme::length(cx, "fs-ui"))
-            .child(
-                div()
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .gap(px(8.0))
-                    .px(px(12.0))
-                    .py(px(6.0))
-                    .child(theme::icon(cx, "search", 16.0, muted))
-                    .child(div().flex_1().min_w_0().child(self.field.clone())),
-            )
-            .child(tabs)
-            .child(div().flex_1().min_h_0().mt(px(4.0)).child(body))
+            .child(header)
+            .child(div().flex_none().px(px(8.0)).py(px(6.0)).child(query))
+            .children(body)
+            .children(footer)
     }
 }

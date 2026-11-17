@@ -1,4 +1,5 @@
 use super::*;
+use crate::everywhere::view::scope_label;
 use crate::platform::i18n::Localization;
 use gpui_kit::{Bounds, Pixels};
 
@@ -76,7 +77,8 @@ async fn without_the_preview_the_results_list_shows_its_rows(cx: &mut TestAppCon
 }
 
 /// In windows 1000, 720 and 520 px wide, in English and Chinese, the popup and its header fit the window,
-/// the query field stays wider than 160 px, every tab Tab selects is shown whole, and the footer is in view.
+/// the query field stays wider than 160 px, every tab Tab selects is shown whole and clear of the scope check
+/// box, which goes under the tabs in the narrower two, and the footer is in view.
 #[gpui_kit::test]
 async fn tabs_and_query_fit_narrow_windows(cx: &mut TestAppContext) {
     let _home = start(cx);
@@ -109,6 +111,19 @@ async fn tabs_and_query_fit_narrow_windows(cx: &mut TestAppContext) {
                     "{locale} {width}: the {} tab {shown:?} is in the header {header:?}",
                     tab.id()
                 );
+                // All and Actions draw the scope check box: beside the tabs in a wide popup, under them once
+                // the popup is 680 px or less inside its frame.
+                let scope = leaked(format!("search-everywhere-scope:{}", scope_label(tab)));
+                if let Some(scope) = cx.debug_bounds(scope) {
+                    let tabs = bounds(cx, "search-everywhere-tabs");
+                    let wrapped = scope.top() >= tabs.bottom();
+                    assert_eq!(wrapped, width < 760.0, "{locale} {width}: the check box {scope:?}, the tabs {tabs:?}");
+                    assert!(
+                        shown.right() <= scope.left() || shown.bottom() <= scope.top(),
+                        "{locale} {width}: the {} tab {shown:?} is clear of the check box {scope:?}",
+                        tab.id()
+                    );
+                }
             }
             settle(cx, |cx| cx.debug_bounds("search-everywhere-footer").is_some());
             let footer = bounds(cx, "search-everywhere-footer");
@@ -132,11 +147,11 @@ async fn mixed_file_and_action_rows_align_icons_and_names_and_keep_shortcuts_rea
     let rows = |cx: &mut VisualTestContext| everywhere.read_with(cx, |popup, _| popup.lines());
     settle(cx, |cx| {
         let lines = rows(cx);
-        lines.iter().any(|line| line.ends_with("FindAction.kt")) && lines.contains(&"Find Action".to_owned())
+        lines.iter().any(|line| line.ends_with("FindAction.kt")) && lines.contains(&"Find Action…".to_owned())
     });
     let lines = rows(cx);
     let file = lines.iter().position(|line| line.ends_with("FindAction.kt")).expect("the file is listed");
-    let action = lines.iter().position(|line| line == "Find Action").expect("the action is listed");
+    let action = lines.iter().position(|line| line == "Find Action…").expect("the action is listed");
     let file_name = bounds(cx, leaked(format!("search-everywhere-name-{file}")));
     let action_name = bounds(cx, leaked(format!("search-everywhere-name-{action}")));
     assert!((f32::from(file_name.left()) - f32::from(action_name.left())).abs() < 1.0, "{file_name:?} {action_name:?}");
