@@ -1793,13 +1793,14 @@ mod tests {
     #[gpui_kit::test]
     async fn shows_the_red_error_icon_for_a_failed_exit(cx: &mut TestAppContext) {
         let mut store = RunStore::new();
-        start(&mut store, &config("broken", "spring-boot"), 1, Some("no such command"));
+        // The run that exits starts first: a start takes the place of a finished tab, so each needs its own.
         let exited = start(&mut store, &config("app", "spring-boot"), 2, None);
+        let broken = start(&mut store, &config("broken", "spring-boot"), 1, Some("no such command"));
         exit(&mut store, &exited, 1);
         let (view, _, _, cx) = open(cx, store);
         assert_eq!(icons(&view, cx), ["error", "error"]);
         // The failed start says why in its console.
-        view.update(cx, |view, cx| view.select_tab("run1", cx));
+        view.update(cx, |view, cx| view.select_tab(&broken, cx));
         cx.run_until_parked();
         assert_eq!(lines(&view, cx), ["Error running 'broken': no such command"]);
         assert_eq!(view.read_with(cx, |view, cx| view.line_kinds(cx)), [ChunkKind::Stderr]);
@@ -1810,9 +1811,12 @@ mod tests {
     #[gpui_kit::test]
     async fn shows_the_configurations_own_icon_once_the_process_ended_ideas_third_state(cx: &mut TestAppContext) {
         let mut store = RunStore::new();
-        for (id, kind) in [("boot", "spring-boot"), ("program", "program"), ("npm", "npm")] {
-            let session = start(&mut store, &config(id, kind), 1, None);
-            exit(&mut store, &session, 0);
+        // Every process runs before any ends: a start takes the place of a finished tab.
+        let kinds = [("boot", "spring-boot"), ("program", "program"), ("npm", "npm")];
+        let sessions: Vec<String> =
+            kinds.iter().map(|(id, kind)| start(&mut store, &config(id, kind), 1, None)).collect();
+        for session in &sessions {
+            exit(&mut store, session, 0);
         }
         let (view, _, _, cx) = open(cx, store);
         assert_eq!(icons(&view, cx), ["spring-boot", "file-binary", "file-npm"]);

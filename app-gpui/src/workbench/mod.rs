@@ -21,6 +21,7 @@ mod database;
 mod database_extras;
 mod debug;
 mod debug_extras;
+mod debug_guards;
 mod deployment;
 use crate::database::tree_view::DATABASE_TOOL_WINDOW;
 mod conflicts;
@@ -427,6 +428,8 @@ pub struct Workbench {
     debug: Option<debug::DebugSlot>,
     /// The Evaluate dialog, while it is open.
     debug_extras: debug_extras::DebugExtrasSlot,
+    /// Debugs of configurations between the press and the debugger's session.
+    debug_launches: debug_guards::DebugLaunches,
     /// The tools located for context runs, and the builds a debug of a compiled file waits for.
     run_context: run_context::RunContextSlot,
     /// The title bar and the status bar, and what the window keeps for them.
@@ -1230,6 +1233,7 @@ impl Workbench {
             agents: None,
             debug: None,
             debug_extras: Default::default(),
+            debug_launches: Default::default(),
             run_context: Default::default(),
             chrome,
             activations: HashMap::new(),
@@ -4573,6 +4577,7 @@ mod tests {
     mod proofs3_rename_lsp;
     mod proofs3_run;
     mod proofs3_windows;
+    mod proofs40_run_start;
     mod proofs4_run;
     mod proofs4_shell;
     mod proofs4_vcs;
@@ -7992,13 +7997,14 @@ mod tests {
         store.update(cx, |store, _| store.select_config(Some("nap")));
         cx.update(|window, cx| execute_action_or_throw("run.run", None, window, cx)).expect("it runs");
         long(cx, "the start of sleep", &|cx| session(cx, "nap").is_some_and(|s| s.status == SessionStatus::Running));
-        assert_eq!(view.read_with(cx, |view, cx| view.tab_icons(cx)), ["file-binary", "run"]);
+        // A run takes the place of a finished tab, as IDEA reuses run content: nap's run is in hello's tab.
+        assert_eq!(view.read_with(cx, |view, cx| view.tab_icons(cx)), ["run"]);
         // Outside the Run tool window Stop reaches the only running process.
         cx.update(|window, cx| execute_action_or_throw("run.stop", None, window, cx)).expect("it runs");
         long(cx, "the end of sleep", &|cx| session(cx, "nap").is_some_and(|s| !s.is_live()));
         let nap = session(cx, "nap").expect("a tab");
         assert_eq!((nap.status, nap.stopped), (SessionStatus::Finished, true));
-        assert_eq!(view.read_with(cx, |view, cx| view.tab_icons(cx)), ["file-binary", "file-binary"]);
+        assert_eq!(view.read_with(cx, |view, cx| view.tab_icons(cx)), ["file-binary"]);
     }
 
     #[gpui_kit::test]

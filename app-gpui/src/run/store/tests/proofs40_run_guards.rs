@@ -53,6 +53,8 @@ fn begin(store: &mut RunStore, config: &RunConfig, options: StartOptions) -> (St
     let settings = RunSettings::default();
     let (mut start, step) = StartRun::start(config, options, store, StartEnv { types: &types, settings: &settings });
     let launch = to_process_start(&mut start, step, store);
+    // The driver carries out what the steps before the process start asked for as they come.
+    start.take_effects();
     (start, launch)
 }
 

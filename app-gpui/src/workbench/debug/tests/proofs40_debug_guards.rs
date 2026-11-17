@@ -1,7 +1,8 @@
 //! Debug of a configuration that is already running, a second Debug while the first one starts, and Rerun
 //! in the debugger. The project has two configurations whose programs are stand-in shell scripts in the
 //! test's project folder: each records its start in `<script>.started` and the interrupt or termination
-//! Stop sends it in `<script>.stopped`, then exits; until then it waits. `main` is also the program the
+//! Stop sends it in `<script>.stopped`, then exits; until then it waits, and it ends once its script is
+//! gone (the test's folder removed), so a failed test leaves no process. `main` is also the program the
 //! fake debug adapter (`python3` running [`FAKE_ADAPTER`], as the other debugger tests do) debugs: its
 //! last line reads `loop`, so a debug session of it runs until stopped. `other` is only ever run. Nothing
 //! else is started.
@@ -9,6 +10,7 @@
 
 use super::*;
 use crate::run::store::{RunSession, RunStore, SessionStatus as RunStatus};
+use ide_workspace::settings::SettingsScope;
 use std::path::Path;
 
 /// What [`open_two`] made: the window, the project's folder and the two programs.
@@ -48,6 +50,25 @@ impl Project {
         })
     }
 
+    /// Every session of the debugger, as (name, parent, status, configuration), for a failure's message.
+    fn debug_report(&self, cx: &mut VisualTestContext) -> String {
+        let driver = self.workbench.read_with(cx, |w, _| w.debug_driver().cloned()).expect("a debugger");
+        driver.read_with(cx, |driver, cx| {
+            let state = &driver.debugger().read(cx).state;
+            let all = state.sessions().values().map(|s| {
+                let config = s.run_config.as_ref().map(|config| config.id.clone());
+                format!("({:?}, {:?}, {:?}, {config:?})", s.name, s.parent, s.status)
+            });
+            all.collect::<Vec<_>>().join(", ")
+        })
+    }
+
+    /// Whether the debugger has a start under way.
+    fn debug_launching(&self, cx: &mut VisualTestContext) -> bool {
+        let driver = self.workbench.read_with(cx, |w, _| w.debug_driver().cloned()).expect("a debugger");
+        driver.read_with(cx, |driver, cx| driver.debugger().read(cx).launching())
+    }
+
     /// The titles of the Debug tool window's tabs, once it was shown.
     fn debug_tabs(&self, cx: &mut VisualTestContext) -> Vec<String> {
         let view = self.workbench.read_with(cx, |w, _| w.debug_window_view().cloned());
@@ -65,7 +86,7 @@ fn stand_in(root: &Path, name: &str) -> PathBuf {
     use std::os::unix::fs::PermissionsExt as _;
     let path = root.join(name);
     let script = "#!/bin/sh\ntrap 'echo stopped > \"$0.stopped\"; exit 0' INT TERM\necho started > \"$0.started\"\n\
-                  while :; do sleep 0.1; done\nloop\n";
+                  while [ -e \"$0\" ]; do sleep 0.1; done\nloop\n";
     std::fs::write(&path, script).expect("the stand-in is written");
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("the stand-in can run");
     path
@@ -172,8 +193,11 @@ async fn debug_on_a_running_configuration_asks_to_stop_it_instead_of_starting_an
     long(cx, "the run of main to be stopped", &|_| record(&project.main, "stopped").exists());
     long(cx, "its end", &|cx| project.run_of("main", cx).is_some_and(|s| !s.is_live()));
     assert_eq!(project.run_of("main", cx).map(|s| s.stopped), Some(true));
-    long(cx, "the debug session of main", &|cx| context(cx, "debugSessionRunning"));
-    assert_eq!(project.debug_roots(cx).len(), 1);
+    long(cx, "the debug session of main", &|cx| {
+        // The backend's session is listed before the debugger has taken it on as main's.
+        context(cx, "debugSessionRunning") && !project.debug_roots(cx).is_empty()
+    });
+    assert_eq!(project.debug_roots(cx).len(), 1, "{}", project.debug_report(cx));
 
     assert!(project.running("other", cx), "a run of another configuration keeps running");
     assert!(!record(&project.other, "stopped").exists());
@@ -191,13 +215,13 @@ async fn a_second_debug_while_the_first_one_prepares_does_nothing(cx: &mut TestA
                 .expect("run.debugConfig runs");
         }
     });
-    long(cx, "the debug session of main", &|cx| context(cx, "debugSessionRunning"));
+    long(cx, "the debug session of main", &|cx| {
+        // The backend's session is listed before the debugger has taken it on as main's.
+        context(cx, "debugSessionRunning") && !project.debug_roots(cx).is_empty()
+    });
     assert!(!cx.has_pending_prompt(), "the second press asks nothing");
-    // Let a second start, were there one, reach its session.
-    for _ in 0..25 {
-        cx.executor().advance_clock(Duration::from_millis(20));
-        cx.run_until_parked();
-    }
+    // A second start, were there one, has reached its session once the debugger starts nothing more.
+    long(cx, "the debugger to have no start under way", &|cx| !project.debug_launching(cx));
     assert_eq!(project.debug_roots(cx).len(), 1, "one session");
     assert_eq!(project.debug_tabs(cx), ["main"]);
 
@@ -219,10 +243,13 @@ async fn rerun_stops_the_live_session_first_and_takes_its_own_tabs_place(cx: &mu
     run_with(cx, "run.runConfig", Value::from("other"));
     long(cx, "the run of other", &|cx| project.running("other", cx));
     run_with(cx, "run.debugConfig", Value::from("main"));
-    long(cx, "the debug session of main", &|cx| context(cx, "debugSessionRunning"));
+    long(cx, "the debug session of main", &|cx| {
+        // The backend's session is listed before the debugger has taken it on as main's.
+        context(cx, "debugSessionRunning") && !project.debug_roots(cx).is_empty()
+    });
     let first = match project.debug_roots(cx).as_slice() {
         [(id, _)] => *id,
-        other => panic!("one session of main, not {other:?}"),
+        other => panic!("one session of main, not {other:?}: {}", project.debug_report(cx)),
     };
 
     run(cx, "debug.rerun");
@@ -232,6 +259,70 @@ async fn rerun_stops_the_live_session_first_and_takes_its_own_tabs_place(cx: &mu
         roots.len() == 1 && roots[0].0 != first && roots[0].1 == SessionStatus::Running
     });
     long(cx, "the finished session's tab to be taken", &|cx| project.debug_tabs(cx) == ["main"]);
+    assert!(project.running("other", cx), "a run of another configuration keeps running");
+    assert!(!record(&project.other, "stopped").exists());
+    tear_down(&project, cx);
+}
+
+/// With Settings › Run "Confirm rerun with process termination" off (what the question's "Do not ask
+/// again" stores), Debug of a running configuration asks nothing: it stops the run, waits for its
+/// process to be gone and debugs it; a run of another configuration keeps running.
+#[gpui_kit::test]
+async fn debug_on_a_running_configuration_stops_it_without_asking_when_the_setting_is_off(cx: &mut TestAppContext) {
+    let (project, cx) = open_two(cx);
+    cx.update(|_, cx| {
+        let off = Value::Bool(false);
+        crate::platform::settings::set("w1", SettingsScope::Global, "run.confirmRerun", &off, cx)
+            .expect("the setting is stored");
+    });
+    run_with(cx, "run.runConfig", Value::from("main"));
+    run_with(cx, "run.runConfig", Value::from("other"));
+    long(cx, "both runs to start", &|cx| project.running("main", cx) && project.running("other", cx));
+    long(cx, "the run of main to record its start", &|_| record(&project.main, "started").exists());
+
+    run_with(cx, "run.debugConfig", Value::from("main"));
+    assert!(!cx.has_pending_prompt(), "nothing is asked");
+    long(cx, "the run of main to be stopped", &|_| record(&project.main, "stopped").exists());
+    assert!(!cx.has_pending_prompt(), "nothing is asked");
+    long(cx, "the debug session of main", &|cx| {
+        // The backend's session is listed before the debugger has taken it on as main's.
+        context(cx, "debugSessionRunning") && !project.debug_roots(cx).is_empty()
+    });
+    assert_eq!(project.run_of("main", cx).map(|s| (s.stopped, s.is_live())), Some((true, false)));
+    assert_eq!(project.debug_roots(cx).len(), 1);
+
+    assert!(project.running("other", cx), "a run of another configuration keeps running");
+    assert!(!record(&project.other, "stopped").exists());
+    tear_down(&project, cx);
+}
+
+/// Debug of a configuration that is being debugged asks to stop it; Stop and Rerun stops that session,
+/// waits for it to end and debugs the configuration again in its place, and a run of another
+/// configuration keeps running.
+#[gpui_kit::test]
+async fn debug_on_a_debugged_configuration_asks_then_stops_the_session_and_debugs_again(cx: &mut TestAppContext) {
+    let (project, cx) = open_two(cx);
+    run_with(cx, "run.runConfig", Value::from("other"));
+    long(cx, "the run of other", &|cx| project.running("other", cx));
+    run_with(cx, "run.debugConfig", Value::from("main"));
+    long(cx, "the debug session of main", &|cx| !project.debug_roots(cx).is_empty());
+    let first = match project.debug_roots(cx).as_slice() {
+        [(id, _)] => *id,
+        other => panic!("one session of main, not {other:?}: {}", project.debug_report(cx)),
+    };
+
+    run_with(cx, "run.debugConfig", Value::from("main"));
+    long(cx, "the question", &|cx| cx.has_pending_prompt());
+    let (title, body) = cx.pending_prompt().expect("the question is asked");
+    assert_eq!(title, "Process 'main' Is Running");
+    assert_eq!(body, "'main' is not allowed to run in parallel.\nWould you like to stop the running one?");
+    cx.simulate_prompt_answer("Stop and Rerun");
+    long(cx, "a new session of main in the old one's place", &|cx| {
+        let roots = project.debug_roots(cx);
+        roots.len() == 1 && roots[0].0 != first && roots[0].1 == SessionStatus::Running
+    });
+    long(cx, "the finished session's tab to be taken", &|cx| project.debug_tabs(cx) == ["main"]);
+    assert_eq!(project.debug_roots(cx).len(), 1, "{}", project.debug_report(cx));
     assert!(project.running("other", cx), "a run of another configuration keeps running");
     assert!(!record(&project.other, "stopped").exists());
     tear_down(&project, cx);

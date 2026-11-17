@@ -17,7 +17,7 @@ use std::time::Duration;
 
 /// How often a Debug that stopped Run processes looks whether they are gone.
 const EXIT_POLL_MS: u64 = 50;
-/// How long a Debug waits at most for a session of its configuration that was already stopping.
+/// How long a Debug waits at most for a debug session of its configuration to end once it is stopping.
 const STOPPING_WAIT_MS: u64 = 10_000;
 
 /// The configurations whose Debug is between the press and the debugger's session, by id: `true` once
@@ -86,14 +86,16 @@ impl Workbench {
                 return;
             }
             // The new process starts once the old ones are gone (they may still hold a port or a lock).
-            // There is no time limit: a first Stop waits for the shutdown, a second one kills it. A debug
-            // session already stopping is waited for a while only: its adapter may never say it ended.
+            // There is no time limit for a Run process: a first Stop waits for the shutdown, a second one
+            // kills it. A debug session stopped here, or already stopping, is waited for a while only: its
+            // adapter may never say it ended.
             let mut waited = 0;
             loop {
                 let live = workbench.update(cx, |workbench, cx| {
                     let runs_now = workbench.live_runs_of(&config.id, cx);
                     let roots_now = workbench.debug_roots_of(&config.id, true, cx);
-                    let debug_live = waited < STOPPING_WAIT_MS && stopping.iter().any(|id| roots_now.contains(id));
+                    let ending = stopping.iter().chain(&debugging).any(|id| roots_now.contains(id));
+                    let debug_live = waited < STOPPING_WAIT_MS && ending;
                     runs.iter().any(|id| runs_now.contains(id)) || debug_live
                 });
                 match live {
@@ -104,9 +106,9 @@ impl Workbench {
                 waited += EXIT_POLL_MS;
             }
             let _ = workbench.update_in(cx, |workbench, window, cx| {
-                if let Some(launched) = workbench.debug_launches.launching.get_mut(&config.id) {
-                    *launched = true;
-                }
+                // The project closed while this Debug waited: there is nothing left to debug it in.
+                let Some(launched) = workbench.debug_launches.launching.get_mut(&config.id) else { return };
+                *launched = true;
                 workbench.launch_debug(config, show, window, cx);
             });
         })

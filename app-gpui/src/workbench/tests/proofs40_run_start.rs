@@ -1,6 +1,7 @@
 //! Stop while a run is starting. Each run's program is a stand-in shell script in the test's project
-//! folder: it records its start in `<script>.started`, records the interrupt or termination Stop sends it
-//! in `<script>.stopped` and exits, and until then waits. Its start is held by
+//! folder: it appends its process id to `<script>.started` when it starts, appends it to
+//! `<script>.stopped` and exits on the interrupt or termination Stop sends it, and until then waits; it
+//! also ends once its script is gone (the test's folder removed), so a failed test leaves no process. Its start is held by
 //! [`StartGate`](crate::run::proofs40_start_gate::StartGate): before the process host is asked (as a run
 //! target's validation keeps a start waiting), or with the host's answer once the process started (an
 //! answer that comes late). Nothing else is started.
@@ -17,21 +18,31 @@ fn session_of(store: &Entity<RunStore>, name: &str, cx: &mut VisualTestContext) 
     store.read_with(cx, |store, _| store.sessions.iter().rev().find(|s| s.config.name == name).cloned())
 }
 
-/// The lines the Run tool window shows for its current tab.
-fn run_lines(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Vec<String> {
-    let view = workbench
+/// The Run tool window's view.
+fn run_view(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Entity<RunView> {
+    workbench
         .read_with(cx, |w, _| w.tool_window_view(RUN_TOOL_WINDOW))
         .and_then(|view| view.downcast::<RunView>().ok())
-        .expect("the Run tool window holds its view");
-    view.read_with(cx, |view, cx| view.lines(cx))
+        .expect("the Run tool window holds its view")
+}
+
+/// The lines the Run tool window shows for its current tab.
+fn run_lines(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Vec<String> {
+    run_view(workbench, cx).read_with(cx, |view, cx| view.lines(cx))
+}
+
+/// The icons of the Run tool window's tabs: `run` while a process runs, the configuration's own once
+/// it ended.
+fn tab_icons(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Vec<String> {
+    run_view(workbench, cx).read_with(cx, |view, cx| view.tab_icons(cx))
 }
 
 /// Writes the stand-in program `name` into `root` and returns its path.
 fn stand_in(root: &Path, name: &str) -> PathBuf {
     use std::os::unix::fs::PermissionsExt as _;
     let path = root.join(name);
-    let script = "#!/bin/sh\ntrap 'echo stopped > \"$0.stopped\"; exit 0' INT TERM\necho started > \"$0.started\"\n\
-                  echo running\nwhile :; do sleep 0.1; done\n";
+    let script = "#!/bin/sh\ntrap 'echo $$ >> \"$0.stopped\"; exit 0' INT TERM\necho $$ >> \"$0.started\"\n\
+                  echo running\nwhile [ -e \"$0\" ]; do sleep 0.1; done\n";
     std::fs::write(&path, script).expect("the stand-in is written");
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("the stand-in can run");
     path
@@ -40,6 +51,12 @@ fn stand_in(root: &Path, name: &str) -> PathBuf {
 /// The record `what` (`started`, `stopped`) of the stand-in at `program`.
 fn record(program: &Path, what: &str) -> PathBuf {
     PathBuf::from(format!("{}.{what}", program.to_string_lossy()))
+}
+
+/// The process ids the record `what` of the stand-in at `program` lists, in order.
+fn pids(program: &Path, what: &str) -> Vec<String> {
+    let text = std::fs::read_to_string(record(program, what)).unwrap_or_default();
+    text.lines().map(str::to_owned).collect()
 }
 
 /// Run Configuration's argument for running `program` as a temporary configuration named `name`.
@@ -92,6 +109,8 @@ async fn cancels_startup_and_handles_a_late_cancelled_response(cx: &mut TestAppC
     assert_eq!((ended.status, ended.stopped, ended.run_id), (SessionStatus::Finished, true, None));
     assert!(!record(&program, "started").exists(), "the cancelled start started no process");
     assert!(!told_a_failure(&workbench, cx), "{:?}", notification_titles(&workbench, cx));
+    assert_eq!(run_lines(&workbench, cx), Vec::<String>::new(), "the stopped tab prints nothing");
+    assert_eq!(tab_icons(&workbench, cx), ["file-binary"], "the tab is not shown running");
     close_backend_project(cx);
 }
 
@@ -112,7 +131,7 @@ async fn cancels_startup_and_handles_a_late_success_response(cx: &mut TestAppCon
     let mut gate = StartGate::hold(&program.to_string_lossy(), GatePoint::AfterStart);
     run_action(cx, "run.runConfig", Some(given("late", &program)));
     wait_long(cx, "the process to start and its answer to wait", |_| {
-        gate.reached() && record(&program, "started").exists()
+        gate.reached() && !pids(&program, "started").is_empty()
     });
     let starting = session_of(&store, "late", cx).expect("the run has its tab");
     assert_eq!((starting.status, starting.run_id), (SessionStatus::Starting, None));
@@ -122,11 +141,15 @@ async fn cancels_startup_and_handles_a_late_success_response(cx: &mut TestAppCon
     assert_eq!((stopped.status, stopped.stopped), (SessionStatus::Finished, true));
 
     gate.release();
-    wait_long(cx, "the process that started anyway to be stopped", |_| record(&program, "stopped").exists());
+    wait_long(cx, "the process that started anyway to be stopped", |_| !pids(&program, "stopped").is_empty());
+    assert_eq!(pids(&program, "stopped"), pids(&program, "started"), "the one process that started is stopped");
     wait_long(cx, "the answer to be handled", |cx| request_of(&store, &starting.id, cx).is_none());
     let ended = session_of(&store, "late", cx).expect("the tab stays");
     assert_eq!((ended.status, ended.stopped, ended.run_id), (SessionStatus::Finished, true, None));
     assert!(!told_a_failure(&workbench, cx), "{:?}", notification_titles(&workbench, cx));
+    let lines = run_lines(&workbench, cx);
+    assert!(lines.iter().any(|line| line == "running"), "the tab shows what the process printed: {lines:?}");
+    assert_eq!(tab_icons(&workbench, cx), ["run", "file-binary"], "only the other run is shown running");
 
     let other = session_of(&store, "bystander", cx).expect("the other run has its tab");
     assert_eq!((other.status, other.stopped), (SessionStatus::Running, false));
@@ -161,5 +184,43 @@ async fn a_start_let_go_before_stop_runs_its_program(cx: &mut TestAppContext) {
     wait_long(cx, "the program to be stopped", |_| record(&program, "stopped").exists());
     wait_long(cx, "its end", |cx| session_of(&store, "plain", cx).is_some_and(|s| !s.is_live()));
     assert_eq!(session_of(&store, "plain", cx).map(|s| s.stopped), Some(true));
+    close_backend_project(cx);
+}
+
+/// Stop while the process host's answer is on its way, then Rerun at once: the process the first start
+/// started anyway is stopped when its late answer arrives, and only the rerun's process runs, in the
+/// same tab, with no error told.
+#[gpui_kit::test]
+async fn a_late_answer_after_stop_and_rerun_stops_only_the_first_starts_process(cx: &mut TestAppContext) {
+    let (workbench, cx, _folders, root, store) = run_project(cx, Vec::new());
+    cx.update(|window, _| window.activate_window());
+    let program = stand_in(&root, "again");
+    let mut gate = StartGate::hold(&program.to_string_lossy(), GatePoint::AfterStart);
+    run_action(cx, "run.runConfig", Some(given("again", &program)));
+    wait_long(cx, "the first process to start and its answer to wait", |_| {
+        gate.reached() && pids(&program, "started").len() == 1
+    });
+    let tab = session_of(&store, "again", cx).expect("the run has its tab").id;
+
+    click_on(cx, "run-stop");
+    click_on(cx, "run-rerun");
+    wait_long(cx, "the rerun's process to run", |cx| {
+        session_of(&store, "again", cx).is_some_and(|s| s.status == SessionStatus::Running && s.run_id.is_some())
+    });
+    let started = pids(&program, "started");
+    assert_eq!(started.len(), 2, "the first start's process and the rerun's: {started:?}");
+
+    gate.release();
+    wait_long(cx, "the first start's process to be stopped", |_| !pids(&program, "stopped").is_empty());
+    assert_eq!(pids(&program, "stopped"), started[..1], "only the first start's process is stopped");
+    let rerun = session_of(&store, "again", cx).expect("the tab stays");
+    assert_eq!((rerun.id.as_str(), rerun.status, rerun.stopped), (tab.as_str(), SessionStatus::Running, false));
+    assert_eq!(store.read_with(cx, |store, _| store.sessions.len()), 1, "the rerun keeps its tab");
+    assert!(!told_a_failure(&workbench, cx), "{:?}", notification_titles(&workbench, cx));
+
+    click_on(cx, "run-stop");
+    wait_long(cx, "the rerun's process to be stopped", |_| pids(&program, "stopped").len() == 2);
+    assert_eq!(pids(&program, "stopped"), started);
+    wait_long(cx, "its end", |cx| session_of(&store, "again", cx).is_some_and(|s| !s.is_live()));
     close_backend_project(cx);
 }

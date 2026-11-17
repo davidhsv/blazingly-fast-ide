@@ -588,6 +588,19 @@ impl Debugger {
         self.state.active_session().is_some_and(|s| s.status == SessionStatus::Paused)
     }
 
+    /// Whether a Debug is between its press and its session: a start flow waits for an answer (the
+    /// configurations, a prepared or saved configuration, a Java launch), or the sessions' start is
+    /// under way. The Xdebug probes only warn and do not count.
+    pub fn launching(&self) -> bool {
+        let start = |waiting: &Waiting| {
+            matches!(
+                waiting,
+                Waiting::Start(..) | Waiting::Java(..) | Waiting::PluginPrepare { .. } | Waiting::PluginSave { .. }
+            )
+        };
+        self.state.starting() || self.waiting.values().any(start)
+    }
+
     /// The live root sessions Stop offers beside the run processes: (id, name).
     pub fn stoppable_sessions(&self) -> Vec<(DebugSessionId, &str)> {
         let roots = self.state.sessions().values().filter(|s| s.parent.is_none() && s.is_live());

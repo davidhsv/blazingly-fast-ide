@@ -34,7 +34,7 @@ use gpui_kit::{
     SharedString, Subscription, UniformListScrollHandle, Window, div, prelude::*, px, uniform_list,
 };
 use ropey::Rope;
-use serde_json::{Value, json};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -245,6 +245,7 @@ impl Workbench {
     /// The project goes: its debug sessions stop and the debugger goes with it.
     pub(super) fn reset_debugger(&mut self, cx: &mut Context<Self>) {
         self.debug_extras = Default::default();
+        self.debug_launches = Default::default();
         if let Some(slot) = self.debug.take() {
             slot.driver.update(cx, |driver, cx| driver.reset(cx));
         }
@@ -328,6 +329,7 @@ impl Workbench {
         self.sync_debug_marks(window, cx);
         self.sync_breakpoints_dialog(window, cx);
         self.sync_smart_step_chooser(window, cx);
+        self.settle_debug_launches(cx);
         cx.notify();
     }
 
@@ -461,12 +463,7 @@ impl Workbench {
                 if workbench.remote_debug_blocked(&config, cx) {
                     return;
                 }
-                run.update(cx, |run, cx| run.mark_recent(&config.id, cx));
-                let mut start = json!({ "config": serde_json::to_value(&config).unwrap_or(Value::Null) });
-                if let Some(show) = show {
-                    start["show"] = Value::Bool(show);
-                }
-                workbench.run_debug_action("debug.startConfig", Some(&start), window, cx);
+                workbench.debug_guarded(config, show, window, cx);
             },
             window,
             cx,
@@ -1062,11 +1059,13 @@ pub(super) mod tests {
     use crate::platform::storage::UiStorage;
     use crate::run::configs::blank_config;
     use gpui_kit::{Modifiers, MouseButton, MouseDownEvent, TestAppContext, VisualTestContext, point};
+    use serde_json::json;
     use std::time::Duration;
     mod proofs11_hotswap;
     mod proofs20_debug;
     mod proofs34_remote_debug;
     mod proofs3_debug;
+    mod proofs40_debug_guards;
     mod proofs6_debug;
     mod proofs8_recent;
     mod proofs_debug;

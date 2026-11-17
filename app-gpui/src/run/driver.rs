@@ -109,7 +109,7 @@ pub fn tomcat_browser_url(config: &RunConfig) -> String {
 }
 
 /// The texts of IDEA's "Process 'x' Is Running" question before a rerun: title, message, OK.
-fn rerun_question(name: &str, count: usize, i18n: &mut I18n) -> (String, String, String) {
+pub(crate) fn rerun_question(name: &str, count: usize, i18n: &mut I18n) -> (String, String, String) {
     let title = i18n.tx_built(&["Process '", "' Is Running"], &[Param::from(name)]);
     let message = if count > 1 {
         let count = count.to_string();
@@ -820,8 +820,11 @@ impl RunDriver {
                 StartStep::RunStart(launch) => {
                     let session = start.session_id().map(str::to_owned);
                     let generation = start.generation();
+                    // Stop cancels the start while it waits: a run target's validation, a container.
+                    let request = Backend::next_request_id();
+                    Self::advance(&this, cx, |store, _, _, _| start.process_requested(request, store))?;
                     let started = match session {
-                        Some(session) => Self::run_process(&this, session, generation, *launch, cx).await,
+                        Some(session) => Self::run_process(&this, session, generation, *launch, request, cx).await,
                         None => Err(IdeError::internal("the run has no tab")),
                     };
                     Self::advance(&this, cx, |store, _, now, i18n| start.process_started(started, store, now, i18n))?
@@ -855,6 +858,21 @@ impl RunDriver {
                     }
                 }
                 StartEffect::Exited { session_id, code } => self.finish_later(session_id, code, cx),
+                // Stop came while the process was starting: it ends now, quietly (its tab says stopped).
+                StartEffect::Stop(run) => {
+                    if let Some(backend) = cx.try_global::<Backend>() {
+                        let label = self.label.clone();
+                        let stopping =
+                            backend.with_host(move |host| async move { ide_host::ops::run::stop(&host, &label, run) });
+                        cx.background_executor()
+                            .spawn(async move {
+                                if let Err(error) = flatten(stopping.await) {
+                                    tracing::debug!("cannot stop the process of a cancelled start: {}", error.message);
+                                }
+                            })
+                            .detach();
+                    }
+                }
             }
         }
     }
@@ -1077,6 +1095,7 @@ impl RunDriver {
         session: String,
         generation: u64,
         launch: RunConfig,
+        request: ide_core::RequestId,
         cx: &mut AsyncApp,
     ) -> Result<RunInfo, IdeError> {
         let (sender, chunks) = mpsc::unbounded::<OutputChunk>();
@@ -1093,7 +1112,13 @@ impl RunDriver {
         Self::on_host(cx, move |host| async move {
             #[cfg(test)]
             crate::build_tools::guard::check_run(&host, &label, &launch).await?;
-            ide_host::ops::run::start(&host, &label, launch, on_output).await
+            #[cfg(test)]
+            let held = launch.command.clone();
+            let start = ide_host::ops::run::start_request(&host, &label, launch, on_output, Some(request));
+            // A test may hold the start of its stand-in before the host is asked, or hold the answer.
+            #[cfg(test)]
+            let start = crate::run::proofs40_start_gate::gated(held, start);
+            start.await
         })
         .await
     }

@@ -520,8 +520,15 @@ pub struct RunStore {
     pending_exits: Vec<(RunId, Option<i32>)>,
     /// Ids of every configuration listed in this window, so a run of one deleted since can be told apart.
     listed: HashSet<String>,
+    /// Tabs a start is about to restart (a rerun waiting for its documents to be saved): no other start
+    /// takes them meanwhile.
+    claimed_tabs: HashSet<String>,
     /// The temporary configuration "Modify Run Configuration…" opened the edit dialog on.
     modifying: Option<String>,
+    /// Requests of process starts Stop cancelled. They are kept here, not with the tab, because a rerun
+    /// gives the tab a new start while the cancelled one may still answer: its answer is dropped and a
+    /// process it started anyway is stopped.
+    cancelled_starts: HashSet<RequestId>,
 }
 
 /// The user's configurations to save after a deletion, and the detected ids to suppress.
@@ -842,6 +849,24 @@ impl RunStore {
     pub fn any_live(&self, session_ids: &[String]) -> bool {
         let live = |id: &String| self.session(id).is_some_and(|session| session.run_id.is_some() && session.is_live());
         session_ids.iter().any(live)
+    }
+
+    /// The finished tab a run of `config` takes the place of, as IDEA reuses run content: that of the
+    /// same configuration first, then the selected one, then the first; never one a start is about to
+    /// restart. An agent's commands keep to their own tabs.
+    pub fn reusable_tab(&self, config: &RunConfig) -> Option<&str> {
+        let agent = |config: &RunConfig| config.extras.params.contains_key(ide_host::mcp::AGENT_PARAM);
+        let free: Vec<&RunSession> =
+            self.sessions.iter().filter(|s| !s.is_live() && !self.claimed_tabs.contains(&s.id)).collect();
+        if let Some(same) = free.iter().copied().find(|session| session.config.id == config.id) {
+            return Some(same.id.as_str());
+        }
+        if agent(config) {
+            return None;
+        }
+        let others: Vec<&RunSession> = free.into_iter().filter(|session| !agent(&session.config)).collect();
+        let active = others.iter().copied().find(|s| self.active_session.as_deref() == Some(s.id.as_str()));
+        active.or(others.first().copied()).map(|session| session.id.as_str())
     }
 
     /// What rerunning a session launches: its configuration as saved now (edited since, as IDEA), or
@@ -1189,6 +1214,11 @@ impl RunStore {
         }
     }
 
+    /// The cancellable request a session's launch waits on, while it waits.
+    pub fn resolve_request(&self, session_id: &str) -> Option<RequestId> {
+        self.runtimes.get(session_id).and_then(|runtime| runtime.resolve_request)
+    }
+
     fn resolve_aborted(&self, session_id: &str) -> bool {
         self.runtimes.get(session_id).is_some_and(|runtime| runtime.resolve_aborted)
     }
@@ -1203,6 +1233,7 @@ impl RunStore {
             if let Some(runtime) = self.runtimes.get_mut(session_id) {
                 runtime.resolve_aborted = true;
             }
+            self.cancelled_starts.insert(request);
             let session = self.session_mut(session_id)?;
             session.stopped = true;
             session.status = SessionStatus::Finished;
@@ -1335,6 +1366,7 @@ impl RunStore {
             session_seq: self.session_seq,
             persisting: self.persisting,
             listed: std::mem::take(&mut self.listed),
+            cancelled_starts: std::mem::take(&mut self.cancelled_starts),
             ..Self::default()
         };
         stops
@@ -1506,6 +1538,9 @@ pub enum StartEffect {
         session_id: String,
         code: Option<i32>,
     },
+    /// Stop came while the process host was starting the process: the process that started anyway is
+    /// stopped, and nothing is reported.
+    Stop(RunId),
 }
 
 /// What starting a configuration needs next. A step with a continuation names the [`StartRun`]
@@ -1539,7 +1574,8 @@ pub enum StartStep {
     /// script otherwise; answer with [`StartRun::launch_finalized`].
     FinalizeLaunch(Box<RunConfig>),
     /// Start the process (retrying what a run target needs from the user), streaming its output to
-    /// [`RunStore::output`] with [`StartRun::generation`]; answer with [`StartRun::process_started`].
+    /// [`RunStore::output`] with [`StartRun::generation`]: give it its request with
+    /// [`StartRun::process_requested`], answer with [`StartRun::process_started`].
     RunStart(Box<RunConfig>),
     /// The start ended: the session it started, if any (which may have failed).
     Done(Option<String>),
@@ -1556,12 +1592,12 @@ pub struct StartRun {
     session: Option<String>,
     /// Running instances to stop first.
     others: Vec<String>,
-    /// The finished tab of the same configuration when the start began.
-    idle: Option<String>,
     session_id: Option<String>,
     generation: u64,
     launch: Option<RunConfig>,
     preparation: Option<JavaPreparation>,
+    /// The request the process start goes out with, until the process host answers.
+    request: Option<RequestId>,
     effects: Vec<StartEffect>,
 }
 
@@ -1573,11 +1609,11 @@ impl StartRun {
             options,
             session: None,
             others: Vec::new(),
-            idle: None,
             session_id: None,
             generation: 0,
             launch: None,
             preparation: None,
+            request: None,
             effects: Vec::new(),
         };
         let step = start.begin(store, env);
@@ -1674,8 +1710,10 @@ impl StartRun {
             let other = |session: &&RunSession| session.is_live() && Some(session.id.as_str()) != chosen;
             store.sessions.iter().filter(same).filter(other).map(|session| session.id.clone()).collect()
         };
-        let idle = store.sessions.iter().filter(same).find(|session| !session.is_live());
-        self.idle = idle.map(|session| session.id.clone());
+        // The tab this start restarts is not another start's to take while this one goes on.
+        if let Some(session) = &self.session {
+            store.claimed_tabs.insert(session.clone());
+        }
         if !self.others.is_empty() && env.settings.confirm_rerun {
             let own = self.session.as_deref().and_then(|id| store.session(id)).is_some_and(RunSession::is_live);
             let count = self.others.len() + usize::from(own);
@@ -1685,7 +1723,13 @@ impl StartRun {
     }
 
     pub fn rerun_confirmed(&mut self, confirmed: bool, store: &mut RunStore) -> StartStep {
-        if confirmed { self.stop_instances(store) } else { StartStep::Done(None) }
+        if confirmed {
+            return self.stop_instances(store);
+        }
+        if let Some(session) = &self.session {
+            store.claimed_tabs.remove(session);
+        }
+        StartStep::Done(None)
     }
 
     fn stop_instances(&mut self, store: &RunStore) -> StartStep {
@@ -1709,7 +1753,11 @@ impl StartRun {
 
     /// The documents were saved (or could not be: saving is best effort). Opens the tab.
     pub fn saved(&mut self, store: &mut RunStore, env: StartEnv, now_ms: f64) -> StartStep {
-        let reuse = self.session.take().or_else(|| self.idle.take());
+        if let Some(session) = &self.session {
+            store.claimed_tabs.remove(session);
+        }
+        // The tab is chosen as it opens: runs started together each open their own.
+        let reuse = self.session.take().or_else(|| store.reusable_tab(&self.config).map(str::to_owned));
         let (session_id, generation) =
             store.open_session(&self.config, reuse.as_deref(), self.options.base_config.clone(), now_ms);
         self.session_id = Some(session_id);
@@ -1928,7 +1976,18 @@ impl StartRun {
         }
     }
 
-    /// The process host answered.
+    /// The process start goes out with `request`, which Stop cancels while the start waits (a run
+    /// target's validation, a container's preparation); then [`Self::process_started`].
+    pub fn process_requested(&mut self, request: RequestId, store: &mut RunStore) {
+        self.request = Some(request);
+        let stale = self.stale(store);
+        if let Some(id) = self.session_id.as_deref().filter(|_| !stale) {
+            store.set_resolve_request(id, Some(request));
+        }
+    }
+
+    /// The process host answered. A start Stop cancelled meanwhile reports nothing: a process it
+    /// started anyway is stopped, and its tab stays as Stop left it.
     pub fn process_started(
         &mut self,
         started: Result<RunInfo, IdeError>,
@@ -1936,11 +1995,28 @@ impl StartRun {
         now_ms: f64,
         i18n: &mut I18n,
     ) -> StartStep {
-        if self.stale(store) {
+        let cancelled = self.request.take().is_some_and(|request| store.cancelled_starts.remove(&request));
+        let stale = self.stale(store);
+        if !stale && let Some(id) = &self.session_id {
+            store.set_resolve_request(id, None);
+        }
+        let stopped = !stale
+            && self.session_id.as_deref().and_then(|id| store.session(id)).is_some_and(|session| session.stopped);
+        if cancelled || stopped {
+            if let Ok(info) = &started {
+                self.effects.push(StartEffect::Stop(info.id));
+            }
+            return self.done();
+        }
+        if stale {
             return self.done();
         }
         let info = match started {
             Ok(info) => info,
+            // Cancelled with no Stop of this tab: the tab ends without an error.
+            Err(error) if error.kind == ide_core::error::ErrorKind::Cancelled => {
+                return self.launch_ended(store, now_ms);
+            }
             Err(error) => return self.start_failed(&error.message, store, now_ms, i18n),
         };
         let Some(id) = self.session_id.clone() else { return self.done() };
@@ -1992,6 +2068,7 @@ mod tests {
     use ide_core::error::ErrorKind;
     use ide_lsp::jdtls::{JavaBuildStatus, JavaCompileError, JavaLaunchInfo};
     use ide_run::BuildPolicy;
+    mod proofs40_run_guards;
     mod proofs8_removal;
 
     fn strings(items: &[&str]) -> Vec<String> {
@@ -2607,11 +2684,14 @@ mod tests {
         assert_eq!(request.actions.iter().map(|action| action.label.as_str()).collect::<Vec<_>>(), ["Show", "Rerun"]);
         let again = start(&mut store, &cfg("npm:test", "npm")).session.expect("a session");
         let tests = FinishContext { failed_tests: 3, ..FinishContext::default() };
-        let failed = store.finish_session(&again, Some(0), Some(1), 60.0, tests).notification.expect("a notification");
+        let generation = store.generation(&again);
+        let failed =
+            store.finish_session(&again, generation, Some(1), 60.0, tests).notification.expect("a notification");
         assert_eq!((failed.title.as_str(), failed.body.as_deref()), ("Tests failed: 3", Some("npm:test")));
         let visible = FinishContext { run_window_visible: true, ..FinishContext::default() };
         let quiet = start(&mut store, &cfg("npm:lint", "npm")).session.expect("a session");
-        assert_eq!(store.finish_session(&quiet, Some(0), Some(1), 70.0, visible).notification, None);
+        let generation = store.generation(&quiet);
+        assert_eq!(store.finish_session(&quiet, generation, Some(1), 70.0, visible).notification, None);
     }
 
     #[test]

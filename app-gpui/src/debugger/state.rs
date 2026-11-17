@@ -511,6 +511,12 @@ impl DebugState {
         self.sessions.values().any(DebugSession::is_live)
     }
 
+    /// Whether a start is under way: a launch being prepared, waiting for the breakpoints, or for the
+    /// backend's session.
+    pub fn starting(&self) -> bool {
+        self.pending_starts > 0 || !self.preparations.is_empty() || !self.waiting_for_breakpoints.is_empty()
+    }
+
     fn ask(&mut self, call: BackendCall, pending: Pending) {
         self.tickets += 1;
         self.pending.insert(self.tickets, pending);

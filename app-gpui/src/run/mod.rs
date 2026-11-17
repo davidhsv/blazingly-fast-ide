@@ -46,6 +46,8 @@ pub mod jvm_targets;
 pub mod jvm_types;
 pub mod links;
 pub mod navigate;
+#[cfg(test)]
+pub mod proofs40_start_gate;
 pub mod remote_debug;
 pub mod segments;
 pub mod sessions;
