@@ -1,0 +1,438 @@
+{
+  "module:src/platform/buildFiles.ts": {
+    "status": "partial",
+    "proof": "`platform::virtual_docs::tests`; is_gradle_build_input is tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/platform/project_presentation.rs:151 is_build_file refreshes the build model only for pom.xml, build.gradle(.kts), settings.gradle(.kts), never calling platform::virtual_docs::is_gradle_build_input; webview: src/features/build-tools/index.ts:70)"
+  },
+  "module:src/platform/i18n.ts": {
+    "status": "partial",
+    "proof": "`platform::i18n::tests`; message formatting, plurals and English fallback are tested and reached in English; missing: nothing in the app reaches it (native: app-gpui/src/platform/i18n.rs:613 I18n::set_locale is never called, the Localization global stays I18n::default and app-gpui/src/settings_model/runtime.rs:33 that reads appearance.locale is unreached; webview: src/features/app/locale.ts:17)"
+  },
+  "module:src/ui/menuAim.ts": {
+    "status": "partial",
+    "proof": "`ui::menu_aim::tests`; the triangle test of submenu aiming is tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/ui/popup_menu.rs:23 uses open/close delays and never calls ui::menu_aim::is_submenu_aim; webview: src/ui/Menu.tsx:235)"
+  },
+  "unit:src/editor/core/cm/prefs.test.ts": {
+    "status": "partial",
+    "proof": "`editor_model::editor_prefs::tests`, `editor_commands::paste::tests::re_indents_a_pasted_block_to_the_caret_column`, `editor::tabs::tests::closes_unchanged_least_recently_used_tabs_beyond_the_limit`; completion case, soft-wrap patterns, cleanup and paste re-indent are tested and reached; the tab limit is tested on the tab model only (app-gpui/src/editor/tabs.rs:655 enforce_tab_limit has no production caller) and file indent detection with its layering is tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/editor/language_facts.rs:79 takes the indent from the language registry config, code style and editorconfig without reading the file, editor_prefs::detect_indent is never called; webview: src/editor/core/model/document.ts:268)"
+  },
+  "unit:src/editor/core/cm/selectionMarks.test.ts": {
+    "status": "partial",
+    "proof": "`editor_commands::selection_marks::tests`; the repainted selection ranges are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/editor/view.rs:2665 paints mark backgrounds after the selection and never calls selection_marks::selected_ranges; webview: src/editor/core/cm/selectionMarks.ts:32)"
+  },
+  "unit:src/editor/core/detachTab.test.ts": {
+    "status": "partial",
+    "proof": "`editor_model::detach::tests`; the detach steps are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/menu_spec.rs:799 lists window.detachTab but no handler is registered for it and nothing constructs Detach; webview: src/features/app/windows.ts:405)"
+  },
+  "unit:src/editor/core/model/editHistory.test.ts": {
+    "status": "partial",
+    "proof": "`editor::nav_history::tests`; back/forward and edit places are tested and reached; dropping places of deleted files and is_navigation are tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/editor_core.rs:156 records caret moves with navigation=false and no deletion handler calls NavigationHistory::remove_path / EditHistory::remove_path; webview: src/editor/core/controller.ts:1915)"
+  },
+  "unit:src/editor/core/model/workspaceHistory.test.ts": {
+    "status": "partial",
+    "proof": "`editor_model::workspace_history::tests`; refactoring markers across editors and their refusals are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/editor_language.rs:1553 undoes a refactoring only when the editor has nothing of its own to undo and never uses WorkspaceHistory; webview: src/editor/core/model/document.ts:735)"
+  },
+  "unit:src/editor/lsp/fileReferences.test.ts": {
+    "status": "partial",
+    "proof": "`editor_lsp::file_references::tests`; path-context rules are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/editor/intelligence.rs:470 completion has no file-path source, completion::offers_paths is never called; webview: src/editor/lsp/completion.ts:882)"
+  },
+  "unit:src/editor/lsp/format.test.ts": {
+    "status": "partial",
+    "proof": "`editor_lsp::format::tests`, `editor_lsp::format_guard::tests`; reformat options, range checks and do-not-format regions are tested and reached; format on save for Prettier/oxfmt languages is tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/editor_language.rs:385 always asks with on_save: false, format::formats_on_save is never called; webview: src/editor/lsp/actions.ts:150)"
+  },
+  "unit:src/editor/lsp/importsOnPaste.test.ts": {
+    "status": "partial",
+    "proof": "`editor_lsp::imports_on_paste::tests`, `editor_lsp::snippet::tests`; the paste session (sync, diagnostics, quick fixes, merge, ask/always/never) is tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/editor/intelligence.rs:349 sees a paste only as EditOrigin::Other and never creates a PasteSession; webview: src/editor/lsp/index.ts:72)"
+  },
+  "unit:src/editor/lsp/inlineCompletion.test.ts": {
+    "status": "partial",
+    "proof": "`editor_lsp::inline_completion::tests`; the table of the spec is a loop inside one test; suggestion fitting, cycling and accept are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/editor/intelligence.rs:410 typed() never starts an InlineSession; webview: src/editor/lsp/index.ts:68)"
+  },
+  "unit:src/editor/lsp/inplaceRename.test.ts": {
+    "status": "partial",
+    "proof": "`editor_lsp::inplace_rename::tests`; in-place rename mirroring, suggestions, commit and cancel are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/editor_language.rs:744 asks the new name in a PromptDialog and never starts InplaceRename; webview: src/editor/lsp/rename.ts:34)"
+  },
+  "unit:src/editor/lsp/outsideProject.test.ts": {
+    "status": "partial",
+    "proof": "`editor_lsp::outside_project::tests`; server notice recognition and the banner model are tested; missing: nothing in the app reaches it (native: app-gpui/src/workbench/conflicts.rs:318 shows editor banners for merge conflicts only and outside_project_banner is never called; webview: src/editor/lsp/index.ts:128)"
+  },
+  "unit:src/editor/lsp/semantic/php/constructs.test.ts": {
+    "status": "partial",
+    "proof": "`editor_model::semantic_php::tests`; construct lookup and docs are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/editor/intelligence.rs:1085 hover asks only the server, php_construct_at is never called; webview: src/editor/lsp/semantic/php/index.ts:11)"
+  },
+  "unit:src/editor/lsp/semantic/python/members.test.ts": {
+    "status": "partial",
+    "proof": "`editor_model::python_members::tests`; class scanning and stub writing are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/editor_language.rs:1623 code.implementMethods runs server code actions only, python_members::implement_abstract is never called; webview: src/editor/lsp/semantic/python/members.ts:203)"
+  },
+  "unit:src/editor/lsp/signature.test.ts": {
+    "status": "partial",
+    "proof": "`editor_lsp::signature::tests`; parameter info opening and overload filtering are tested and reached; argument spans and Tab moves are tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/editor/intelligence.rs:152 claims only Escape, signature::move_to_argument is never called; webview: src/editor/lsp/index.ts:122)"
+  },
+  "unit:src/editor/lsp/spelling.test.ts": {
+    "status": "partial",
+    "proof": "`editor_lsp::spelling::tests`; typo checks, scopes and fixes are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/editor/intelligence.rs:1002 only takes server diagnostics, no SpellChecker exists; webview: src/editor/lsp/index.ts:75)"
+  },
+  "unit:src/editor/navigationProviders.test.ts": {
+    "status": "partial",
+    "proof": "`editor_refactor::navigation_providers::tests`; provider registration, sharing and invalidation are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/editor/intelligence.rs:798 goto asks only the server and the syntax fallback; webview: src/features/plugins/navigation.ts:5)"
+  },
+  "unit:src/editor/refactor/occurrences.test.ts": {
+    "status": "partial",
+    "proof": "`editor_refactor::occurrences::tests`; occurrence search is tested and reached; an expression's identifier words are tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/refactor_actions.rs:849 introduces only through server code actions and occurrences::expression_words is never called; webview: src/editor/refactor/introduce.ts:428)"
+  },
+  "unit:src/features/agents/markdownImages.test.ts": {
+    "status": "partial",
+    "proof": "`agents::markdown_images::tests`; image source resolution is tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/agents/markdown_view.rs:370 draws every image as its alt text and never calls markdown_images::image_target; webview: src/features/agents/Markdown.tsx:233)"
+  },
+  "unit:src/features/analysis/analysis.test.ts": {
+    "status": "partial",
+    "proof": "`features_b::analysis::inspect::tests`, `features_b::analysis::tree::tests`, `features_b::analysis::structural::tests`, `features_b::analysis::scope::tests`, `features_b::analysis::duplicates::tests`; the Inspect Code results store, its tree and grouping are tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/menu_spec.rs:502 lists analyze.inspectCode and no production code registers a handler for it, features_b::analysis::inspect::InspectionStore has no production caller; webview: src/features/analysis/index.ts:57)"
+  },
+  "unit:src/features/analysis/inspect.test.ts": {
+    "status": "partial",
+    "proof": "`features_b::analysis::inspect::tests`; the Inspect Code results store and its grouping are tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/menu_spec.rs:502 lists analyze.inspectCode and no production code registers a handler for it, features_b::analysis::inspect::InspectionStore has no production caller; webview: src/features/analysis/index.ts:57)"
+  },
+  "unit:src/features/app/__tests__/cliCommand.test.ts": {
+    "status": "partial",
+    "proof": "`app_models::cli_command::tests`; the notices after installing or uninstalling the command are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/menu_spec.rs:166 lists app.installCli/app.uninstallCli with no registered handler, app_models::cli_command is never called; webview: src/features/app/cliCommand.ts:59)"
+  },
+  "unit:src/features/app/__tests__/projectName.test.ts": {
+    "status": "partial",
+    "proof": "`app_models::project_actions::tests`; the Rename Project prompt is tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/menu_spec.rs:199 lists file.renameProject with no registered handler, app_models::project_actions::rename_prompt is never called; webview: src/features/app/projectActions.ts:223)"
+  },
+  "unit:src/features/coverage/coverage.test.ts": {
+    "status": "partial",
+    "proof": "`features_b::coverage::tests`; coverage tree, markers and suites are tested; missing: nothing in the app reaches it (native: app-gpui/src/workbench/editor_gutter/run_marks.rs:329 dispatches run.withExecutor with no handler; webview: src/features/coverage/index.ts:18)"
+  },
+  "unit:src/features/debugger/__tests__/breakpoints.test.ts": {
+    "status": "partial",
+    "proof": "`debugger::breakpoints::model::tests`, `debugger::breakpoints::store::tests`; breakpoint store, persistence and backend sync are tested and reached; missing: nothing in the app reaches it for moving breakpoints with edits (native: app-gpui/src/workbench/debug.rs:785 subscribes only to GutterPressed and never calls breakpoint_gutter::document_changed; webview: src/features/debugger/editor/breakpointGutter.ts:232)"
+  },
+  "unit:src/features/debugger/__tests__/editor.test.ts": {
+    "status": "partial",
+    "proof": "`debugger::editor::breakpoint_gutter::tests`, `debugger::editor::execution::tests`, `debugger::state::tests::tracks_pause_continue_termination_and_publishes_context_keys`, `debugger::state::tests::ignores_sessions_this_window_did_not_start_but_adopts_children_of_its_own`, `workbench::plugin_contributions::tests::a_gutter_icon_click_neither_moves_the_caret_nor_toggles_a_breakpoint`; 12 of 14 cases, including the cached editor state refreshed when an editor is shown again (`debugger::editor::execution::tests::an_editor_shown_again_takes_the_execution_point_of_the_moment`); a click on another gutter's marker toggles no breakpoint while a click on that gutter's empty space does. The last case checks that the execution line survives a decoration whose script throws while rendering; native inline values are plain strings with no such path (D102); gutter markers and the execution line are tested and reached; missing: nothing in the app reaches it for inline values and edit tracking (native: app-gpui/src/workbench/debug.rs:866 sets only the ExecutionLine mark; webview: src/features/debugger/editor/execution.ts:214)"
+  },
+  "unit:src/features/debugger/__tests__/hotswap.test.ts": {
+    "status": "partial",
+    "proof": "`debugger::hotswap::tests`; Reload Changed Classes is tested and reached from the Run menu; its editor context menu entry is tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/context_menus.rs:469 builds the editor menu without it, debugger::hotswap::hot_swap_menu_action has no production caller; webview: src/features/debugger/index.ts:99)"
+  },
+  "unit:src/features/debugger/editor/runToCursor.test.ts": {
+    "status": "partial",
+    "proof": "`debugger::editor::run_to_cursor::tests`; hover line and inlay button models are tested; missing: nothing in the app reaches it (native: app-gpui/src/workbench/debug.rs:785 handles only gutter presses, no inlay; webview: src/features/debugger/index.ts:124)"
+  },
+  "unit:src/features/dependencies/dependencies.test.ts": {
+    "status": "partial",
+    "proof": "`features_b::dependencies::tests`; dependency checks, fixes and version completion are tested; missing: nothing in the app reaches it (native: app-gpui/src/workbench/plugin_contributions.rs:475 watch_plugin_gutter is the only per-editor contribution watch and installs no dependency check; webview: src/features/dependencies/index.ts:207)"
+  },
+  "unit:src/features/dotnet/store.test.ts": {
+    "status": "partial",
+    "proof": "`features_b::dotnet::tests`; the .NET store's tasks are tested; missing: nothing in the app reaches it (native: no .NET tool window is registered the way app-gpui/src/workbench/database.rs:731 registers the Database one; webview: src/features/dotnet/index.ts:20)"
+  },
+  "unit:src/features/github/api/api.test.ts": {
+    "status": "partial",
+    "proof": "`github::api::tests`; request building and document resolution are tested and reached; filtering timeline items (IntelliJ's ignored types, unknown ones marked) is tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/github.rs:1365 only logs that the timeline is not built and github::api::timeline_items has no production caller; webview: src/features/github/index.ts:284)"
+  },
+  "unit:src/features/github/create/create.test.ts": {
+    "status": "partial",
+    "proof": "`github::create::tests`; New Pull Request's branch and validation logic is tested and reached; leaving the current user out of the reviewers and taking a commit's description paragraph are tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/github/create_view.rs:288 has no reviewer chooser and shows no commit description, github::create::selectable_reviewers and commit_description have no production caller; webview: src/features/github/create/MetadataGrid.tsx:88)"
+  },
+  "unit:src/features/github/data/data.test.ts": {
+    "status": "partial",
+    "proof": "`github::data_model::tests::builds_intellijs_terms_in_order`, `github::data_model::tests::prefixes_the_repository_for_issue_search`, `github::data_model::tests::keeps_githubs_boolean_syntax_inside_the_repository`, `github::data_model::tests::counts_filters_and_normalizes_stored_values`, `github::search_history::tests::keeps_searches_with_filters_in_the_history_newest_first_at_most_10`, `github::data_model::tests::lets_the_newest_opinionated_review_win_over_later_comments`, `github::data_model::tests::surfaces_a_dismissed_latest_review_as_a_comment`, `github::data_model::tests::skips_reviewers_with_only_pending_reviews`, `github::data_model::tests::excludes_the_author_and_marks_requests_as_re_requested_or_needing_review`, `github::data_model::tests::counts_reviews_of_deleted_users_under_the_ghost_user`, `github::data_model::tests::orders_the_rows_avatars_approved_changes_commented_re_requested_needs_review`, `github::data_model::tests::counts_unresolved_current_threads`, `github::data_model::tests::only_applies_to_pull_requests_the_user_wrote_or_is_asked_to_review`, `github::data_model::tests::compares_the_last_seen_time_with_a_5_s_margin_with_the_update`, `github::data_model::tests::maps_statuses_and_check_runs_to_ci_jobs`, `github::data_model::tests::follows_the_merge_state_and_branch_protection`, `github::data_model::tests::decides_the_merge_actions_from_permission_settings_and_state`, `github::data_model::tests::names_states_like_intellij`, `github::data_model::tests::prefills_and_splits_merge_commit_messages`, `github::data_model::tests::shows_the_owner_only_when_owners_differ`, `github::repository::tests::recognizes_github_com_remotes`, `github::batches::tests::appends_pages_as_they_arrive_and_loads_once`, `github::batches::tests::keeps_what_loaded_before_a_failure_and_retries_on_the_next_load`, `github::data_model::tests::finds_the_remote_behind_an_ssh_host_alias_by_the_urls_path`; 24 of 24 cases; search terms, filters and stored values are tested and reached; prefilling and splitting merge commit messages and batched reviewer loading are tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/github.rs:1357 DetailsEvent::Merge only logs, github::data_model::merge_commit_message has no production caller; webview: src/features/github/details/flow.ts:87)"
+  },
+  "unit:src/features/github/diff/model.test.ts": {
+    "status": "partial",
+    "proof": "`github::diff::tests`; patch mapping, thread placement and comment locations are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/github.rs:498 opens a PR file diff as plain DiffData and nothing reads its PULL_REQUEST_DIFF context or calls github::review_diff; webview: src/features/github/diff/index.ts:34)"
+  },
+  "unit:src/features/github/timeline/model.test.ts": {
+    "status": "partial",
+    "proof": "`github::timeline::tests`; timeline merging, review states, thread hunks, suggestions, reactions and mentions are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/github.rs:1365 only logs that DetailsEvent::ShowTimeline needs the timeline editor; webview: src/features/github/index.ts:284)"
+  },
+  "unit:src/features/graphql/store.test.ts": {
+    "status": "partial",
+    "proof": "`features_a::graphql::tests`; config discovery, schema analysis, endpoints and introspection are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/mod.rs:547 TOOL_WINDOWS has no GraphQL window and nothing names features_a::graphql; webview: src/features/graphql/index.ts:34)"
+  },
+  "unit:src/features/logcat/history.test.ts": {
+    "status": "partial",
+    "proof": "`features_a::logcat::tests`; filter history is tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/mod.rs:547 TOOL_WINDOWS has no Logcat window and nothing names features_a::logcat; webview: src/features/logcat/LogcatView.tsx:81)"
+  },
+  "unit:src/features/logcat/model.test.ts": {
+    "status": "partial",
+    "proof": "`features_a::logcat::tests`; level and query filtering are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/mod.rs:547 TOOL_WINDOWS has no Logcat window and nothing names features_a::logcat; webview: src/features/logcat/LogcatView.tsx:116)"
+  },
+  "unit:src/features/macros/model.test.ts": {
+    "status": "partial",
+    "proof": "`features_b::macros::tests`; macro recording, storage and playback are tested; missing: nothing in the app reaches it (native: app-gpui/src/workbench/menu_spec.rs:254 lists macro.startRecording with no handler; webview: src/features/macros/index.ts:146)"
+  },
+  "unit:src/features/plugins/__tests__/iconThemeResolver.test.ts": {
+    "status": "partial",
+    "proof": "`plugin_models::icon_theme_resolver::tests`; icon theme resolution is tested; missing: nothing in the app reaches it (native: app-gpui/src/theme/icons.rs:126 file_icon_name is the only file icon source; webview: src/features/plugins/iconThemes.ts:143)"
+  },
+  "unit:src/features/plugins/__tests__/iconThemes.test.ts": {
+    "status": "partial",
+    "proof": "`plugin_models::icon_themes::tests`; icon theme adoption is reached; missing: nothing in the app reaches it for loading and applying the theme (native: app-gpui/src/plugins.rs:360 Plugins::listed projects contributions without loading icon themes; webview: src/features/plugins/points.tsx:254)"
+  },
+  "unit:src/features/plugins/__tests__/ptyBackend.test.ts": {
+    "status": "partial",
+    "proof": "`plugin_models::pty_bridge::tests`; the frame pty protocol, quotas and grant checks are tested; missing: nothing in the app reaches it (native: app-gpui/src/plugin_views/view_node.rs:934 shows an unsupported-body message for ViewBody::Html, and web_view.rs is used only by self_check.rs:184; webview: src/features/plugins/views/WebView.tsx:313)"
+  },
+  "unit:src/features/plugins/__tests__/ptyBridge.test.ts": {
+    "status": "partial",
+    "proof": "`plugin_models::pty_bridge::tests`; the frame pty protocol, quotas and grant checks are tested; missing: nothing in the app reaches it (native: app-gpui/src/plugin_views/view_node.rs:934 shows an unsupported-body message for ViewBody::Html, and web_view.rs is used only by self_check.rs:184; webview: src/features/plugins/views/WebView.tsx:313)"
+  },
+  "unit:src/features/plugins/__tests__/runTargets.test.ts": {
+    "status": "partial",
+    "proof": "`plugin_models::run_targets::tests`, `run::store::tests::language_run_targets_apply_to_their_tools`; plugin run target listing is reached in Settings; missing: nothing in the app reaches it for the Use / Not now prompt (native: app-gpui/src/settings_view/pages/build_run_targets/sources.rs:126 only lists targets; webview: src/features/plugins/runtimeUi.tsx:709)"
+  },
+  "unit:src/features/plugins/markerStore.test.ts": {
+    "status": "partial",
+    "proof": "`plugin_models::marker_store::tests`; marker batching and invalidation are tested; missing: nothing in the app reaches it (native: app-gpui/src/workbench/plugin_contributions.rs:520 drives only LanguageVisuals; webview: src/features/plugins/indexedMarkers.ts:16)"
+  },
+  "unit:src/features/plugins/pluginText.test.ts": {
+    "status": "partial",
+    "proof": "`plugin_models::plugin_text::tests`; catalog choice and localisation are tested; missing: nothing in the app reaches it (native: app-gpui/src/plugins.rs:360 Plugins::listed projects contributions without localize_contributions; webview: src/features/plugins/bridge.ts:56)"
+  },
+  "unit:src/features/project-tree/moduleGroups.test.ts": {
+    "status": "partial",
+    "proof": "`project_view::module_groups::tests`; Gradle module grouping is tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/project_view/pane.rs:112 builds the tree with no extra roots, so project_view::module_groups is never called; webview: src/features/project-tree/index.ts:128)"
+  },
+  "unit:src/features/project-tree/roots.test.ts": {
+    "status": "partial",
+    "proof": "`project_view::operations::tests`, `project_view::context_menu::tests`, `project_view::store::tests`; New > Package, package creation and manifest members are tested and reached; folder icons following detected and marked roots are tested on project_tree_paths::folder_kind only; missing: nothing in the app reaches it (native: app-gpui/src/project_tree.rs:804 falls back to the plain folder icon and folder_kind has no production caller; webview: src/features/project-tree/ProjectView.tsx:139)"
+  },
+  "unit:src/features/project-tree/viewModes.test.ts": {
+    "status": "partial",
+    "proof": "`project_view::store::tests`, `project_view::context_menu::tests`, `project_view::index::tests`; pane switching is reached; library, Unity and content-root roots are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/project_view/pane.rs:112 builds the tree with no extra roots and pane.rs:31 shows Unity as Project; ProjectViewState::register_root is never called; webview: src/features/libraries/index.ts:181, src/features/project-tree/index.ts:162)"
+  },
+  "unit:src/features/remote-dev/ConnectDialog.test.tsx": {
+    "status": "partial",
+    "proof": "`features_b::remote_dev::connect_dialog::tests`; the connect dialog model is tested; missing: nothing in the app reaches it (native: app-gpui/src/workbench/welcome_model.rs:387 offers remote.connect with no handler; webview: src/features/remote-dev/index.ts:57)"
+  },
+  "unit:src/features/remote-dev/container.test.ts": {
+    "status": "partial",
+    "proof": "`features_b::remote_dev::container::tests`; reopen-in-container decisions are tested; missing: nothing in the app reaches it (native: no handler for remote.reopenInContainer is registered and app-gpui/src/workbench/menu_spec.rs:201 offers only remote.connect; webview: src/features/remote-dev/index.ts:92)"
+  },
+  "unit:src/features/remote-dev/environment.test.ts": {
+    "status": "partial",
+    "proof": "`features_b::remote_dev::environment::tests`; the reload-environment notification is tested; missing: nothing in the app reaches it (native: no handler for remote.reloadEnvironment is registered, see app-gpui/src/workbench/menu_spec.rs:201; webview: src/features/remote-dev/index.ts:103)"
+  },
+  "unit:src/features/remote-dev/remoteDev.test.ts": {
+    "status": "partial",
+    "proof": "`features_b::remote_dev::model::tests`, `features_b::remote_dev::recents::tests`; remote target round trips are reached; missing: nothing in the app reaches it for the remote status item, folder browsing and recent remotes (native: app-gpui/src/workbench/chrome.rs:48 FED_STATUS_ITEMS has no remote status item; webview: src/features/remote-dev/index.ts:58)"
+  },
+  "unit:src/features/run-anything/model.test.ts": {
+    "status": "partial",
+    "proof": "`features_b::run_anything::tests`; the Run Anything popup model, its command-line runs and history are tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/title_bar.rs:109 and app-gpui/src/workbench/menu_spec.rs:566 list runAnything.show and no production code registers a handler for it, features_b::run_anything::RunAnythingPopup has no production caller; webview: src/features/run-anything/index.ts:15)"
+  },
+  "unit:src/features/run/applicationUpdate.test.ts": {
+    "status": "partial",
+    "proof": "`run::application_update::tests`, `run::application::tests`; the Update Application flow (choices, steps, modes) is tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/menu_spec.rs:568 lists run.updateApplication and no production code registers a handler for it, run::application_update::ApplicationUpdates has no production caller; webview: src/features/run/index.ts:498)"
+  },
+  "unit:src/features/run/containerDebug.test.ts": {
+    "status": "partial",
+    "proof": "`run::container_debug::tests`; container debug launch and attach-on-ready models are tested; missing: nothing in the app reaches it (native: app-gpui/src/workbench/debug.rs:490 passes container_debug=false to remote_debug_notice; webview: src/features/run/index.ts:205)"
+  },
+  "unit:src/features/run/executors.test.ts": {
+    "status": "partial",
+    "proof": "`run::executors::tests`; executor planning steps are tested; missing: nothing in the app reaches it (native: app-gpui/src/workbench/editor_gutter/run_marks.rs:329 dispatches run.withExecutor, which no ActionRegistry handler takes; webview: src/features/run/index.ts:777)"
+  },
+  "unit:src/features/run/goActions.test.ts": {
+    "status": "partial",
+    "proof": "`run::go_actions::tests`; Go module commands and menu rows are tested; missing: nothing in the app reaches it (native: app-gpui/src/workbench/context_menus.rs:88 declares go.modules with rows: None; webview: src/features/run/goActions.ts:103)"
+  },
+  "unit:src/features/run/goGenerate.test.ts": {
+    "status": "partial",
+    "proof": "`run::go_generate::tests`, `run_producers::producers::tests`; go generate commands are tested and per-directive gutter runs are reached; missing: nothing in the app reaches it for the Go Generate File/Package menu (native: app-gpui/src/workbench/context_menus.rs:88 declares go.modules with rows: None; webview: src/features/run/goActions.ts:106)"
+  },
+  "unit:src/features/run/inheritedMain.test.ts": {
+    "status": "partial",
+    "proof": "`run::inherited_main::tests`; inherited-main resolution steps are tested; missing: nothing in the app reaches it (native: app-gpui/src/workbench/run_context.rs:455 and app-gpui/src/workbench/editor_gutter/run_marks.rs:288 build ContextInput without inherited; webview: src/features/run/runGutter.ts:263)"
+  },
+  "unit:src/features/run/rubyTests.test.ts": {
+    "status": "partial",
+    "proof": "`run_producers::ruby_tests::tests`; the Minitest source search steps are tested; missing: nothing in the app reaches it (native: app-gpui/src/run/navigate.rs:241 open_resolved opens console targets without the Ruby test search; webview: src/features/run/navigate.ts:127)"
+  },
+  "unit:src/features/run/stackTrace.test.ts": {
+    "status": "partial",
+    "proof": "`run_producers::stack_trace::tests`; trace normalisation and tab models are tested; missing: nothing in the app reaches it (native: app-gpui/src/workbench/menu_spec.rs:511 lists analyze.stackTrace with no handler; webview: src/features/run/stackTrace.tsx:157)"
+  },
+  "unit:src/features/run/testing/comparison.test.ts": {
+    "status": "partial",
+    "proof": "`run_testing::comparison::tests`; expected/actual parsing is tested; missing: nothing in the app reaches it (native: app-gpui/src/run/store.rs:916 RunStore::output keeps console lines only and run_testing::parsers::create_test_parser is never called; webview: src/features/run/store.ts:687)"
+  },
+  "unit:src/features/run/testing/dotnet.test.ts": {
+    "status": "partial",
+    "proof": "`run_testing::dotnet::tests`; TRX report parsing is tested and dotnet test detection is reached; missing: nothing in the app reaches it (native: app-gpui/src/run/store.rs:916 RunStore::output keeps console lines only and run_testing::parsers::create_test_parser is never called; webview: src/features/run/store.ts:687)"
+  },
+  "unit:src/features/run/testing/go.test.ts": {
+    "status": "partial",
+    "proof": "`run_testing::go::tests`; go test output parsing is tested and -json reporting args are reached (run/driver.rs:1075); missing: nothing in the app reaches it (native: app-gpui/src/run/store.rs:916 RunStore::output keeps console lines only and run_testing::parsers::create_test_parser is never called; webview: src/features/run/store.ts:687)"
+  },
+  "unit:src/features/run/testing/phpunit.test.ts": {
+    "status": "partial",
+    "proof": "`run_testing::phpunit::tests`; PHPUnit/Pest parsing is tested and TeamCity args are reached; missing: nothing in the app reaches it (native: app-gpui/src/run/store.rs:916 RunStore::output keeps console lines only and run_testing::parsers::create_test_parser is never called; webview: src/features/run/store.ts:687)"
+  },
+  "unit:src/features/run/testing/plugin.test.ts": {
+    "status": "partial",
+    "proof": "`run_testing::plugin::tests`; plugin test event mapping is tested; missing: nothing in the app reaches it (native: app-gpui/src/run/store.rs:916 RunStore::output keeps console lines only and run_testing::parsers::create_test_parser is never called; webview: src/features/run/store.ts:687)"
+  },
+  "unit:src/features/run/testing/ruby.test.ts": {
+    "status": "partial",
+    "proof": "`run_testing::ruby::tests`; Minitest/RSpec parsing is tested and reporting args are reached; missing: nothing in the app reaches it (native: app-gpui/src/run/store.rs:916 RunStore::output keeps console lines only and run_testing::parsers::create_test_parser is never called; webview: src/features/run/store.ts:687)"
+  },
+  "unit:src/features/run/testing/unittest.test.ts": {
+    "status": "partial",
+    "proof": "`run_testing::unittest::tests`; unittest parsing is tested; missing: nothing in the app reaches it (native: app-gpui/src/run/store.rs:916 RunStore::output keeps console lines only and run_testing::parsers::create_test_parser is never called; webview: src/features/run/store.ts:687)"
+  },
+  "unit:src/features/run/updatePolicies.test.ts": {
+    "status": "partial",
+    "proof": "`run_producers::update_policy_cases`, `run::application_update::tests`; the update policies of Update Application are tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/menu_spec.rs:568 lists run.updateApplication and no production code registers a handler for it, run::application_update::ApplicationUpdates has no production caller; webview: src/features/run/index.ts:498)"
+  },
+  "unit:src/features/run/workflow.test.ts": {
+    "status": "partial",
+    "proof": "`run_producers::console_folds::tests`, `run_producers::external_tools::tests`; console folding is tested and reached; missing: nothing in the app reaches it for running external tools (native: app-gpui/src/settings_view/pages/tools_external_tools.rs:17 edits tools but no externalTools.<id> action exists; webview: src/features/run/externalTools.ts:165)"
+  },
+  "unit:src/features/search/__tests__/everywhereFilters.test.ts": {
+    "status": "partial",
+    "proof": "`everywhere::filters::tests`, `everywhere::controller::tests`; filter resolution and the controller's filtering are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/everywhere/view.rs:277 builds every SeRequest without a filter, view.rs:214 passes languages None; webview: src/features/search/everywhere/SearchEverywhere.tsx:148)"
+  },
+  "unit:src/features/search/__tests__/findScopes.test.ts": {
+    "status": "partial",
+    "proof": "`find::store::tests`, `find::scopes_dialog::tests`, `find::row_selection::tests`; scope resolution, recent strings and row selection are tested and reached; the scope editor's unique-name/pattern rules and popup size storage are tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/mod.rs:3044 ignores FindPopupEvent::EditScopes, no scope editor exists; webview: src/features/search/find/ScopesDialog.tsx:93)"
+  },
+  "unit:src/features/search/__tests__/recent.test.ts": {
+    "status": "partial",
+    "proof": "`everywhere::recent_model::tests`, `everywhere::locations::tests`; Recent Files and Switcher are tested and reached; Recent Locations recording and rows are tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/mod.rs:3080 closes the popup on ShowRecentLocations and nothing calls everywhere::locations::record_location; webview: src/features/search/recent/RecentPopups.tsx:576, src/features/search/common/tracking.ts:109)"
+  },
+  "unit:src/features/settings/__tests__/assignShortcut.test.ts": {
+    "status": "partial",
+    "proof": "`settings_model::assign_shortcut::tests`; the keymap write of Assign Shortcut is tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/everywhere/view/memory.rs:178 emits settings.assignShortcut, which no registry.handle registers, so settings_model::assign_shortcut::assigned_setting is never called; webview: src/features/settings/index.ts:141)"
+  },
+  "unit:src/features/settings/__tests__/fileTypes.test.ts": {
+    "status": "partial",
+    "proof": "`settings_model::file_types::tests`; pattern editing is reached; user patterns for icons and per-file overrides are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/theme/icons.rs:126 file_icon_name ignores settings_model::file_types::user_file_type, and no Override File Type action calls override_key; webview: src/features/settings/fileTypesRuntime.ts:84)"
+  },
+  "unit:src/features/settings/__tests__/inspections.test.ts": {
+    "status": "partial",
+    "proof": "`settings_model::inspections_model::tests::list_each_plugin_by_name_under_plugins_from_seen_codes_and_stored_overrides`, `settings_model::inspections_model::tests::list_each_identifier_below_phpstan_from_seen_codes_and_stored_overrides`, `settings_model::inspections_model::tests::filters_by_name_code_and_group_keeping_ancestors`, `settings_model::inspections_model::tests::derives_tri_state_checkboxes_and_toggles_whole_subtrees`, `settings_model::inspections_model::tests::keeps_an_inspection_that_is_off_by_default_off_until_turned_on`, `settings_model::inspections_model::tests::keeps_severity_and_enabled_overrides_independent`, `settings_model::inspections_model::tests::registers_as_editor_inspections`, `settings_model::inspections_model::tests::copies_at_either_level_and_selects_the_copy`, `settings_model::inspections_model::tests::renames_and_deletes_copies_only`, `settings_model::inspections_model::tests::registers_natural_languages_spelling_under_editor`, `settings_model::inspections_model::tests::stores_typo_options_apart_from_defaults_and_keeps_them_through_validation`, `settings_model::inspections_model::tests::opens_settings_on_an_inspection_ancestors_to_expand`, `settings_model::staging::tests::opens_settings_on_an_inspection_page_and_id`, `settings_model::inspections_model::tests::groups_servers_by_language_with_seen_and_configured_codes_built_ins_by_category`; 13 of 13 cases; the inspection tree, its filter and the enable/severity states are tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/settings_model/inspections_model.rs:631 declares the Inspections page with keywords only and build_inspection_tree has no production caller; webview: src/features/settings/pages/editor/inspections.tsx:141)"
+  },
+  "unit:src/features/settings/__tests__/staging.test.ts": {
+    "status": "partial",
+    "proof": "`settings_model::staging::tests`, `settings_model::schema::tests`; staging, apply and reset are tested and reached; staging external values and Project Structure sections is tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/menu_spec.rs:210 lists File > Project Structure with no handler, SettingsDialog::open_project_structure and close_project_structure have no production caller and stage_external is called only from the unreached agents/builtin_agents.rs and the uncompiled agents/agent_list.rs; webview: src/features/settings/index.ts:136)"
+  },
+  "unit:src/features/templates/__tests__/views.test.tsx": {
+    "status": "partial",
+    "proof": "`settings_view::pages::editor_file_templates::tests::a_template_named_with_dot_dot_slash_creates_nothing_outside_the_folder`, `settings_view::pages::editor_file_templates::tests::each_control_of_the_files_tab_is_stored_with_the_template`, `settings_view::pages::editor_file_templates::tests::edits_includes_and_code_templates_in_their_tabs`, `settings_view::pages::editor_file_templates::tests::includes_are_added_renamed_and_removed`, `settings_view::pages::editor_file_templates::tests::keeps_a_project_scheme_seeded_from_default`, `settings_view::pages::editor_file_templates::tests::renders_file_templates`, `settings_view::pages::editor_file_templates::tests::templates_stored_elsewhere_are_shown_at_once`, `settings_view::pages::editor_live_templates::tests::each_control_of_the_editor_is_stored_with_the_template`, `settings_view::pages::editor_live_templates::tests::edits_a_live_template`, `settings_view::pages::editor_live_templates::tests::enter_and_escape_in_the_fields_answer_the_dialog`, `settings_view::pages::editor_live_templates::tests::groups_and_filters_live_templates`, `settings_view::pages::editor_live_templates::tests::shows_plugin_snippets_as_read_only_live_templates_and_withdraws_them_with_the_plugin`, `settings_view::pages::editor_live_templates::tests::templates_stored_elsewhere_are_shown_at_once`, `settings_view::pages::editor_live_templates::tests::the_contexts_typed_key_by_key_are_kept_and_stored_as_the_words_of_the_final_text`, `settings_view::pages::editor_live_templates::tests::the_list_holds_every_template_and_draws_only_the_rows_in_view`, `settings_view::pages::editor_live_templates::tests::the_options_are_stored_at_once_and_add_follows_the_selected_user_template`, `settings_view::pages::editor_postfix_completion::tests::options_are_stored_at_once_and_off_disables_the_rest`, `settings_view::pages::editor_postfix_completion::tests::settings_stored_elsewhere_are_shown_at_once`, `settings_view::pages::editor_postfix_completion::tests::toggles_postfix_templates`, `templates::proofs34_new_file_dialog::shows_the_template_chooser_then_the_name_step`, `templates::proofs34_new_file_dialog::prefills_fixed_names_and_follows_the_kinds_extension`, `templates::proofs34_new_file_dialog::names_an_ad_hoc_template_from_another_feature`, `templates::proofs33_chooser_view::typing_filters_the_templates_and_enter_picks_the_selected_one`, `templates::proofs33_chooser_view::a_mnemonic_picks_its_item_and_section_rows_are_skipped`; 12 of 12 cases: ten by their names on the three Settings pages and the New File dialog, the two chooser cases by the chooser view's tests of filtering with Enter and of mnemonics skipping section rows; the file and live template pages are tested and reached; listing plugin snippets on the Live Templates page is tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/settings_view/custom_controls.rs:39 never calls LiveTemplatesPageView::set_contributed_snippets; webview: src/workbench/contributions.ts:2083)"
+  },
+  "unit:src/features/terminal/embeddedFit.test.ts": {
+    "status": "partial",
+    "proof": "`terminal::embedded::tests`, `terminal::fit::tests`; fit scheduling and embedded key models are tested; missing: nothing in the app reaches it (native: app-gpui/src/run/view.rs:1594 terminal_measure reports each size without EmbeddedFit; webview: src/features/terminal/embedded.ts:123)"
+  },
+  "unit:src/features/terminal/windowsPty.test.ts": {
+    "status": "partial",
+    "proof": "`terminal::windows_pty::tests`; the ConPTY option model is tested; missing: nothing in the app reaches it (native: app-gpui/src/terminal/view.rs:197 creates the Emulator without windows_pty; webview: src/features/terminal/session.ts:274)"
+  },
+  "unit:src/features/todo/TodoView.test.tsx": {
+    "status": "partial",
+    "proof": "`features_a::todo::tests`, `features_a::todo_view::tests`; TODO scanning, grouping and filters are tested and reached; the editable preview's held documents are tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/todo_window.rs:375 opens the preview with read_only: true and never uses HeldPreviews; webview: src/features/todo/PreviewEditor.tsx:29)"
+  },
+  "unit:src/features/vcs/__tests__/branchWidgetExtensions.test.ts": {
+    "status": "partial",
+    "proof": "`vcs_ops::branch_widget_extensions::tests`; the registry's presentation and grouped popup actions are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/vcs_ops/branch_widget.rs:10 head_label never consults BranchWidgetExtensions; webview: src/features/vcs/BranchWidget.tsx:77)"
+  },
+  "unit:src/features/vcs/__tests__/clone.test.ts": {
+    "status": "partial",
+    "proof": "`vcs_ops::clone::tests`, `vcs_ops::remote_ui::tests`; clone folder name, validation and depth are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/vcs_operations.rs:168 registers no vcs.clone handler, so vcs_ops::clone is never called; webview: src/features/vcs/clone.tsx:145)"
+  },
+  "unit:src/features/vcs/__tests__/conflictMarkerEdits.test.ts": {
+    "status": "partial",
+    "proof": "`vcs_diff::conflict_markers::tests`; marker diagnostics after edits are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/editor_gutter.rs:213 opens editors without vcs_diff::conflict_markers; webview: src/features/vcs/conflictMarkers.ts:50)"
+  },
+  "unit:src/features/vcs/__tests__/conflictMarkers.test.ts": {
+    "status": "partial",
+    "proof": "`vcs_diff::conflict_markers::tests`; marker diagnostics, debouncing and withdrawal are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/editor_gutter.rs:213 opens editors without vcs_diff::conflict_markers; webview: src/features/vcs/conflictMarkers.ts:50)"
+  },
+  "unit:src/features/vcs/__tests__/decorations.test.ts": {
+    "status": "partial",
+    "proof": "`vcs_diff::model::tests`; status decorations are tested and reached; splitting git stash subjects into branch and message is tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/vcs/git_forms.rs:1263 lists raw stash subjects, vcs_diff::model::stash_label has no production caller; webview: src/features/vcs/CommitView.tsx:1399)"
+  },
+  "unit:src/features/vcs/__tests__/hunks.test.ts": {
+    "status": "partial",
+    "proof": "`vcs_diff::hunks::tests`, `vcs_diff::gutter::tests`; rollback and next/previous change are tested and reached through HunkState; mapping a diff chunk to backend hunk indices (Stage hunk) and content-keyed hunk identities are tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/vcs_diff/hunks.rs:124 hunks_overlapping and app-gpui/src/vcs_diff/hunks.rs:143 hunk_keys have no production caller and the native diff viewer offers no Stage hunk; webview: src/features/vcs/DiffEditor.tsx:985)"
+  },
+  "unit:src/features/vcs/__tests__/logBranchMemory.test.ts": {
+    "status": "partial",
+    "proof": "`vcs_more::log_branch_memory::tests`; branch filter memory and its resolution are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/vcs/log_view.rs:129 starts with LogFilters::default() and never calls vcs_more::log_branch_memory; webview: src/features/vcs/GitLog.tsx:307)"
+  },
+  "unit:src/features/vcs/__tests__/logSearch.test.ts": {
+    "status": "partial",
+    "proof": "`vcs_more::log_search::tests`; fuzzy speed matching and cycling are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/vcs/log_view.rs:351 key_down handles only navigation keys; webview: src/features/vcs/GitLog.tsx:1543)"
+  },
+  "unit:src/features/vcs/__tests__/multiRepoRollback.test.ts": {
+    "status": "partial",
+    "proof": "`vcs_more::multi_repo::tests`; merging in several repositories and the rollback offer are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/branches.rs:1830 refuses RepoTarget::All and never calls vcs_more::multi_repo::merge_in_repos; webview: src/features/vcs/branchMenu.ts:173)"
+  },
+  "unit:src/features/vcs/__tests__/pushRejected.test.ts": {
+    "status": "partial",
+    "proof": "`vcs_more::push_rejected::tests`; auto-update after a rejected push and force-push-anyway are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/branches.rs:1063 runs the push and only counts failures, never calling vcs_more::push_rejected; webview: src/features/vcs/remoteUi.tsx:939)"
+  },
+  "unit:src/features/vcs/diffBlame.test.ts": {
+    "status": "partial",
+    "proof": "`vcs_more::diff_blame::tests`; the blame target of each diff side is tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/vcs_diff/view.rs:1806 renders diff panes with no annotate, vcs_more::diff_blame is never called; webview: src/features/vcs/DiffEditor.tsx:1224)"
+  },
+  "unit:src/features/welcome/openRecent.test.ts": {
+    "status": "partial",
+    "proof": "`workbench::welcome_model::tests`; routing a recent project through its WSL distribution or locally is tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/welcome.rs:336 opens every recent as a local PathBuf and never calls workbench::welcome_model::open_route; webview: src/features/welcome/index.ts:37)"
+  },
+  "unit:src/features/welcome/recent.test.ts": {
+    "status": "partial",
+    "proof": "`workbench::welcome_model::tests`; the recents filter and project groups are reached; the session-restore memory and the reopen preference are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/windows.rs:84 opens Target::Empty and never calls workbench::welcome_model::reopen_enabled or SessionMemory; webview: src/features/welcome/index.ts:37)"
+  },
+  "unit:src/features/welcome/session.test.ts": {
+    "status": "partial",
+    "proof": "`workbench::welcome_model::tests`; the recent-projects list and its menus are reached; startup reopen, launched files winning over it and WSL routing of recents are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/windows.rs:84 opens Target::Empty and never calls workbench::welcome_model::startup_project, reopen_enabled or open_route; webview: src/features/welcome/index.ts:37)"
+  },
+  "unit:src/platform/buildFiles.test.ts": {
+    "status": "partial",
+    "proof": "`platform::virtual_docs::tests`; is_gradle_build_input is tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/platform/project_presentation.rs:151 is_build_file refreshes the build model only for pom.xml, build.gradle(.kts), settings.gradle(.kts), never calling platform::virtual_docs::is_gradle_build_input; webview: src/features/build-tools/index.ts:70)"
+  },
+  "unit:src/platform/dotnetProcess.test.ts": {
+    "status": "partial",
+    "proof": "`platform_more::dotnet_process::tests`; following a dotnet query run (output, limit, cancel) is tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/run/context.rs:401 derives dotnet-test configs without any dotnet query, platform_more::dotnet_process::DotnetQuery has no caller; webview: src/platform/dotnet.ts:47)"
+  },
+  "unit:src/platform/inspections.test.ts": {
+    "status": "partial",
+    "proof": "`platform_more::inspections::tests`; applying a profile to diagnostics is reached; profile lists and copy names, remembered diagnostic codes and mixed Inspect Code results are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/editor_lsp/diagnostics.rs:100 applies the profile without SeenCodes, and app-gpui/src/settings_model/inspections_model.rs:631 Editor > Inspections has no control calling list_profiles or copy_profile_name; webview: src/features/settings/pages/editor/inspections.tsx:173, src/editor/lsp/diagnostics.ts:64)"
+  },
+  "unit:src/platform/projectRoots.test.ts": {
+    "status": "partial",
+    "proof": "`platform::project_roots::tests`; root merging is reached through the backend; the module list and restore of unmarked detected roots are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/mod.rs:3017 gives Find in Path modules: Vec::new() and never calls platform::project_roots::open_project_modules, and nothing calls restore_detected; webview: src/features/search/find/FindInFiles.tsx:139, src/features/settings/languages/ProjectStructurePage.tsx:477)"
+  },
+  "unit:src/platform/remoteSettings.test.ts": {
+    "status": "partial",
+    "proof": "`platform_more::remote::tests::routes_window_reports_through_the_commands_advertised_by_the_remote_host`, `platform_more::remote::tests::accepts_the_released_and_current_remote_gradle_build_models`, `platform_more::remote::tests::ends_remote_routing_before_a_successful_local_open_is_published_even_at_the_same_path`, `platform_more::remote::tests::preserves_remote_routing_when_opening_a_local_project_fails`, `platform_more::remote::tests::merges_settings_before_publishing_a_newly_connected_project`, `platform_more::remote::tests::overlays_the_project_snapshot_used_by_the_settings_window`, `platform_more::remote::tests::keeps_client_preferences_after_a_remote_tooling_write`, `platform_more::remote::tests::keeps_local_overrides_through_a_settings_changed_runtime_reload`, `platform_more::remote::tests::reloads_local_preferences_instead_of_retaining_stale_or_remote_overrides`, `platform_more::remote::tests::does_not_inherit_remote_ui_values_when_a_local_field_is_absent`, `platform_more::remote::tests::leaves_local_windows_unchanged`, `platform_more::remote::tests::preserves_client_keymaps_and_ui_settings_when_loading_remote_settings`, `platform_more::remote::tests::shows_client_preferences_in_the_global_settings_dialog_snapshot`, `platform_more::remote::tests::writes_a_client_preference_only_to_local_global_settings_and_returns_merged_settings`, `platform_more::remote::tests::keeps_client_settings_writes_local_in_either_scope`, `platform_more::remote::tests::preserves_routing_for_host_settings`, `platform_more::client_settings::tests::keeps_every_client_setting_of_the_shared_model_and_nothing_else`; 16 of 16 cases; the client-only keys are the webview's 107, read from its list in the test and asserted one by one, so none of them is sent to a host; the routing of settings between a remote window and the local client is tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/welcome.rs:336 opens recents as local folders and platform_more::remote::RemoteWindow is named only by the unreached remote_dev::container; webview: src/platform/remote.ts:77)"
+  },
+  "unit:src/platform/windowGroups.test.ts": {
+    "status": "partial",
+    "proof": "`platform::window_groups::tests`; tab reorder and cycling of grouped project windows are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/menu_spec.rs:800 lists window.nextTab/previousTab with no registered handler; webview: src/workbench/WindowGroupTabs.tsx:46)"
+  },
+  "unit:src/ui/filePresentation.test.ts": {
+    "status": "partial",
+    "proof": "`platform::file_presentation::tests`; JVM file icons and the batched, cached presentation resolver are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/tab_views.rs:252 base_icon uses theme::icons::file_icon_name only, nothing calls platform::file_presentation; webview: src/features/project-tree/ProjectView.tsx:293)"
+  },
+  "unit:src/ui/menuAim.test.ts": {
+    "status": "partial",
+    "proof": "`ui::menu_aim::tests`; the triangle test of submenu aiming is tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/ui/popup_menu.rs:23 uses open/close delays and never calls ui::menu_aim::is_submenu_aim; webview: src/ui/Menu.tsx:235)"
+  },
+  "unit:src/workbench/fileDrop.test.ts": {
+    "status": "partial",
+    "proof": "`platform_more::file_drop::tests`; routing OS file drops to tabs, a project, LightEdit or a consuming editor is tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/mod.rs:4146 Workbench::render registers no external-paths drop and never calls platform_more::file_drop::handle_file_drop; webview: src/workbench/activate.ts:84)"
+  },
+  "unit:src/workbench/fileEditors.test.ts": {
+    "status": "partial",
+    "proof": "`platform_more::file_editors::tests`; the ordered provider registry with failure fall-through and acquisition commit/release is tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/tab_views.rs:149 resolves tabs from the static TAB_KINDS table and never calls platform_more::file_editors::FileEditorProviders; webview: src/features/viewers/index.ts:99)"
+  },
+  "unit:src/workbench/providerAcquisition.test.ts": {
+    "status": "partial",
+    "proof": "`platform_more::provider_acquisition::tests`; leases on shared backend sessions across abandoned and admitted resolutions are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/tab_views.rs:149 opens kinds from a static table and never calls platform_more::provider_acquisition::ProviderAcquisitions; webview: src/features/notebook/index.ts:16)"
+  }
+}
