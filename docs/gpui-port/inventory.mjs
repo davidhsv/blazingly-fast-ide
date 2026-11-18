@@ -101,11 +101,10 @@ function ideEvents() {
 function settingsPages(points) {
   const found = new Map(points.get("registerSettingsPage") ?? []);
   const dir = join(root, "src/features/settings/pages");
-  for (const name of readdirSync(dir)) {
-    if (!isSource(join(dir, name))) continue;
-    const text = readFileSync(join(dir, name), "utf8");
+  for (const file of walk(dir, isSource)) {
+    const text = readFileSync(file, "utf8");
     for (const m of text.matchAll(/^\s+id:\s*"([a-zA-Z][\w.]*)",?\s*$/gm)) {
-      if (!found.has(m[1])) found.set(m[1], `src/features/settings/pages/${name}`);
+      if (!found.has(m[1])) found.set(m[1], rel(file));
     }
   }
   return found;
