@@ -44,6 +44,8 @@ impl Fixture {
             runtime: tokio::runtime::Handle::current(),
             project_environment: false,
         });
+        // Deep mode: the Kotlin language server is the one these debugs fall back on.
+        host.global_settings.set(SettingsScope::Global, "ide.mode", serde_json::json!("full")).unwrap();
         let missing = base.join("missing").join("kotlin-debug-adapter");
         host.global_settings
             .set(SettingsScope::Global, "tools", serde_json::json!({"kotlin-debug-adapter": {"path": missing}}))
