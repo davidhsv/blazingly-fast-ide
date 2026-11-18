@@ -1740,6 +1740,17 @@ mod tests {
     use gpui_kit::{TestAppContext, VisualTestContext};
     use ide_vcs::ResetMode;
     use std::path::Path;
+    mod changes_keys;
+
+    /// The diff of the editor's preview tab, when a diff is there.
+    fn preview_diff(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Option<DiffData> {
+        workbench.read_with(cx, |w, _| {
+            let tabs = w.tabs()?;
+            let mut all = tabs.panes.iter().flat_map(|pane| &pane.tabs);
+            let tab = all.find(|tab| tab.preview && tab.input.kind == crate::vcs_diff::diff_input::DIFF_KIND)?;
+            serde_json::from_value(tab.input.data.clone()?).ok()
+        })
+    }
 
     fn commit_file(root: &Path, file: &str, text: &str, message: &str) {
         if let Some(dir) = root.join(file).parent() {
@@ -2389,11 +2400,13 @@ mod tests {
         let diff = |cx: &mut VisualTestContext| {
             workbench.read_with(cx, |w, cx| w.diff_dialog().map(|dialog| dialog.read(cx).data().clone()))
         };
+        // Under the non-modal commit interface an explicit Show Diff takes the reusable preview tab
+        // (src/features/vcs/logChanges.ts:251, src/features/vcs/diffInput.ts:193).
         run_action(cx, "vcs.log.changes.showDiff", Some(json!(["a.txt"])));
-        let shown = diff(cx).expect("the diff is shown");
+        let shown = preview_diff(&workbench, cx).expect("the diff is in the preview tab");
         assert!(shown.path.ends_with("a.txt"));
         assert!(matches!(&shown.right, DiffSide::Rev { rev, .. } if *rev == second));
-        cx.simulate_keystrokes("escape");
+        assert!(diff(cx).is_none(), "no diff window");
         run_action(cx, "vcs.log.changes.compareWithLocal", Some(json!(["a.txt"])));
         let shown = diff(cx).expect("the diff is shown");
         assert!(matches!(&shown.left, DiffSide::Rev { rev, .. } if *rev == second));

@@ -11760,33 +11760,46 @@ for line in sys.stdin:
         assert!(message.iter().any(|line| line.contains("Ada <ada@example.test>")), "{message:?}");
         assert!(cx.debug_bounds("log-details-view-options").is_some(), "the details are drawn beside the log");
 
-        // Enter on a.txt shows the commit's change to it.
+        // Enter on a.txt shows the commit's change to it; under the non-modal commit interface the
+        // diff takes the reusable preview tab (src/features/vcs/GitLog.tsx:2781 `onActivate`,
+        // src/features/vcs/logChanges.ts:251, src/features/vcs/diffInput.ts:193).
         cx.update(|window, cx| {
             let focus = pane.read(cx).focus_handle(cx);
             window.focus(&focus, cx);
         });
         cx.simulate_keystrokes("down enter");
-        let dialog = workbench.read_with(cx, |w, _| w.diff_dialog().cloned()).expect("the diff is shown");
-        let viewer = dialog.read_with(cx, |dialog, _| dialog.viewer().clone());
-        wait_long(cx, "the diff's texts", |cx| viewer.read_with(cx, |viewer, _| viewer.difference_count() == 1));
+        wait_long(cx, "the diff's texts", |cx| {
+            workbench.read_with(cx, |w, cx| {
+                w.diff_tab_viewer(cx).is_some_and(|viewer| viewer.read(cx).difference_count() == 1)
+            })
+        });
+        let viewer = workbench.read_with(cx, |w, cx| w.diff_tab_viewer(cx)).expect("the diff is in a tab");
         let changed = |lines: Vec<crate::vcs_diff::view::PaneLine>| -> Vec<String> {
             lines.into_iter().filter(|line| line.kind.is_some()).map(|line| line.text).collect()
         };
         assert_eq!(changed(viewer.read_with(cx, |viewer, _| viewer.left_lines())), ["one"]);
         assert_eq!(changed(viewer.read_with(cx, |viewer, _| viewer.right_lines())), ["two"]);
-        assert!(dialog.read_with(cx, |dialog, _| dialog.data().path.ends_with("a.txt")));
-        cx.simulate_keystrokes("escape");
-        cx.run_until_parked();
-        assert!(workbench.read_with(cx, |w, _| w.diff_dialog().is_none()));
+        assert!(workbench.read_with(cx, |w, _| w.diff_dialog().is_none()), "no diff window");
+        let preview_diffs = |cx: &mut VisualTestContext| -> Vec<String> {
+            workbench.read_with(cx, |w, _| {
+                let Some(tabs) = w.tabs() else { return Vec::new() };
+                let all = tabs.panes.iter().flat_map(|pane| &pane.tabs);
+                let diffs = all.filter(|tab| tab.preview && tab.input.kind == crate::vcs_diff::diff_input::DIFF_KIND);
+                diffs.filter_map(|tab| tab.input.path.clone()).collect()
+            })
+        };
+        let shown = preview_diffs(cx);
+        assert!(matches!(&shown[..], [path] if path.ends_with("a.txt")), "{shown:?}");
 
-        // The context menu's Show Diff on c.txt, an added file.
+        // The context menu's Show Diff on c.txt, an added file, takes the same preview tab.
         let changes = pane.read_with(cx, |pane, _| pane.all_changes().to_vec());
         workbench.update_in(cx, |w, window, cx| {
             let added = changes.iter().filter(|change| change.path == "c.txt").cloned().collect();
             w.run_log_changes_command(crate::vcs::log_details::ChangesCommand::ShowDiff, added, window, cx);
         });
-        let dialog = workbench.read_with(cx, |w, _| w.diff_dialog().cloned()).expect("the diff is shown");
-        assert!(dialog.read_with(cx, |dialog, _| dialog.data().path.ends_with("c.txt")));
+        cx.run_until_parked();
+        let shown = preview_diffs(cx);
+        assert!(matches!(&shown[..], [path] if path.ends_with("c.txt")), "{shown:?}");
     }
 
     /// Typing in the Git log's text filter reduces the list to the matching commits, and a double

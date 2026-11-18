@@ -3059,6 +3059,7 @@
    "titleKey": "app.action.copy",
    "categoryKey": "app.category.edit",
    "hidden": true,
+   "keymap": true,
    "source": "src/features/app/appActions.ts:107"
   },
   {
@@ -3066,6 +3067,7 @@
    "titleKey": "app.action.cut",
    "categoryKey": "app.category.edit",
    "hidden": true,
+   "keymap": true,
    "source": "src/features/app/appActions.ts:106"
   },
   {
@@ -3073,6 +3075,7 @@
    "titleKey": "app.action.paste",
    "categoryKey": "app.category.edit",
    "hidden": true,
+   "keymap": true,
    "source": "src/features/app/appActions.ts:108"
   },
   {
@@ -3080,6 +3083,7 @@
    "titleKey": "app.action.redo",
    "categoryKey": "app.category.edit",
    "hidden": true,
+   "keymap": true,
    "source": "src/features/app/appActions.ts:105"
   },
   {
@@ -3087,6 +3091,7 @@
    "titleKey": "app.action.selectAll",
    "categoryKey": "app.category.edit",
    "hidden": true,
+   "keymap": true,
    "source": "src/features/app/appActions.ts:109"
   },
   {
@@ -3094,6 +3099,7 @@
    "titleKey": "app.action.undo",
    "categoryKey": "app.category.edit",
    "hidden": true,
+   "keymap": true,
    "source": "src/features/app/appActions.ts:104"
   },
   {

@@ -41,7 +41,7 @@ use crate::vcs_ops::branch_ops::{
 use crate::vcs_ops::dialogs::{AskRequest, ConfirmRequest};
 use crate::vcs_ops::operations::{Control, InProgress, control_label, control_texts, in_progress, none_in_progress};
 use crate::vcs_ops::ops::{
-    ConsoleKind, VcsConsole, all_repos, describe_operation, is_update, op_failed, op_started, op_succeeded,
+    ConsoleKind, VcsConsole, all_repos, describe_operation, is_update, op_failed, op_notice, op_started, op_succeeded,
     remote_console_line, remote_success_body, remote_success_title, remote_titles, updated_from, updated_title,
     vcs_notice,
 };
@@ -628,14 +628,14 @@ pub(super) async fn run_remote(
     let started = this.update(cx, |workbench, cx| {
         let slot = workbench.vcs.as_mut()?;
         if slot.state.remote_busy.is_some() {
-            let warning = vcs_notice(NotificationLevel::Warning, "Another remote operation is in progress");
+            let warning = op_notice(NotificationLevel::Warning, "Another remote operation is in progress");
             workbench.notify(warning, cx);
             return None;
         }
         let progress = cx.default_global::<Localization>().0.tx(progress);
         let mark = mark_busy(slot, progress.clone(), cx);
         slot.console.log(ConsoleKind::Cmd, &remote_console_line(&op, detail.as_deref()), now_ms());
-        let mut notice = vcs_notice(NotificationLevel::Info, format!("{progress}…"));
+        let mut notice = op_notice(NotificationLevel::Info, format!("{progress}…"));
         notice.key = Some("vcs.remote".to_owned());
         notice.body = detail.clone();
         notice.sticky = Some(true);
@@ -666,15 +666,15 @@ pub(super) async fn run_remote(
         let i18n = &mut cx.default_global::<Localization>().0;
         let mut notice = match &run.error {
             Some(error) => {
-                let mut notice = vcs_notice(NotificationLevel::Error, format!("{done} failed"));
+                let mut notice = op_notice(NotificationLevel::Error, format!("{done} failed"));
                 notice.body = Some(error.clone());
                 notice
             }
             None if is_update(&op) => {
-                vcs_notice(NotificationLevel::Info, updated_title(run.updated, run.files, run.commits, i18n))
+                op_notice(NotificationLevel::Info, updated_title(run.updated, run.files, run.commits, i18n))
             }
             None => {
-                let mut notice = vcs_notice(NotificationLevel::Info, remote_success_title(&op, &run.pushed, i18n));
+                let mut notice = op_notice(NotificationLevel::Info, remote_success_title(&op, &run.pushed, i18n));
                 let last = run.lines.iter().rev().map(|line| line.trim()).find(|line| !line.is_empty());
                 notice.body = last.and_then(remote_success_body).map(str::to_owned);
                 notice
@@ -1102,7 +1102,7 @@ pub(super) async fn run_git_operation(this: &This, cx: &mut AsyncWindowContext, 
     let started = this.update(cx, |workbench, cx| {
         let slot = workbench.vcs.as_mut()?;
         if slot.state.remote_busy.is_some() {
-            let warning = vcs_notice(NotificationLevel::Warning, "Another Git operation is in progress");
+            let warning = op_notice(NotificationLevel::Warning, "Another Git operation is in progress");
             workbench.notify(warning, cx);
             return None;
         }
@@ -1115,7 +1115,7 @@ pub(super) async fn run_git_operation(this: &This, cx: &mut AsyncWindowContext, 
         let progress = cx.default_global::<Localization>().0.tx(progress);
         let mark = mark_busy(slot, progress.clone(), cx);
         slot.console.log(ConsoleKind::Cmd, &format!("git {}", describe_operation(&op, before.as_deref())), now_ms());
-        let mut notice = vcs_notice(NotificationLevel::Info, format!("{progress}…"));
+        let mut notice = op_notice(NotificationLevel::Info, format!("{progress}…"));
         notice.key = Some(OPERATION_KEY.to_owned());
         notice.sticky = Some(true);
         workbench.notify(notice, cx);
@@ -1157,7 +1157,7 @@ pub(super) async fn run_git_operation(this: &This, cx: &mut AsyncWindowContext, 
                     _ => success,
                 };
                 slot.console.log(ConsoleKind::Info, &text, now_ms());
-                Some(vcs_notice(NotificationLevel::Info, text))
+                Some(op_notice(NotificationLevel::Info, text))
             }
             Err(message) => {
                 slot.console.log(ConsoleKind::Err, message, now_ms());
@@ -1166,7 +1166,7 @@ pub(super) async fn run_git_operation(this: &This, cx: &mut AsyncWindowContext, 
                     run_action_later(RESOLVE_CONFLICTS.to_owned(), None, window, cx);
                     None
                 } else {
-                    let mut notice = vcs_notice(NotificationLevel::Error, failure);
+                    let mut notice = op_notice(NotificationLevel::Error, failure);
                     notice.body = Some(message.clone());
                     Some(notice)
                 }

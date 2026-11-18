@@ -501,6 +501,7 @@ const ACTION_FIELDS = [
   "keywords",
   "verbatim",
   "hidden",
+  "keymap",
 ];
 
 function actionManifest() {

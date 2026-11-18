@@ -55,6 +55,9 @@ pub struct ActionMeta {
     /// Hidden from Search Everywhere (internal / parameterised actions).
     #[serde(default)]
     pub hidden: bool,
+    /// Listed in Settings › Keymap although hidden, so it can get a shortcut (Cut, Copy, Paste…).
+    #[serde(default)]
+    pub keymap: bool,
     /// A toggle action (IDEA's ToggleAction): Search Everywhere shows an ON/OFF switch.
     #[serde(default)]
     pub toggle: bool,
@@ -254,6 +257,12 @@ pub fn is_action_enabled(meta: &ActionMeta, ctx: &ContextKeys) -> bool {
 /// Whether a keyboard shortcut may run the action (`when` and `keyWhen`).
 pub fn is_action_key_enabled(meta: &ActionMeta, ctx: &ContextKeys) -> bool {
     is_action_enabled(meta, ctx) && when_holds(meta, meta.key_when.as_deref(), ctx)
+}
+
+/// Whether the action has a `keyWhen` and it holds: such an action claims a shared shortcut before one
+/// whose shortcut is not tied to a place.
+pub fn key_when_matches(meta: &ActionMeta, ctx: &ContextKeys) -> bool {
+    meta.key_when.is_some() && when_holds(meta, meta.key_when.as_deref(), ctx)
 }
 
 fn when_holds(meta: &ActionMeta, clause: Option<&str>, ctx: &ContextKeys) -> bool {

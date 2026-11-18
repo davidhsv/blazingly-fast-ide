@@ -6,7 +6,7 @@
 //! have no application-level hook: the window's root view forwards them
 //! ([`modifiers_changed`], [`mouse_down`]).
 
-use super::actions::{ActionRegistry, ActionSource, execute_action_from, is_action_key_enabled};
+use super::actions::{ActionRegistry, ActionSource, execute_action_from, is_action_key_enabled, key_when_matches};
 use super::context::{ContextKeys, window_context};
 use super::dispatcher::{DispatchEnv, Dispatcher, KeyPress, KeyTarget, Mods, Outcome};
 use super::keymap::{KeymapState, Modifier, is_mac_host};
@@ -235,6 +235,10 @@ impl DispatchEnv for Env<'_> {
     fn key_enabled(&self, action_id: &str) -> bool {
         self.registry.get(action_id).is_some_and(|action| is_action_key_enabled(&action.meta, self.ctx))
     }
+
+    fn key_when_matches(&self, action_id: &str) -> bool {
+        self.registry.get(action_id).is_some_and(|action| key_when_matches(&action.meta, self.ctx))
+    }
 }
 
 /// Runs `decide` with the window's dispatcher, then the action it picked.
@@ -430,6 +434,42 @@ mod tests {
         cx.update(|window, cx| set_context(window, cx, "panelOpen", true));
         cx.simulate_keystrokes("cmd-g");
         assert_eq!(*ran.borrow(), ["t.gated"]);
+    }
+
+    /// Under the Eclipse (Windows) preset Alt+Shift+R is bound to Rename File, the Database view's Rename, Rename
+    /// Shelved Changes and Edit Commit Message, in that order: the view the keyboard is in decides which runs, and
+    /// with no view claiming it the last-bound one does.
+    #[gpui_kit::test]
+    fn the_eclipse_rename_key_renames_in_the_view_that_claims_it_before_editing_a_commit_message(
+        cx: &mut TestAppContext,
+    ) {
+        const SHARING: [&str; 4] = ["project.rename", "db.rename", "vcs.shelf.rename", "vcs.log.editMessage"];
+        let ran = Rc::new(RefCell::new(Vec::new()));
+        cx.update(|cx| {
+            init(cx);
+            cx.global_mut::<Keymap>().0 = crate::platform::keymap::KeymapState::new("eclipse-windows");
+            for id in SHARING {
+                let log = ran.clone();
+                cx.global_mut::<ActionRegistry>().handle(id, move |_, _, _| {
+                    log.borrow_mut().push(id);
+                    Ok(())
+                });
+            }
+        });
+        let (_, cx) = cx.add_window_view(|_, _| Empty);
+        cx.update(|window, cx| {
+            set_context(window, cx, "projectOpen", true);
+            set_context(window, cx, "vcsAvailable", true);
+        });
+        cx.simulate_keystrokes("alt-shift-r");
+        cx.update(|window, cx| set_context(window, cx, "projectViewFocus", true));
+        cx.simulate_keystrokes("alt-shift-r");
+        cx.update(|window, cx| {
+            set_context(window, cx, "projectViewFocus", false);
+            set_context(window, cx, "databaseViewFocus", true);
+        });
+        cx.simulate_keystrokes("alt-shift-r");
+        assert_eq!(*ran.borrow(), ["vcs.log.editMessage", "project.rename", "db.rename"]);
     }
 
     // src/platform/keymap.test.ts › double Shift › fires on the second release

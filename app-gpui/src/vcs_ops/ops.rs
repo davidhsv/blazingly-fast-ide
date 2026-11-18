@@ -70,6 +70,12 @@ pub fn vcs_notice(level: NotificationLevel, title: impl Into<String>) -> Notific
     request
 }
 
+/// The feedback of a Git command the user ran: it shows as a balloon even while background notifications are
+/// muted.
+pub fn op_notice(level: NotificationLevel, title: impl Into<String>) -> NotificationRequest {
+    NotificationRequest { user_initiated: true, ..vcs_notice(level, title) }
+}
+
 /// A notification whose buttons continue an operation: `follow_ups` says, per button command, what
 /// to do when it is clicked.
 #[derive(Clone, Debug, PartialEq)]
@@ -111,7 +117,7 @@ pub fn op_started(console: &mut VcsConsole, title: &str, time: f64) {
 pub fn op_succeeded(console: &mut VcsConsole, success: Option<&str>, time: f64) -> Option<NotificationRequest> {
     let message = success.filter(|message| !message.is_empty())?;
     console.log(ConsoleKind::Info, message, time);
-    Some(vcs_notice(NotificationLevel::Info, message))
+    Some(op_notice(NotificationLevel::Info, message))
 }
 
 /// A local operation failed with `message`: it is logged, and reported unless `report` is off
@@ -126,7 +132,7 @@ pub fn op_failed(
 ) -> Option<NotificationRequest> {
     console.log(ConsoleKind::Err, message, time);
     report.then(|| {
-        let mut request = vcs_notice(NotificationLevel::Error, i18n.tx_built(&["", " failed"], &[Param::from(title)]));
+        let mut request = op_notice(NotificationLevel::Error, i18n.tx_built(&["", " failed"], &[Param::from(title)]));
         request.body = Some(message.to_owned());
         request
     })

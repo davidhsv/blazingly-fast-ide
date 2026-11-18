@@ -1,6 +1,7 @@
 //! Version control actions: which paths a selection-based action targets.
 
 use super::ops::vcs_notice;
+use crate::vcs::changes::root_of;
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
 use serde_json::Value;
 
@@ -74,6 +75,28 @@ pub fn selected_paths(arg: Option<&Value>, context: PathContext) -> Vec<String> 
     }
 }
 
+/// The repository a repository-wide dialog (Pull, Merge, Rebase) starts on: the `{ repo }` the action names, else
+/// the one holding the action's file, else the Project view's selection while it has focus (`project_focused`),
+/// else the active editor's file, else the selected repository (`current`). `None` is the selected one.
+pub fn operation_repo(
+    arg: Option<&Value>,
+    roots: &[String],
+    project_focused: Option<&[String]>,
+    active_path: Option<&str>,
+    current: Option<&str>,
+) -> Option<String> {
+    if let Some(repo) = arg.and_then(Value::as_object).and_then(|object| object.get("repo")) {
+        return repo.as_str().map(str::to_owned);
+    }
+    let in_context = |paths: &[String]| paths.iter().find_map(|path| root_of(path, roots)).map(str::to_owned);
+    let explicit = arg_paths(arg).unwrap_or_default();
+    let active: Vec<String> = active_path.filter(|path| !path.is_empty()).map(str::to_owned).into_iter().collect();
+    in_context(&explicit)
+        .or_else(|| project_focused.and_then(in_context))
+        .or_else(|| in_context(&active))
+        .or_else(|| current.map(str::to_owned))
+}
+
 /// What Compare with Branch or Revision… starts from.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CompareSelection {
@@ -100,6 +123,27 @@ mod tests {
     use crate::platform::actions::{is_action_enabled, manifest};
     use crate::platform::context::ContextKeys;
     use serde_json::json;
+
+    // src/features/vcs/__tests__/operationRepo.test.ts › operationRepo
+    #[test]
+    fn operation_repo_follows_the_action_s_files_the_focused_project_view_the_active_editor_then_the_selection() {
+        let roots = ["/ws/a".to_owned(), "/ws/b".to_owned()];
+        let current = Some("/ws/b");
+        // starts on the repository of the action's files (context menus)
+        for arg in [json!(["/ws/a/src/x.ts"]), json!("/ws/a"), json!({ "repo": "/ws/a" })] {
+            assert_eq!(operation_repo(Some(&arg), &roots, None, None, current).as_deref(), Some("/ws/a"), "{arg}");
+        }
+        // from the keyboard, uses the focused Project view's selection, else the active editor's file
+        let selection = ["/ws/a/lib".to_owned()];
+        assert_eq!(operation_repo(None, &roots, None, Some("/ws/b/main.ts"), current).as_deref(), Some("/ws/b"));
+        let focused = Some(&selection[..]);
+        assert_eq!(operation_repo(None, &roots, focused, Some("/ws/b/main.ts"), current).as_deref(), Some("/ws/a"));
+        // falls back to the selected repository
+        let current = Some("/ws/a");
+        assert_eq!(operation_repo(None, &roots, None, None, current).as_deref(), Some("/ws/a"));
+        let elsewhere = json!(["/elsewhere/file"]);
+        assert_eq!(operation_repo(Some(&elsewhere), &roots, None, None, current).as_deref(), Some("/ws/a"));
+    }
 
     // src/features/vcs/__tests__/compareActions.test.ts › compare action context › is enabled for Git folder selections and uses project selection in menu/Search Everywhere
     #[test]

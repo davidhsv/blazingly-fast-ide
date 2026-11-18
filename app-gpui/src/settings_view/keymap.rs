@@ -1952,6 +1952,23 @@ mod tests {
         assert_eq!(recorded(&view, cx).as_deref(), Some("Alt+F12 Meta+C"));
     }
 
+    /// Cut, Copy, Paste, Undo, Redo and Select All are hidden from the action search but listed in the keymap
+    /// without a binding of the keymap; another hidden action without a binding is not.
+    #[gpui_kit::test]
+    async fn the_keymap_lists_the_hidden_edit_actions_that_can_get_a_shortcut(cx: &mut TestAppContext) {
+        const EDIT: [&str; 6] = ["edit.cut", "edit.copy", "edit.paste", "edit.undo", "edit.redo", "edit.selectAll"];
+        let mut registry = ActionRegistry::default();
+        for id in EDIT.into_iter().chain(["project.renameInline"]) {
+            registry.handle(id, |_, _, _| Ok(()));
+        }
+        let (view, cx) = open(cx, keymap_actions(&registry, &I18n::default()));
+        let listed = row_keys(&view, cx);
+        for id in EDIT {
+            assert!(listed.iter().any(|key| key == id), "{id} is listed: {listed:?}");
+        }
+        assert!(!listed.iter().any(|key| key == "project.renameInline"), "{listed:?}");
+    }
+
     // shortcut search › filters the keymap tree by name and by shortcut
     #[gpui_kit::test]
     async fn filters_the_keymap_tree_by_name_and_by_shortcut(cx: &mut TestAppContext) {

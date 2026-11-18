@@ -117,6 +117,10 @@ pub trait DispatchEnv {
     fn bindings(&self) -> &[(String, String)];
     /// Whether a shortcut may run the action now (`when` and `keyWhen`); false when unknown.
     fn key_enabled(&self, action_id: &str) -> bool;
+    /// Whether the action has a `keyWhen` that holds where the keyboard is now.
+    fn key_when_matches(&self, _action_id: &str) -> bool {
+        false
+    }
     /// Whether the focused component keeps this first stroke for itself (Vim mode…).
     fn claimed(&self, _press: &KeyPress, _stroke: &str) -> bool {
         false
@@ -198,6 +202,16 @@ impl Dispatcher {
     fn first_enabled(env: &dyn DispatchEnv, bindings: &[(String, String)], binding: &str) -> Option<String> {
         // Later presets/overrides win; the first enabled match runs.
         bindings.iter().rev().filter(|(b, _)| b == binding).map(|(_, id)| id).find(|id| env.key_enabled(id)).cloned()
+    }
+
+    /// The action a key sequence runs: among the enabled actions bound to it, one whose `keyWhen` matches
+    /// runs before one without, so a context-specific claim beats a context-free one at equal specificity
+    /// (Eclipse's Alt+Shift+R renames in the Project view instead of editing a commit message); otherwise
+    /// later presets and overrides win.
+    fn preferred_enabled(env: &dyn DispatchEnv, bindings: &[(String, String)], seq: &str) -> Option<String> {
+        let (preferred, fallback): (Vec<&String>, Vec<&String>) =
+            bindings.iter().rev().filter(|(b, _)| b == seq).map(|(_, id)| id).partition(|id| env.key_when_matches(id));
+        preferred.into_iter().chain(fallback).find(|id| env.key_enabled(id)).cloned()
     }
 
     /// A modifier key went down. `mods` is the state including it.
@@ -326,7 +340,7 @@ impl Dispatcher {
                 .replace("NumpadMultiply", "*")
                 .replace("NumpadDivide", "/")
         };
-        if let Some(id) = Self::first_enabled(env, bindings, &seq) {
+        if let Some(id) = Self::preferred_enabled(env, bindings, &seq) {
             self.reset();
             return Outcome::Run(id);
         }
@@ -397,6 +411,8 @@ mod tests {
         bindings: Vec<(String, String)>,
         disabled: HashSet<String>,
         claimed: HashSet<String>,
+        /// Actions whose `keyWhen` holds.
+        key_when_matching: HashSet<String>,
     }
 
     impl Env {
@@ -414,6 +430,9 @@ mod tests {
         }
         fn key_enabled(&self, action_id: &str) -> bool {
             !self.disabled.contains(action_id)
+        }
+        fn key_when_matches(&self, action_id: &str) -> bool {
+            self.key_when_matching.contains(action_id)
         }
         fn claimed(&self, _press: &KeyPress, stroke: &str) -> bool {
             self.claimed.contains(stroke)
@@ -467,6 +486,20 @@ mod tests {
         assert_eq!(d.key_down(&KeyPress::new("g", META), 0.0, &env), Outcome::Pass);
         // The later binding is disabled, so the earlier one on the same keystroke runs.
         assert_eq!(d.key_down(&KeyPress::new("h", META), 0.0, &env), run("t.fallback"));
+    }
+
+    // src/platform/keymap.test.ts › dispatcher › prefers a matching keyWhen over a keyWhenless action sharing the stroke
+    #[test]
+    fn prefers_a_matching_key_when_over_a_key_whenless_action_sharing_the_stroke() {
+        // The later binding wins by order, so only the preference makes the earlier one run.
+        let mut env = Env::bound(&[("t.keyWhenMatch", "Meta+J"), ("t.keyWhenless", "Meta+J")]);
+        let mut d = Dispatcher::new(true);
+        assert_eq!(d.key_down(&KeyPress::new("j", META), 0.0, &env), run("t.keyWhenless"));
+        env.key_when_matching.insert("t.keyWhenMatch".to_owned());
+        assert_eq!(d.key_down(&KeyPress::new("j", META), 0.0, &env), run("t.keyWhenMatch"));
+        // A matching keyWhen on a disabled action leaves the stroke to the next enabled one.
+        env.disabled.insert("t.keyWhenMatch".to_owned());
+        assert_eq!(d.key_down(&KeyPress::new("j", META), 0.0, &env), run("t.keyWhenless"));
     }
 
     // src/platform/keymap.test.ts › dispatcher › waits 2s for a chord's second stroke and swallows a wrong one

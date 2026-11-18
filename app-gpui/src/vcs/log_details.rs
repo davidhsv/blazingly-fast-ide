@@ -1259,7 +1259,16 @@ impl LogDetailsPane {
             cx.notify();
             return;
         }
-        if (keystroke.modifiers.modified() && !keystroke.modifiers.shift) || self.rows.is_empty() {
+        if self.rows.is_empty() {
+            return;
+        }
+        let mods = &keystroke.modifiers;
+        let jump = (keystroke.key == "f4" && !mods.modified())
+            || (keystroke.key == "down" && mods.platform && !mods.shift && !mods.alt && !mods.control);
+        if jump {
+            return self.jump_to_source(cx);
+        }
+        if keystroke.modifiers.modified() && !keystroke.modifiers.shift {
             return;
         }
         let rows = Rc::clone(&self.rows);
@@ -1282,6 +1291,20 @@ impl LogDetailsPane {
             ("left", Some(row)) if row.change.is_none() && row.expanded => self.toggle(&row.key.clone(), cx),
             ("enter", Some(row)) => self.activate(&row.key.clone(), cx),
             _ => return,
+        }
+        cx.stop_propagation();
+    }
+
+    /// Jump to Source (F4 / ⌘↓) on the lead row: the selection's files when the row is selected, else the row's.
+    fn jump_to_source(&mut self, cx: &mut Context<Self>) {
+        let Some(key) = self.lead.clone().filter(|key| self.rows.iter().any(|row| &row.key == key)) else { return };
+        let changes: Vec<LogChange> = if self.selected.contains(&key) {
+            self.selected_changes()
+        } else {
+            files_under(&self.tree, Some(&BTreeSet::from([key]))).into_iter().cloned().collect()
+        };
+        if !changes.is_empty() {
+            cx.emit(LogDetailsEvent::Command { command: ChangesCommand::JumpToSource, changes });
         }
         cx.stop_propagation();
     }

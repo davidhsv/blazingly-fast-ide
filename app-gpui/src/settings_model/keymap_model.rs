@@ -45,6 +45,8 @@ pub struct KeymapAction {
     pub when: Option<String>,
     pub keywords: Vec<String>,
     pub hidden: bool,
+    /// Listed although hidden, so it can get a shortcut.
+    pub keymap: bool,
 }
 
 impl KeymapAction {
@@ -71,6 +73,7 @@ impl KeymapAction {
             when: meta.when.clone(),
             keywords: shown.keywords,
             hidden: meta.hidden,
+            keymap: meta.keymap,
         }
     }
 }
@@ -93,9 +96,13 @@ pub fn resolve_bindings(draft: &KeymapDraft, id: &str) -> Vec<String> {
     }
 }
 
-/// Hidden actions with shortcuts stay configurable, even after their bindings are removed.
+/// Hidden actions with shortcuts stay configurable, even after their bindings are removed; a hidden action marked
+/// for the keymap is listed without one.
 pub fn is_keymap_action(action: &KeymapAction, draft: &KeymapDraft) -> bool {
-    !action.hidden || draft.overrides.contains_key(&action.id) || !preset_bindings(draft, &action.id).is_empty()
+    !action.hidden
+        || action.keymap
+        || draft.overrides.contains_key(&action.id)
+        || !preset_bindings(draft, &action.id).is_empty()
 }
 
 pub fn is_modified(draft: &KeymapDraft, id: &str) -> bool {

@@ -28,7 +28,9 @@ use crate::vcs::log_details::{
 use crate::vcs::log_filters::{LogFilterBar, LogFilterEvent, LogFilterInput};
 use crate::vcs::log_options::{LogOptions, STORAGE_KEY};
 use crate::vcs::log_view::{GitLog, GitLogEvent};
+use crate::vcs_diff::diff_input::DiffSurface;
 use crate::vcs_more::log_changes::{ChangeSide, LogChange, ShownChanges, compare_change_with_local, show_changes_diff};
+use crate::vcs_more::show_diff::DiffTab;
 use crate::vcs_ops::log_store::{LogFiltersPatch, RepoCommit};
 use crate::vcs_ops::ops::vcs_notice;
 use crate::workbench::notifications::NotificationLevel;
@@ -162,8 +164,12 @@ impl Workbench {
         self.git_log = None;
     }
 
-    /// Publishes `vcsLogFocus`: the keyboard is in the Git log or one of its panes.
+    /// Publishes `vcsLogFocus`: the keyboard is in the Git log or one of its panes; `vcsLogChangesFocus`: it is in
+    /// the commit's changed files, where Show Diff's key shows the commit's diff.
     pub(super) fn publish_log_context(&self, window: &mut Window, cx: &mut App) {
+        let changes =
+            self.git_log.as_ref().is_some_and(|slot| slot.details.focus_handle(cx).contains_focused(window, cx));
+        crate::platform::context::set_context(window, cx, "vcsLogChangesFocus", changes);
         let focused = self.git_log.as_ref().is_some_and(|slot| {
             [
                 slot.log.focus_handle(cx),
@@ -468,7 +474,11 @@ impl Workbench {
         let non_modal = settings::effective(&self.label, cx).vcs.commit.non_modal;
         let root = self.vcs_state().and_then(|vcs| vcs.root.clone());
         match show_changes_diff(changes, all, preview, non_modal, root.as_deref()) {
-            Some(ShownChanges::Diff { data, .. }) => self.open_diff(*data, window, cx),
+            Some(ShownChanges::Diff { data, surface: DiffSurface::FrontWindow }) => self.open_diff(*data, window, cx),
+            // An explicit diff takes the reusable preview tab, as a selection's preview would.
+            Some(ShownChanges::Diff { data, surface: DiffSurface::EditorTab }) => {
+                self.open_diff_tabs(vec![DiffTab { data: *data, preview: true }], window, cx);
+            }
             // The editor has no diff tabs: a selection's preview is not shown.
             Some(ShownChanges::PreviewTab(_)) => {}
             Some(ShownChanges::MergeWindow(_) | ShownChanges::MergeTab { .. }) => {

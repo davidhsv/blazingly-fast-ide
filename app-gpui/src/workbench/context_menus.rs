@@ -441,16 +441,40 @@ pub fn git_menu<C>(path: &str) -> MenuItem<C> {
             MenuItem::Separator,
             action_with("vcs.annotate", json!(path), "Annotate with Git Blame"),
             action_with("vcs.showDiff", json!([path]), "Show Diff"),
-            action_with("vcs.compareWithBranch", json!({ "path": path }), "Compare with Branch…"),
+            MenuItem::action_with("vcs.compareWithBranch", json!({ "path": path })),
+            MenuItem::action_with("vcs.compareWithRevision", json!({ "path": path })),
             action_with("vcs.showHistory", json!([path]), "Show History"),
+            MenuItem::action_with("vcs.showCurrentRevision", json!({ "path": path })),
             action("vcs.showHistoryForSelection", "Show History for Selection"),
             action_with("vcs.rollback", json!([path]), "Rollback…"),
             MenuItem::Separator,
             action("vcs.push", "Push…"),
-            action("vcs.update", "Pull…"),
+            action_with("vcs.pull", json!([path]), "Pull…"),
             action("vcs.fetch", "Fetch"),
             MenuItem::Separator,
+            MenuItem::action_with("vcs.merge", json!([path])),
+            MenuItem::action_with("vcs.rebase", json!([path])),
+            MenuItem::Separator,
             action("vcs.branches", "Branches…"),
+            MenuItem::action("vcs.newBranch"),
+            MenuItem::action("vcs.newTag"),
+            MenuItem::action("vcs.resetHead"),
+            MenuItem::Separator,
+            MenuItem::action("vcs.stash"),
+            MenuItem::action("vcs.unstash"),
+            MenuItem::Separator,
+            MenuItem::submenu(
+                "GitHub",
+                vec![
+                    MenuItem::action("github.pullRequests"),
+                    MenuItem::action("github.createPullRequest"),
+                    MenuItem::action("github.checkoutPullRequest"),
+                    MenuItem::action("github.openInBrowser"),
+                ],
+            )
+            .icon("github"),
+            MenuItem::action("vcs.manageRemotes"),
+            action("vcs.clone", "Clone…"),
         ],
     )
 }
@@ -1206,14 +1230,15 @@ mod tests {
         "Safe Delete…",
     ];
 
-    /// Git › for one file, with the rows whose actions this window registers.
-    const GIT: [&str; 15] = [
+    /// Git › for one file (`src/editor/core/controller.ts` `gitMenu`), with the rows whose actions this window
+    /// registers: Compare with Revision…, Show Current Revision and Clone… are left out.
+    const GIT: [&str; 27] = [
         "Commit File…",
         "Add",
         "-",
         "Annotate with Git Blame",
         "Show Diff",
-        "Compare with Branch…",
+        "Compare with Branch or Revision…",
         "Show History",
         "Show History for Selection",
         "Rollback…",
@@ -1222,7 +1247,19 @@ mod tests {
         "Pull…",
         "Fetch",
         "-",
+        "Merge…",
+        "Rebase…",
+        "-",
         "Branches…",
+        "New Branch…",
+        "New Tag…",
+        "Reset HEAD…",
+        "-",
+        "Stash Changes…",
+        "Unstash Changes…",
+        "-",
+        "GitHub",
+        "Manage Remotes…",
     ];
 
     // ---------------------------------------------------------------------------------------------
@@ -1644,6 +1681,22 @@ mod tests {
         assert_eq!(root_rows(&menu, cx), ROOT);
         choose(&menu, &["Git"], cx);
         assert_eq!(shown(&menu, cx)[1], GIT);
+        // Pull…, Merge… and Rebase… start on the repository of the editor's file.
+        let path = f.root.join("a.txt").to_string_lossy().into_owned();
+        let choices: Vec<(String, Option<Choice<EditorMenuCommand>>)> = menu.read_with(cx, |menu, _| {
+            let rows =
+                menu.rows().into_iter().filter(|row| ["Pull…", "Merge…", "Rebase…"].contains(&row.label.as_str()));
+            rows.map(|row| (row.label.clone(), row.choice.clone())).collect()
+        });
+        let on_file = |id: &str| Some(Choice::Action { id: id.to_owned(), arg: Some(json!([path])) });
+        assert_eq!(
+            choices,
+            [
+                ("Pull…".to_owned(), on_file("vcs.pull")),
+                ("Merge…".to_owned(), on_file("vcs.merge")),
+                ("Rebase…".to_owned(), on_file("vcs.rebase")),
+            ]
+        );
         assert!(!disabled(&menu, "Commit File…", cx), "vcsAvailable holds");
         cx.simulate_keystrokes("escape");
         cx.run_until_parked();

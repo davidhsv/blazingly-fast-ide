@@ -314,6 +314,17 @@ impl CommitPanel {
             .collect()
     }
 
+    /// The paths of the changed files the next commit includes, fully or in part, in tree order.
+    pub fn included_paths(&self, cx: &App) -> Vec<String> {
+        if self.commit.is_none() {
+            return Vec::new();
+        }
+        let checks = &self.effective_checks(cx);
+        let rows = self.rows.iter().filter(|row| row.node_type == NodeType::File);
+        let files = rows.flat_map(|row| row.files.iter()).filter(|file| check_of(file, checks) != CheckState::None);
+        files.map(|file| strip_slash(&file.path).to_owned()).collect()
+    }
+
     /// Includes the files of rows `keys` in the next commit, or leaves them out: one file flips its
     /// inclusion; several are all left out when all are fully included, else all included.
     pub fn toggle_included(&mut self, keys: &[&str], cx: &mut Context<Self>) {

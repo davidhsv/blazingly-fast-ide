@@ -17,7 +17,7 @@ use super::branches::{
     run_git_operation, run_op, run_remote, save_all, vcs_state,
 };
 use super::services_window::on_workbench;
-use super::{COMMIT_TOOL_WINDOW, GIT_TOOL_WINDOW, Workbench, for_window};
+use super::{COMMIT_TOOL_WINDOW, GIT_TOOL_WINDOW, PROJECT_TOOL_WINDOW, Workbench, for_window};
 use crate::editor::buffer::{Assoc, map_offset};
 use crate::editor::view::Editor;
 use crate::platform::actions::ActionRegistry;
@@ -36,7 +36,7 @@ use crate::vcs_diff::diff_input::DiffData;
 use crate::vcs_diff::doc::Doc;
 use crate::vcs_diff::gutter::HunkState;
 use crate::vcs_more::worktrees::{RepoWorktrees, group_worktrees};
-use crate::vcs_ops::actions::{PathContext, arg_paths, commit_window_focused, context_paths};
+use crate::vcs_ops::actions::{PathContext, arg_paths, commit_window_focused, context_paths, operation_repo};
 use crate::vcs_ops::change_ops::{
     AddToVcs, add_to_vcs, is_nested_repo_entry, rollback_candidates, rollback_plan, rollback_titles, unstash_titles,
 };
@@ -132,10 +132,27 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
             start(window, cx, async move |this, cx| control_operation(this, cx, op, control).await)
         });
     }
-    registry.handle("vcs.pull", |_, window, cx| start(window, cx, pull));
-    registry.handle("vcs.update", |_, window, cx| start(window, cx, update));
-    registry.handle("vcs.merge", |_, window, cx| start(window, cx, merge));
-    registry.handle("vcs.rebase", |_, window, cx| start(window, cx, rebase));
+    registry.handle("vcs.pull", |call, window, cx| {
+        let arg = call.arg.cloned();
+        start(window, cx, async move |this, cx| pull(this, cx, arg).await)
+    });
+    registry.handle("vcs.update", |call, window, cx| {
+        // `{ repo }` updates that repository only (`null`: the selected one); anything else updates all.
+        let target = call
+            .arg
+            .and_then(Value::as_object)
+            .and_then(|arg| arg.get("repo"))
+            .map(|repo| repo.as_str().map(str::to_owned));
+        start(window, cx, async move |this, cx| update(this, cx, target).await)
+    });
+    registry.handle("vcs.merge", |call, window, cx| {
+        let arg = call.arg.cloned();
+        start(window, cx, async move |this, cx| merge(this, cx, arg).await)
+    });
+    registry.handle("vcs.rebase", |call, window, cx| {
+        let arg = call.arg.cloned();
+        start(window, cx, async move |this, cx| rebase(this, cx, arg).await)
+    });
     registry.handle("vcs.resetHead", |_, window, cx| start(window, cx, reset_head));
     registry.handle("vcs.newTag", |_, window, cx| start(window, cx, new_tag));
     registry.handle("vcs.stash", |_, window, cx| start(window, cx, stash));
@@ -245,6 +262,36 @@ fn current(this: &This, cx: &mut AsyncWindowContext) -> anyhow::Result<(Option<S
     vcs_state(this, cx, |state| (state.repo.clone(), state.branch.clone()))
 }
 
+/// The repository Pull, Merge or Rebase starts on ([`operation_repo`]) and its branch: the state's for the
+/// selected repository, read from git for another one.
+async fn operation_target(
+    this: &This,
+    cx: &mut AsyncWindowContext,
+    arg: Option<Value>,
+) -> anyhow::Result<(Option<String>, Option<ide_vcs::BranchInfo>)> {
+    let (repo, selected, info) = this.update(cx, |workbench, cx| {
+        let selection = workbench.selection(cx);
+        let project_focused = workbench.tool_windows().and_then(|layout| layout.focused()) == Some(PROJECT_TOOL_WINDOW);
+        let state = workbench.vcs_state().cloned().unwrap_or_default();
+        let focused = project_focused.then_some(&selection.project[..]);
+        let repo =
+            operation_repo(arg.as_ref(), &state.roots, focused, selection.active.as_deref(), state.repo.as_deref());
+        (repo, state.repo, state.branch)
+    })?;
+    if repo == selected {
+        return Ok((repo, info));
+    }
+    let path = repo_path(repo.as_deref());
+    let read =
+        call(
+            this,
+            cx,
+            move |host: Arc<Host>, label: String| async move { git::vcs_branch_info(&host, &label, path).await },
+        )
+        .await?;
+    Ok((repo, read.ok()))
+}
+
 fn head_name(info: Option<&ide_vcs::BranchInfo>) -> String {
     info.and_then(|info| info.head.clone()).filter(|head| !head.is_empty()).unwrap_or_else(|| "HEAD".to_owned())
 }
@@ -252,8 +299,8 @@ fn head_name(info: Option<&ide_vcs::BranchInfo>) -> String {
 // -------------------------------------------------------------------------------------------------
 // Pull, Update Project
 
-async fn pull(this: This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
-    let (repo, info) = current(&this, cx)?;
+async fn pull(this: This, cx: &mut AsyncWindowContext, arg: Option<Value>) -> anyhow::Result<()> {
+    let (repo, info) = operation_target(&this, cx, arg).await?;
     let path = repo_path(repo.as_deref());
     let remotes =
         call(
@@ -278,12 +325,16 @@ async fn pull(this: This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
 }
 
 /// Update Project…: the options dialog, or with Show options before Update off, the stored method
-/// right away.
-async fn update(this: This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
+/// right away. `target` is one repository (`Some(None)`: the selected one); `None` updates every one.
+async fn update(this: This, cx: &mut AsyncWindowContext, target: Option<Option<String>>) -> anyhow::Result<()> {
     let vcs = this.update(cx, |workbench, cx| settings::effective(&workbench.label, cx).vcs)?;
     let stored_rebase = vcs.git.update_method == "rebase";
+    let repos = match target {
+        Some(repo) => vec![repo],
+        None => vcs_state(&this, cx, |state| all_repos(&state.roots))?,
+    };
     if !vcs.confirmation.show_update_options {
-        return update_project(&this, cx, stored_rebase).await;
+        return update_project(&this, cx, stored_rebase, repos).await;
     }
     let (info, single) = vcs_state(&this, cx, |state| (state.branch.clone(), state.roots.len() <= 1))?;
     let form = UpdateForm::new(info.as_ref(), single, stored_rebase);
@@ -299,26 +350,29 @@ async fn update(this: This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
                     workbench.save_vcs_setting("vcs.confirmation.showUpdateOptions", Value::Bool(false), cx);
                 }
             })?;
-            update_project(&this, cx, rebase).await
+            update_project(&this, cx, rebase, repos).await
         }
         Some(FormAnswer::ResetToRemote) => reset_to_remote_branch(&this, cx).await,
         _ => Ok(()),
     }
 }
 
-/// Pulls every repository of the project, merging or rebasing.
-async fn update_project(this: &This, cx: &mut AsyncWindowContext, rebase: bool) -> anyhow::Result<()> {
+/// Pulls `repos`, merging or rebasing.
+async fn update_project(
+    this: &This,
+    cx: &mut AsyncWindowContext,
+    rebase: bool,
+    repos: Vec<Option<String>>,
+) -> anyhow::Result<()> {
     save_all(this, cx).await?;
-    let (repos, detail) = vcs_state(this, cx, |state| {
-        let repos = all_repos(&state.roots);
-        let detail = if repos.len() > 1 {
+    let detail = vcs_state(this, cx, |state| {
+        if repos.len() > 1 {
             Some(format!("{} repositories", repos.len()))
         } else {
             let branch = state.branch.as_ref();
             let upstream = branch.and_then(|branch| branch.upstream.clone()).filter(|upstream| !upstream.is_empty());
             upstream.map(|upstream| format!("{} ← {upstream}", head_name(branch)))
-        };
-        (repos, detail)
+        }
     })?;
     run_remote(this, cx, RemoteOp::Pull { rebase }, detail, repos).await?;
     Ok(())
@@ -358,8 +412,8 @@ async fn reset_to_remote_branch(this: &This, cx: &mut AsyncWindowContext) -> any
 // -------------------------------------------------------------------------------------------------
 // Merge, Rebase, Reset, Tag
 
-async fn merge(this: This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
-    let (repo, info) = current(&this, cx)?;
+async fn merge(this: This, cx: &mut AsyncWindowContext, arg: Option<Value>) -> anyhow::Result<()> {
+    let (repo, info) = operation_target(&this, cx, arg).await?;
     let branches = read_branches(&this, cx, repo.clone()).await?;
     let head = info.as_ref().and_then(|info| info.head.clone());
     let form = MergeForm::new(head, &branches);
@@ -380,8 +434,8 @@ async fn merge(this: This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn rebase(this: This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
-    let (repo, info) = current(&this, cx)?;
+async fn rebase(this: This, cx: &mut AsyncWindowContext, arg: Option<Value>) -> anyhow::Result<()> {
+    let (repo, info) = operation_target(&this, cx, arg).await?;
     let branches = read_branches(&this, cx, repo.clone()).await?;
     let head = info.as_ref().and_then(|info| info.head.clone());
     let form = RebaseForm::new(head, &branches);
@@ -753,6 +807,8 @@ async fn load_amend(this: This, cx: &mut AsyncWindowContext) -> anyhow::Result<(
 /// while the Commit window is the active tool window, the Project view's, the active file's.
 struct Selection {
     commit: Vec<String>,
+    /// The changes the next commit includes, in the Commit window.
+    included: Vec<String>,
     commit_focused: bool,
     project: Vec<String>,
     active: Option<String>,
@@ -808,7 +864,8 @@ impl Workbench {
         let panel = self.tool_window_view(COMMIT_TOOL_WINDOW).and_then(|view| view.downcast::<CommitPanel>().ok());
         let active_tool_window = self.tool_windows().and_then(|layout| layout.focused()).map(str::to_owned);
         Selection {
-            commit: panel.and_then(|panel| panel.read(cx).selected_file()).into_iter().collect(),
+            commit: panel.as_ref().and_then(|panel| panel.read(cx).selected_file()).into_iter().collect(),
+            included: panel.map(|panel| panel.read(cx).included_paths(cx)).unwrap_or_default(),
             commit_focused: commit_window_focused(active_tool_window.as_deref(), ""),
             project: self
                 .project_tree()
@@ -861,15 +918,22 @@ impl Workbench {
     }
 
     /// The Rollback dialog of the argument's paths, else of the selected change while the Commit
-    /// window is the active tool window, else of the active file's change, else of every change.
+    /// window is the active tool window, else of the changes it includes when the selection holds nothing to roll
+    /// back (an unversioned file), else of the active file's change, else of every change.
     fn rollback_dialog(&mut self, arg: Option<&Value>, window: &mut Window, cx: &mut Context<Self>) {
         let selection = self.selection(cx);
         let Some(state) = self.vcs_state() else { return };
         let (status, roots) = (state.status.clone(), state.roots.clone());
         let root = state.root.clone().unwrap_or_default();
         let explicit = arg_paths(arg).filter(|paths| !paths.is_empty());
+        let rollbackable = |paths: &[String]| !rollback_candidates(Some(paths), &status, &roots).is_empty();
+        let from_selection =
+            (selection.commit_focused && !selection.commit.is_empty() && rollbackable(&selection.commit))
+                .then(|| selection.commit.clone());
         let chosen = explicit
-            .or_else(|| (selection.commit_focused && !selection.commit.is_empty()).then(|| selection.commit.clone()));
+            .or(from_selection)
+            .or_else(|| selection.commit_focused.then(|| selection.included.clone()))
+            .filter(|paths| !paths.is_empty());
         let files: Vec<FileStatus> = match chosen {
             Some(paths) => {
                 let files: Vec<FileStatus> =
@@ -1086,9 +1150,12 @@ mod tests {
     use serde_json::json;
     use std::path::Path;
 
+    mod op_balloons;
+    mod operation_repo;
     mod proofs11_worktrees;
     mod proofs15_reload_all;
     mod proofs_update;
+    mod rollback_included;
 
     /// Runs git in `dir` without the machine's configuration; whether it succeeded. For commands
     /// that stop on a conflict, which [`git_in`] would take for a failure.
