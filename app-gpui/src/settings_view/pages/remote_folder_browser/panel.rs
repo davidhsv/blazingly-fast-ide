@@ -12,9 +12,9 @@ use gpui_kit::{
 };
 use ide_core::IdeError;
 
-/// The height of a Run Targets folder row (Deployment's is the theme's list row) and of the list.
-const ROW: f32 = 22.0;
-const LIST_HEIGHT: f32 = 240.0;
+/// The height of the list of each page's chooser, and the chooser's width.
+const TARGET_LIST_HEIGHT: f32 = 260.0;
+const DEPLOYMENT_LIST_HEIGHT: f32 = 240.0;
 const WIDTH: f32 = 520.0;
 
 impl RemoteFolderBrowser {
@@ -24,10 +24,7 @@ impl RemoteFolderBrowser {
         let prefix = self.flavour.selector();
         let (selected_bg, hover_bg) = (theme::color(cx, "bg-tree-selected"), theme::color(cx, "bg-tree-hover"));
         let icon_color = theme::color(cx, "fg-icon");
-        let height = match self.flavour {
-            Flavour::Target => px(ROW),
-            Flavour::Deployment => theme::length(cx, "h-list-row"),
-        };
+        let height = theme::length(cx, "h-list-row");
         range
             .filter_map(|index| entries.get(index).map(|entry| (index, entry)))
             .map(|(index, entry)| {
@@ -71,7 +68,7 @@ impl RemoteFolderBrowser {
             .flex()
             .items_center()
             .when(self.flavour == Flavour::Deployment, |el| el.justify_center().gap(px(8.0)).p(px(16.0)))
-            .when(self.flavour == Flavour::Target, |el| el.px(px(6.0)).py(px(4.0)))
+            .when(self.flavour == Flavour::Target, |el| el.p(px(8.0)))
             .text_color(subtle)
             .children(mark)
             .child(SharedString::from(tx(cx, text)))
@@ -195,7 +192,10 @@ impl Render for RemoteFolderBrowser {
             .id(SharedString::from(list_selector.clone()))
             .debug_selector(move || list_selector)
             .when(self.flavour == Flavour::Deployment, |el| el.track_focus(&self.focus))
-            .h(px(LIST_HEIGHT))
+            .h(px(match self.flavour {
+                Flavour::Target => TARGET_LIST_HEIGHT,
+                Flavour::Deployment => DEPLOYMENT_LIST_HEIGHT,
+            }))
             .flex()
             .flex_col()
             .overflow_hidden()

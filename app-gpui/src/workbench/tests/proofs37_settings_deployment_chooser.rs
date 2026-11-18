@@ -24,15 +24,20 @@ use std::rc::Rc;
 /// What the page's choosers asked the backend to list.
 type Asked = Rc<RefCell<Vec<String>>>;
 
-/// The backend's listing for absolute local folders under `under` only; anything else is refused
-/// before it reaches the backend, so a test can list neither an SFTP server nor the home folder.
-fn local_folders_under(under: &Path) -> (ListFolder, Asked) {
-    type Listed = Then<Result<Vec<RemoteEntry>, IdeError>>;
-    let (list, asked, under) = (backend_list(), Asked::default(), under.to_owned());
+type Listed = Then<Result<Vec<RemoteEntry>, IdeError>>;
+
+/// `list` for absolute local folders under `under` only, with no `..` in them; anything else is
+/// refused before it reaches `list`, so a test can list neither an SFTP or FTP server nor the home
+/// folder. Every path asked for is recorded.
+fn local_folders_under(under: &Path, list: ListFolder) -> (ListFolder, Asked) {
+    let (asked, under) = (Asked::default(), under.to_owned());
     let log = asked.clone();
     let guarded: ListFolder = Rc::new(move |connection: FsConnection, path: String, then: Listed, cx: &mut App| {
         log.borrow_mut().push(path.clone());
-        let inside = Path::new(&path).is_absolute() && Path::new(&path).starts_with(&under);
+        let asked = Path::new(&path);
+        let inside = asked.is_absolute()
+            && asked.starts_with(&under)
+            && !asked.components().any(|part| part == std::path::Component::ParentDir);
         if connection == FsConnection::Local && inside {
             list(connection, path, then, cx);
         } else {
@@ -61,7 +66,7 @@ fn project(cx: &mut TestAppContext) -> (tempfile::TempDir, PathBuf, Entity<Workb
 /// Lists the project's `server/` folder and below through the backend from now on.
 fn list_the_server_folder(root: &Path, cx: &mut VisualTestContext) -> (PathBuf, Asked) {
     let target = root.join("server");
-    let (folders, asked) = local_folders_under(&target);
+    let (folders, asked) = local_folders_under(&target, backend_list());
     cx.update(|_, cx| cx.set_global(DeploymentFolders(folders)));
     (target, asked)
 }
@@ -191,4 +196,75 @@ async fn deployment_mapping_browse_puts_the_folder_chosen_relative_to_the_root_p
     assert_eq!(servers[0]["mappings"], json!([{ "local": "", "deployment": "site/public", "web": "" }]));
     let file = std::fs::read_to_string(root.join(".openidea/settings.toml")).unwrap_or_default();
     assert!(file.contains("site/public"), "{file}");
+}
+
+// Not from a spec: the listing the tests install refuses, before the backend is reached, the login
+// folder, a folder outside the server's, a way out of it with `..`, and any SFTP or FTP server;
+// a local folder inside is handed on.
+#[gpui_kit::test]
+async fn the_test_listing_refuses_anything_but_local_folders_under_the_server_folder(cx: &mut TestAppContext) {
+    let reached: Asked = Rc::default();
+    let log = reached.clone();
+    let backend: ListFolder = Rc::new(move |_: FsConnection, path: String, then: Listed, cx: &mut App| {
+        log.borrow_mut().push(path);
+        then(Ok(Vec::new()), cx);
+    });
+    let under = Path::new("/private/tmp/project/server");
+    let (guarded, asked) = local_folders_under(under, backend);
+    let answers: Rc<RefCell<Vec<bool>>> = Rc::default();
+    let ftp = FsConnection::Ftp { server: "s1".to_owned(), secure: false, ftp: Default::default() };
+    let tries = [
+        (FsConnection::Local, "~"),
+        (FsConnection::Local, ""),
+        (FsConnection::Local, "/private/tmp/project"),
+        (FsConnection::Local, "/private/tmp/project/server/../.."),
+        (FsConnection::Local, "server/site"),
+        (FsConnection::Sftp { ssh: "box".to_owned() }, "/private/tmp/project/server"),
+        (ftp, "/private/tmp/project/server"),
+        (FsConnection::Local, "/private/tmp/project/server/site"),
+    ];
+    cx.update(|cx| {
+        for (connection, path) in tries {
+            let log = answers.clone();
+            let then: Listed = Rc::new(move |result, _| log.borrow_mut().push(result.is_ok()));
+            guarded(connection, path.to_owned(), then, cx);
+        }
+    });
+    assert_eq!(answers.borrow().as_slice(), [false, false, false, false, false, false, false, true]);
+    assert_eq!(reached.borrow().as_slice(), ["/private/tmp/project/server/site"], "only that reached the backend");
+    assert_eq!(asked.borrow().len(), 8);
+}
+
+// Deployment: while the chooser's list has the keyboard, Down, Enter and Backspace walk the folders
+// and Escape closes the chooser, not the Settings dialog; Escape in its path field closes it too.
+#[gpui_kit::test]
+async fn deployment_chooser_keys_walk_its_list_and_escape_closes_the_chooser_not_settings(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = project(cx);
+    let (target, asked) = list_the_server_folder(&root, cx);
+    let (_dialog, view) = open_page(&workbench, cx);
+    add_local_server(&view, &target, cx);
+    press(cx, "settings-deployment-root-browse");
+    wait_for_folders(&view, &["other", "site"], cx);
+    cx.simulate_keystrokes("escape");
+    cx.run_until_parked();
+    assert!(view.read_with(cx, |view, _| view.chooser().is_none()), "Escape in the path field closes the chooser");
+    assert!(settings_dialog_of(&workbench, cx).is_some(), "and leaves Settings open");
+
+    press(cx, "settings-deployment-root-browse");
+    wait_for_folders(&view, &["other", "site"], cx);
+    press(cx, "settings-deployment-folder-row-0");
+    cx.simulate_keystrokes("down enter");
+    wait_for_folders(&view, &["cache", "public"], cx);
+    let site = target.join("site").display().to_string();
+    assert_eq!(chooser_path(&view, cx).as_deref(), Some(site.as_str()));
+    cx.simulate_keystrokes("backspace");
+    wait_for_folders(&view, &["other", "site"], cx);
+    assert!(settings_dialog_of(&workbench, cx).is_some());
+    cx.simulate_keystrokes("escape");
+    cx.run_until_parked();
+    assert!(view.read_with(cx, |view, _| view.chooser().is_none()), "Escape in the list closes the chooser");
+    assert!(settings_dialog_of(&workbench, cx).is_some(), "and leaves Settings open");
+    let server = target.display().to_string();
+    assert_eq!(asked.borrow().as_slice(), [server.clone(), server.clone(), site, server]);
 }

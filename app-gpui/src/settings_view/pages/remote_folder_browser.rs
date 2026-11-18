@@ -70,6 +70,16 @@ pub fn backend_list() -> ListFolder {
     })
 }
 
+/// The key of the password a connection asks for, as the backend keeps it: the SSH configuration
+/// of an SFTP server, `ftp:<server id>` for an FTP or FTPS one, none for a local folder.
+pub fn secret_key(connection: &FsConnection) -> String {
+    match connection {
+        FsConnection::Sftp { ssh } => ssh.clone(),
+        FsConnection::Ftp { server, .. } => ide_ssh::ftp::secret_key(server),
+        FsConnection::Local => String::new(),
+    }
+}
+
 /// The listing failed on a host key the user has not trusted yet.
 pub fn needs_host_trust(error: &str) -> bool {
     error.starts_with("Unknown SSH host key")
@@ -119,7 +129,7 @@ impl Flavour {
         match (self, connection) {
             (Self::Target, _) => "Select Folder on Target",
             (Self::Deployment, FsConnection::Local) => "Choose Folder",
-            (Self::Deployment, FsConnection::Sftp { .. }) => "Choose Remote Folder",
+            (Self::Deployment, FsConnection::Sftp { .. } | FsConnection::Ftp { .. }) => "Choose Remote Folder",
         }
     }
 
@@ -188,8 +198,8 @@ pub struct FolderSetup {
     /// The text of the field it fills; the folder first listed is made from it.
     pub initial: String,
     pub backend: FolderBackend,
-    /// The SSH configuration's authentication, which decides whether a rejected login asks for a
-    /// password.
+    /// The authentication of the SSH configuration named by the connection's password key, which
+    /// decides whether a rejected SSH login asks for a password.
     pub auth: SshAuth,
 }
 
@@ -260,10 +270,12 @@ impl RemoteFolderBrowser {
                 cx,
             )
         });
+        // A closed chooser keeps no password typed, even for a moment while its field outlives it.
         cx.on_release(|view: &mut Self, cx: &mut App| {
             if let Some(claim) = view.claim {
                 input::release_keys(claim, cx);
             }
+            view.secret.update(cx, |field, cx| field.clear(cx));
         })
         .detach();
         Self {
@@ -427,12 +439,9 @@ impl RemoteFolderBrowser {
         });
     }
 
-    /// The SSH configuration the connection uses; none for a local folder.
+    /// The key of the password the connection asks for ([`secret_key`]).
     fn ssh(&self) -> String {
-        match &self.connection {
-            FsConnection::Sftp { ssh } => ssh.clone(),
-            FsConnection::Local => String::new(),
-        }
+        secret_key(&self.connection)
     }
 
     /// What the failed listing asks of the user.
@@ -520,6 +529,11 @@ impl RemoteFolderBrowser {
         self.remedy_step(move |ssh, then, cx| set_secret(ssh, secret, save, then, cx), cx);
     }
 
+    /// Empties the password field: the chooser is closing.
+    pub fn forget_secret(&mut self, cx: &mut Context<Self>) {
+        self.secret.update(cx, |field, cx| field.clear(cx));
+    }
+
     pub fn toggle_save(&mut self, cx: &mut Context<Self>) {
         self.save = !self.save;
         self.changed(cx);
@@ -542,7 +556,9 @@ impl RemoteFolderBrowser {
     }
 
     /// The keyboard of Deployment's list: Up / Down select, Enter opens the folder selected,
-    /// Backspace opens the parent, while folders are listed; Escape closes.
+    /// Backspace opens the parent, while folders are listed; Escape closes. These keys stay with the
+    /// list while it lists nothing or nothing is selected, as the list owns them in the chooser:
+    /// they never reach the Settings dialog behind it.
     fn list_key(&mut self, keystroke: &Keystroke, cx: &mut Context<Self>) -> bool {
         if keystroke.modifiers.modified() {
             return false;
@@ -551,9 +567,12 @@ impl RemoteFolderBrowser {
             self.close(cx);
             return true;
         }
+        if !matches!(keystroke.key.as_str(), "up" | "down" | "enter" | "backspace") {
+            return false;
+        }
         let len = self.entries.as_ref().filter(|_| self.error.is_none()).map_or(0, Vec::len);
         if len == 0 {
-            return false;
+            return true;
         }
         match keystroke.key.as_str() {
             "up" | "down" => {
@@ -568,8 +587,9 @@ impl RemoteFolderBrowser {
             }
             "enter" => {
                 let selected = self.selected.and_then(|index| self.entries.as_ref()?.get(index));
-                let Some(path) = selected.map(|entry| entry.path.clone()) else { return false };
-                self.go(path, cx);
+                if let Some(path) = selected.map(|entry| entry.path.clone()) {
+                    self.go(path, cx);
+                }
             }
             "backspace" => {
                 let parent = remote_parent(&self.path).to_owned();

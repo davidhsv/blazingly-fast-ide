@@ -30,6 +30,10 @@ pub fn ssh_test_remedy(kind: Option<&str>, message: &str, auth: SshAuth) -> Opti
     if asks_for_secret.iter().any(|start| message.starts_with(start)) {
         return Some(SshTestRemedy::Secret);
     }
+    // An FTP server's password is the server's own, whatever the SSH authentication.
+    if ["FTP password required", "FTP authentication failed"].iter().any(|start| message.starts_with(start)) {
+        return Some(SshTestRemedy::Secret);
+    }
     // With the OpenSSH configuration and agent there is nothing to type unless a key is encrypted.
     let rejected = message.starts_with("SSH authentication failed") && auth != SshAuth::OpenSsh;
     rejected.then_some(SshTestRemedy::Secret)
@@ -67,6 +71,19 @@ mod tests {
         assert_eq!(denied("SSH authentication failed for me@box:22", SshAuth::Password), secret);
         assert_eq!(denied("SSH authentication failed for me@box:22", SshAuth::OpenSsh), None);
         assert_eq!(ssh_test_remedy(Some("io"), "connection refused", SshAuth::Password), None);
+    }
+
+    // Not from a spec: a missing or rejected FTP password is asked for whatever the authentication
+    // of an SSH configuration, and only when the backend denied the login.
+    #[test]
+    fn asks_for_the_ftp_password_whatever_the_authentication() {
+        for auth in [SshAuth::OpenSsh, SshAuth::Password, SshAuth::KeyPair] {
+            let denied = |message: &str| ssh_test_remedy(Some("permissionDenied"), message, auth);
+            assert_eq!(denied("FTP password required for me@ftp.example.com:21"), Some(SshTestRemedy::Secret));
+            assert_eq!(denied("FTP authentication failed: 530 Login incorrect"), Some(SshTestRemedy::Secret));
+            assert_eq!(denied("FTP server said 550 No such file"), None);
+        }
+        assert_eq!(ssh_test_remedy(Some("io"), "FTP password required for me@ftp:21", SshAuth::OpenSsh), None);
     }
 
     // SSH configuration Test Connection › parses the port field

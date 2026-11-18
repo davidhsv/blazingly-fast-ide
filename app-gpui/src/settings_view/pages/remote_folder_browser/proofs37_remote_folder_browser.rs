@@ -39,6 +39,7 @@ fn dir(path: &str) -> RemoteEntry {
 fn named(connection: &FsConnection) -> String {
     match connection {
         FsConnection::Sftp { ssh } => ssh.clone(),
+        FsConnection::Ftp { server, .. } => format!("ftp:{server}"),
         FsConnection::Local => "local".to_owned(),
     }
 }
@@ -323,8 +324,20 @@ async fn an_answer_to_a_listing_the_user_moved_on_from_is_dropped(cx: &mut TestA
 #[gpui_kit::test]
 async fn a_folder_of_a_hundred_thousand_subfolders_draws_only_the_rows_in_view(cx: &mut TestAppContext) {
     let many: Vec<RemoteEntry> = (0..100_000).rev().map(|index| dir(&format!("/big/d{index:06}"))).collect();
+    let started = std::time::Instant::now();
+    let (sorted, _) = sorted_folders(Flavour::Deployment, "/big", many.clone());
+    let sort = started.elapsed();
+    assert_eq!(sorted.len(), 100_000);
     let (backend, _) = stand_in(vec![Ok(many)], None);
+    let started = std::time::Instant::now();
     let (view, _, cx) = chooser(cx, FsConnection::Local, "/big", backend, SshAuth::OpenSsh);
+    let listed_and_drawn = started.elapsed();
+    let started = std::time::Instant::now();
+    view.update(cx, |_, cx| cx.notify());
+    cx.run_until_parked();
+    let frame = started.elapsed();
+    // The numbers of a run, for whoever measures the chooser on a large folder.
+    eprintln!("100,000 subfolders: sort {sort:?}, listed and first drawn {listed_and_drawn:?}, a frame {frame:?}");
     let names = match state(&view, cx) {
         FolderState::Listed(names) => names,
         other => panic!("listed: {other:?}"),

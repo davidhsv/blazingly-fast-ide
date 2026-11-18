@@ -4668,6 +4668,7 @@ mod tests {
     mod proofs34_template_actions;
     mod proofs34_template_files;
     mod proofs35_settings_vim;
+    mod proofs37_settings_deployment_chooser;
     mod proofs39_agent_undo;
     mod proofs39_java_var;
     mod proofs3_context;

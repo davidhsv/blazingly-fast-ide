@@ -334,9 +334,9 @@ async fn the_folder_browser_lists_subfolders_walks_up_and_chooses_one(cx: &mut T
     let (view, model, cx) = editor(ssh_target(), Some(folders), cx);
     assert!(lines(&view, cx).contains(&"Project folder on target:  [Browse…]".to_owned()));
     click(cx, "settings-targets-browse");
-    let state = |cx: &mut VisualTestContext| view.read_with(cx, |view, _| view.folder_state());
+    let state = |cx: &mut VisualTestContext| view.read_with(cx, |view, cx| view.folder_state(cx));
     assert_eq!(state(cx), Some(FolderState::Listed(vec!["app".to_owned(), "src".to_owned()])));
-    assert_eq!(view.read_with(cx, |view, _| view.folder_path().map(str::to_owned)).as_deref(), Some("/home/me"));
+    assert_eq!(view.read_with(cx, |view, cx| view.folder_path(cx)).as_deref(), Some("/home/me"));
     let shown_lines = lines(&view, cx);
     assert!(shown_lines.contains(&"[Parent Folder] /home/me [Refresh]".to_owned()), "{shown_lines:?}");
     assert!(shown_lines.contains(&"[OK] [Cancel]".to_owned()), "{shown_lines:?}");
@@ -365,8 +365,8 @@ async fn the_folder_browser_trusts_an_unknown_host_and_lists_again(cx: &mut Test
     assert!(shown_lines.contains(&"[OK] (disabled) [Cancel]".to_owned()), "{shown_lines:?}");
     click(cx, "settings-target-folder-trust");
     assert_eq!(asked.borrow().as_slice(), ["list s1 ~", "trust s1", "list s1 ~"]);
-    assert_eq!(view.read_with(cx, |view, _| view.folder_state()), Some(FolderState::Listed(vec!["srv".to_owned()])));
-    assert_eq!(view.read_with(cx, |view, _| view.folder_path().map(str::to_owned)).as_deref(), Some("/"));
+    assert_eq!(view.read_with(cx, |view, cx| view.folder_state(cx)), Some(FolderState::Listed(vec!["srv".to_owned()])));
+    assert_eq!(view.read_with(cx, |view, cx| view.folder_path(cx)).as_deref(), Some("/"));
     let path = view.read_with(cx, |view, _| view.folder_path_field().cloned()).expect("the path field");
     type_over(&path, "/opt/apps", cx);
     cx.simulate_keystrokes("enter");

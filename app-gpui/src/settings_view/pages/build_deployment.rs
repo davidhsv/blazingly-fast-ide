@@ -15,6 +15,9 @@ mod connection;
 mod paths;
 #[cfg(test)]
 mod proofs28_deployment_view;
+#[cfg(test)]
+mod proofs37_deployment_chooser_view;
+mod remote_folder;
 
 pub use super::ssh_backend::{HostTrust, SecretSetter};
 use super::ssh_backend::{backend_set_secret, backend_trust_host, on_backend};
@@ -35,6 +38,7 @@ use ide_core::IdeError;
 use ide_core::error::ErrorKind;
 use ide_core::settings::{DeploymentServer, DeploymentType};
 use ide_ssh::FsConnection;
+pub use remote_folder::{BrowseTarget, DeploymentFolders, folder_lister};
 use serde_json::Value;
 use std::rc::Rc;
 
@@ -179,6 +183,8 @@ pub struct DeploymentServersView {
     mapping_rows: Vec<MappingRow>,
     /// The selected server's excluded paths.
     excluded: Entity<RecordTable>,
+    /// The folder chooser open under Root path or under the mappings, and the field it fills.
+    chooser: Option<remote_folder::Chooser>,
     /// The window the editor was last drawn in, for the keyboard to go to the password field a
     /// failed test asks for.
     window: Option<AnyWindowHandle>,
@@ -247,6 +253,7 @@ impl DeploymentServersView {
             mapping_server: None,
             mapping_rows: Vec::new(),
             excluded,
+            chooser: None,
             window: None,
             page_shown: false,
             _subscriptions: subscriptions,
@@ -309,6 +316,7 @@ impl DeploymentServersView {
             self.test = None;
             self.reset_problem(cx);
             self.show_excluded_of(id.clone(), cx);
+            self.close_chooser(cx);
         }
         self.selected = id;
         self.open_select = None;
@@ -322,6 +330,9 @@ impl DeploymentServersView {
         if self.tab == ServerTab::Connection && tab != ServerTab::Connection {
             self.test = None;
             self.reset_problem(cx);
+        }
+        if self.tab != tab {
+            self.close_chooser(cx);
         }
         self.tab = tab;
         self.open_select = None;
@@ -383,6 +394,7 @@ impl DeploymentServersView {
             self.root.update(cx, |field, cx| field.set_placeholder(placeholder, cx));
         }
         self.sync_mappings(cx);
+        self.drop_stale_chooser(cx);
         cx.notify();
     }
 
@@ -397,6 +409,7 @@ impl DeploymentServersView {
         self.page_shown = shown;
         self.test = None;
         self.reset_problem(cx);
+        self.close_chooser(cx);
         if !shown {
             return false;
         }

@@ -36,7 +36,7 @@ struct Choice {
 }
 
 /// The SSH configurations of the global settings as the dialog shows them, each with an id.
-fn ssh_configs(view: &DeploymentServersView, cx: &App) -> Vec<SshConfiguration> {
+pub(super) fn ssh_configs(view: &DeploymentServersView, cx: &App) -> Vec<SshConfiguration> {
     let value = view.binding.model.read(cx).staged_value(Scope::Global, "ssh.configs");
     let configs: Vec<SshConfiguration> =
         value.filter(|value| !value.is_null()).and_then(|value| serde_json::from_value(value).ok()).unwrap_or_default();
@@ -247,6 +247,7 @@ impl DeploymentServersView {
         }
         out.push(format!("{}: {}", tx(cx, "Root path"), text(&self.root)));
         out.push(format!("    {}", tx(cx, ROOT_HINT)));
+        out.extend(self.chooser_lines(true, cx));
         out.push(format!("{}: {}", tx(cx, "Web server URL"), text(&self.web)));
         let state = self.test_state(cx);
         let busy = if state == Some(TestState::Busy) { " …" } else { "" };
@@ -459,6 +460,7 @@ impl DeploymentServersView {
                 .child(configure)
         });
         let root = self.text_row("Root path", "rootPath", &self.root.clone(), true, &query, cx);
+        let root = root.child(self.root_browse_button(cx));
         let web = self.text_row("Web server URL", "webUrl", &self.web.clone(), false, &query, cx);
         let state = self.test_state(cx);
         let busy = (state == Some(TestState::Busy))
@@ -493,6 +495,7 @@ impl DeploymentServersView {
             .children(ssh)
             .child(root)
             .child(div().pl(px(4.0)).child(hint_line(cx, &tx(cx, ROOT_HINT), 0.0)))
+            .children(self.chooser_panel(true))
             .child(web)
             .child(test_row.children(connected))
             .children(failed)

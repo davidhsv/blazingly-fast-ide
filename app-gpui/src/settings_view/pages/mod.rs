@@ -41,6 +41,7 @@ pub mod languages_pages;
 pub mod languages_sdk;
 pub mod list_editor;
 pub mod notifications;
+pub mod remote_folder_browser;
 pub mod security_project_trust;
 pub mod ssh_backend;
 pub mod terminal;

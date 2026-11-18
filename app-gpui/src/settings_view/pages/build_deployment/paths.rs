@@ -133,6 +133,7 @@ impl DeploymentServersView {
             let texts: Vec<String> = row.fields.iter().map(|field| field.read(cx).text().to_owned()).collect();
             out.push(format!("{mark} {}", texts.join(" | ")));
         }
+        out.extend(self.chooser_lines(false, cx));
         out.push(tx(cx, MAPPINGS_NOTE));
         out
     }
@@ -148,6 +149,7 @@ impl DeploymentServersView {
                 COLUMNS.map(|(_, title, _)| div().w(px(CELL_WIDTH)).child(SharedString::from(tx(cx, title)))),
             );
         let can_browse = self.project_root.is_some();
+        let can_remote = self.can_browse_mapping(cx);
         let selected_bg = theme::color(cx, "bg-selected");
         let rows: Vec<AnyElement> = self
             .mapping_rows
@@ -180,6 +182,10 @@ impl DeploymentServersView {
                                     .child(field.clone()),
                             )
                             .children(browse)
+                            .children(
+                                (name == "deployment")
+                                    .then(|| super::remote_folder::mapping_browse_button(index, can_remote, cx)),
+                            )
                             .into_any_element()
                     })
                     .collect();
@@ -224,6 +230,7 @@ impl DeploymentServersView {
                     .child(header)
                     .child(div().min_h(px(72.0)).flex().flex_col().children(rows).children(empty)),
             )
+            .children(self.chooser_panel(false))
             .child(div().text_color(theme::color(cx, "fg-subtle")).child(SharedString::from(note)))
             .into_any_element()
     }
