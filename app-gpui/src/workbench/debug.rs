@@ -11,7 +11,7 @@ use crate::debugger::actions::{ActiveEditor, Dispatch, ViewCommand};
 use crate::debugger::breakpoints_view::{BreakpointsDialog, BreakpointsDialogEvent};
 use crate::debugger::driver::{DebugDriver, DebugDriverEvent};
 use crate::debugger::editor::breakpoint_gutter::{
-    BreakpointLook, ClickOutcome, GutterButton, GutterEditor, GutterPress, PressOutcome, build_markers,
+    BreakpointLook, ChangeOrigin, ClickOutcome, GutterButton, GutterEditor, GutterPress, PressOutcome, build_markers,
 };
 use crate::debugger::effects::{DEBUG_TOOL_WINDOW, Effect, run_notification};
 use crate::debugger::focused_view::{DebugView, FRAMES_FOCUS, VARIABLES_FOCUS};
@@ -21,7 +21,7 @@ use crate::debugger::variables_view::{VariablesView, VariablesViewEvent};
 use crate::debugger::window_view::{DebugWindowEvent, DebugWindowView};
 use crate::editor::buffer;
 use crate::editor::marks::{Mark, MarkKind, MarkLayer};
-use crate::editor::view::{Editor, EditorEvent};
+use crate::editor::view::{EditOrigin, Editor, EditorEvent};
 use crate::platform::actions::{ActionRegistry, ActionSource, execute_action_from};
 use crate::platform::context::set_context;
 use crate::platform::i18n::{Localization, Param};
@@ -33,6 +33,7 @@ use gpui_kit::{
     AnyElement, App, ClipboardItem, Context, Entity, EntityId, FocusHandle, Focusable, IntoElement, Render,
     SharedString, Subscription, UniformListScrollHandle, Window, div, prelude::*, px, uniform_list,
 };
+use ide_core::TextChange;
 use ropey::Rope;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -782,12 +783,45 @@ impl Workbench {
     /// Listens to `editor`'s gutter, and draws the breakpoints and the execution line in it.
     pub(super) fn watch_debug_editor(&mut self, editor: &Entity<Editor>, window: &mut Window, cx: &mut Context<Self>) {
         let Some(slot) = self.debug.as_mut() else { return };
-        let pressed = cx.subscribe_in(editor, window, |workbench, editor, event: &EditorEvent, _, cx| {
-            if let &EditorEvent::GutterPressed { line, shift, alt } = event {
-                workbench.debug_gutter_pressed(editor, line, shift, alt, cx);
+        let pressed = cx.subscribe_in(editor, window, |workbench, editor, event: &EditorEvent, _, cx| match event {
+            &EditorEvent::GutterPressed { line, shift, alt } => {
+                workbench.debug_gutter_pressed(editor, line, shift, alt, cx)
             }
+            EditorEvent::Edited { origin, changes, before } => {
+                workbench.debug_document_changed(editor, origin, changes, before, cx);
+            }
+            _ => {}
         });
         slot.gutters.insert(editor.entity_id(), pressed);
+        self.sync_debug_marks_of(editor, cx);
+    }
+
+    /// The text of `editor` changed: its file's breakpoints move with the lines. The other editors of
+    /// the document hear of the change as the backend's (an edit of another pane, a refactoring, a
+    /// reload): of those, only the file's writer moves them (the active editor when it shows the file,
+    /// else the first editor of the file), so that they move once.
+    fn debug_document_changed(
+        &mut self,
+        editor: &Entity<Editor>,
+        origin: &EditOrigin,
+        changes: &[TextChange],
+        before: &Rope,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(driver) = self.debug_driver().cloned() else { return };
+        let path = editor.read(cx).path().to_path_buf();
+        let after = crate::editor_commands::apply_changes(before, changes);
+        let remote = matches!(origin, EditOrigin::External);
+        let writer = remote && {
+            let of_file = |other: &Entity<Editor>| other.read(cx).path() == path;
+            match self.editor().filter(|active| of_file(active)) {
+                Some(active) => active == editor,
+                None => self.editors().into_iter().find(of_file).as_ref() == Some(editor),
+            }
+        };
+        let origin = ChangeOrigin { mirrored: false, remote, writer };
+        let path = path.to_string_lossy().into_owned();
+        driver.update(cx, |driver, cx| driver.document_changed(&path, (before, changes, &after), origin, cx));
         self.sync_debug_marks_of(editor, cx);
     }
 
@@ -1406,6 +1440,60 @@ while True:
         long(cx, "the breakpoint mark", &|cx| fixture.marks(MarkLayer::Breakpoints, cx) == [marked.clone()]);
         press(cx);
         long(cx, "the mark to go", &|cx| fixture.marks(MarkLayer::Breakpoints, cx).is_empty());
+        close_project(&fixture, cx);
+    }
+
+    // Not from a spec: lines typed above a breakpoint move it down with its line, in the editor, in the
+    // project's stored breakpoints, and it is there when the breakpoints are read again from the storage;
+    // deleting those lines moves it back.
+    #[gpui_kit::test]
+    async fn a_breakpoint_moves_with_the_lines_typed_or_deleted_above_it(cx: &mut TestAppContext) {
+        let (fixture, cx) = open(cx, PROGRAM);
+        let editor = fixture.editor(cx);
+        cx.update(|window, cx| window.focus(&editor.focus_handle(cx), cx));
+        fixture.caret_to(1, cx);
+        run(cx, "debug.toggleBreakpoint");
+        let on = |line: u32, cx: &mut VisualTestContext| {
+            let marked = fixture.line_mark(line, MarkKind::BreakpointLine, cx);
+            fixture.marks(MarkLayer::Breakpoints, cx) == [marked]
+        };
+        long(cx, "the breakpoint on line 2", &|cx| on(1, cx));
+        let key = storage_key(&fixture.root.to_string_lossy());
+        let stored =
+            |cx: &mut VisualTestContext| cx.update(|_, cx| cx.global::<UiStorage>().get(&key).map(str::to_owned));
+        let file = fixture.root.join("main.fake").to_string_lossy().into_owned();
+        let listed = |cx: &mut VisualTestContext| -> Vec<u32> {
+            let driver = fixture.driver(cx);
+            driver.read_with(cx, |driver, cx| {
+                let breakpoints = &driver.debugger().read(cx).breakpoints.lines;
+                breakpoints.breakpoints_of(&file).iter().map(|entry| entry.line).collect()
+            })
+        };
+
+        fixture.caret_to(0, cx);
+        cx.simulate_keystrokes("enter enter");
+        assert_eq!(editor.read_with(cx, |e, _| e.text()), "\n\nstart\nmiddle\nend\n");
+        long(cx, "the breakpoint on line 4", &|cx| on(3, cx));
+        assert_eq!(listed(cx), [3]);
+        assert!(stored(cx).is_some_and(|value| value.contains("\"line\":3")), "{:?}", stored(cx));
+        let root = fixture.root.to_string_lossy().into_owned();
+        let driver = fixture.driver(cx);
+        driver.update(cx, |driver, cx| driver.load(Some(&root), cx));
+        assert_eq!(listed(cx), [3], "the stored breakpoint is on the moved line");
+
+        cx.simulate_keystrokes("backspace backspace");
+        assert_eq!(editor.read_with(cx, |e, _| e.text()), "start\nmiddle\nend\n");
+        long(cx, "the breakpoint back on line 2", &|cx| on(1, cx));
+        assert_eq!(listed(cx), [1]);
+        assert!(stored(cx).is_some_and(|value| value.contains("\"line\":1")), "{:?}", stored(cx));
+
+        // A line the backend puts above it (a refactoring, a reload) moves it once.
+        let host = cx.update(|_, cx| cx.global::<crate::backend::Backend>().host.clone());
+        let doc = editor.read_with(cx, |e, _| e.doc());
+        let start = ide_core::Pos { line: 0, col: 0 };
+        let edit = ide_core::TextEdit { range: ide_core::Range::new(start, start), new_text: "\n".into() };
+        host.project("w1").expect("the project").documents.apply_edits(doc, &[edit]).expect("the backend edits");
+        long(cx, "the breakpoint on line 3", &|cx| on(2, cx) && listed(cx) == [2]);
         close_project(&fixture, cx);
     }
 

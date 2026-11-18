@@ -20,6 +20,7 @@ use super::language_facts::EditorFacts;
 use super::marks::{Mark, MarkLayer, map_marks};
 use crate::backend::Backend;
 use crate::editor_commands::clipboard_history::ClipboardHistory;
+use crate::editor_commands::selection_marks;
 use crate::editor_commands::smart_keys::{self, PairScope};
 use crate::editor_commands::tree::{SyntaxTree, TreeNode};
 use crate::editor_commands::{
@@ -141,6 +142,10 @@ const GUTTER_BORDER: f32 = 1.0;
 pub enum PaintedLayer {
     CaretRow,
     Guides,
+    /// The backgrounds of the marks drawn over the selection (find matches, usages), on a document line.
+    MarkBackgrounds(u32),
+    /// The selected text painted again over those backgrounds, on a document line.
+    SelectedText(u32),
 }
 
 /// An icon column of the gutter, right of the line numbers and left of the change bars, that a
@@ -301,9 +306,9 @@ pub enum EditOrigin {
 /// What the editor tells its owner.
 #[derive(Debug, Clone, PartialEq)]
 pub enum EditorEvent {
-    /// The text changed by `changes` (in the coordinates of the text before them); the carets
-    /// moved with them.
-    Edited { origin: EditOrigin, changes: Vec<TextChange> },
+    /// The text changed by `changes` (in the coordinates of `before`, the text before them); the
+    /// carets moved with them.
+    Edited { origin: EditOrigin, changes: Vec<TextChange>, before: Rope },
     /// The carets or selections moved without an edit.
     SelectionMoved,
     /// The pointer rests over the text at `offset` with `modifiers` held, or left the text (`None`).
@@ -1090,7 +1095,7 @@ impl Editor {
         self.generation += 1;
         self.refresh_highlights(cx);
         if !changes.is_empty() {
-            cx.emit(EditorEvent::Edited { origin, changes: changes.clone() });
+            cx.emit(EditorEvent::Edited { origin, changes: changes.clone(), before: old });
         }
         cx.notify();
         changes
@@ -2651,6 +2656,15 @@ impl Element for EditorElement {
             if !layout.right_margins.is_empty() {
                 paint_order.push(PaintedLayer::Guides);
             }
+            // Marks with a background of their own go over the selection; the selected text is painted
+            // again over them so that it stays visible.
+            let visible = match (layout.line_of.first(), layout.line_of.last()) {
+                (Some(&first), Some(&last)) => {
+                    vec![(buffer::line_range(&rope, first).start, buffer::line_range(&rope, last).end + 1)]
+                }
+                _ => Vec::new(),
+            };
+            let selected_text = selection_marks::selected_ranges(&self.editor.read(cx).edit_state(), &visible);
             for (index, (text, shaped)) in layout.lines.iter().enumerate() {
                 let line = layout.line_of[index];
                 let row = layout.first_line + index as u32;
@@ -2696,6 +2710,13 @@ impl Element for EditorElement {
                     } else {
                         window.paint_quad(quad(area, px(2.0), color, px(0.0), color, gpui_kit::BorderStyle::Solid));
                     }
+                    #[cfg(test)]
+                    paint_order.push(PaintedLayer::MarkBackgrounds(line));
+                }
+                for &(from, to) in selected_text.iter().filter(|(from, to)| touches(*from, *to)) {
+                    window.paint_quad(fill(area(from, to, line_height), theme::color(cx, "bg-selected")));
+                    #[cfg(test)]
+                    paint_order.push(PaintedLayer::SelectedText(line));
                 }
                 if let Some(marked) = marked.as_ref().filter(|m| m.start <= range.end && m.end >= range.start) {
                     let (from, to) = (x_of(marked.start), x_of(marked.end));
@@ -3243,15 +3264,16 @@ mod editing_tests {
             cx.run_until_parked();
             std::mem::take(&mut *events.borrow_mut())
         };
-        let edited = |origin: EditOrigin, from: u32, to: u32, insert: &str| EditorEvent::Edited {
+        let edited = |origin: EditOrigin, from: u32, to: u32, insert: &str, before: &str| EditorEvent::Edited {
             origin,
             changes: vec![TextChange { from, to, insert: insert.to_owned() }],
+            before: Rope::from_str(before),
         };
 
         cx.simulate_input("x");
-        assert_eq!(take(cx), [edited(EditOrigin::Typed("x".into()), 0, 0, "x")]);
+        assert_eq!(take(cx), [edited(EditOrigin::Typed("x".into()), 0, 0, "x", "alpha beta\n")]);
         cx.simulate_keystrokes("backspace");
-        assert_eq!(take(cx), [edited(EditOrigin::Deleted, 0, 1, "")]);
+        assert_eq!(take(cx), [edited(EditOrigin::Deleted, 0, 1, "", "xalpha beta\n")]);
         cx.simulate_keystrokes("right");
         assert_eq!(take(cx), [EditorEvent::SelectionMoved]);
         // A caret that does not move tells nothing.
@@ -3261,9 +3283,9 @@ mod editing_tests {
             editor.apply_edit_from(EditOrigin::Completion, &[change(5, 5, "Z")], vec![(6, 6)], 0, cx)
         });
         assert!(applied);
-        assert_eq!(take(cx), [edited(EditOrigin::Completion, 5, 5, "Z")]);
+        assert_eq!(take(cx), [edited(EditOrigin::Completion, 5, 5, "Z", "alpha beta\n")]);
         o.editor.update(cx, |editor, cx| editor.undo(cx));
-        assert_eq!(take(cx), [edited(EditOrigin::History, 5, 6, "")]);
+        assert_eq!(take(cx), [edited(EditOrigin::History, 5, 6, "", "alphaZ beta\n")]);
         cx.simulate_keystrokes("enter");
         assert!(
             matches!(take(cx).as_slice(), [EditorEvent::Edited { origin: EditOrigin::Typed(text), .. }] if text == "\n")

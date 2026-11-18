@@ -7,19 +7,20 @@ use super::{Content, Panel, Workbench};
 use crate::backend::Backend;
 use crate::editor::view::Editor;
 use crate::features_a::todo::{
-    TODO_SETTINGS_KEY, TodoMap, TodoScope, TodoSettings, TodoTab, build_todo_query, items_from_matches, scan_text,
-    stored_todo_settings, todo_search_scope, todo_settings_json,
+    HeldPreviews, TODO_SETTINGS_KEY, TodoMap, TodoScope, TodoSettings, TodoTab, build_todo_query, items_from_matches,
+    scan_text, stored_todo_settings, todo_search_scope, todo_settings_json,
 };
 use crate::features_a::todo_view::{TodoCommand, TodoData, TodoView, TodoViewEvent};
 use crate::platform::actions::{ActionRegistry, ActionSource, execute_action_from};
 use crate::platform::paths::ipc_path;
 use crate::platform::search::{EDIT_SCOPES_ACTION, parse_scopes, scopes_key};
 use crate::platform::storage::UiStorage;
-use gpui_kit::{AppContext, Context, Entity, EntityId, Focusable, Subscription, Task, Window};
+use gpui_kit::{App, AppContext, Context, Entity, EntityId, Focusable, Subscription, Task, Window};
 use ide_core::{IdeResult, RequestId};
 use ide_host::ops::search::SearchEvent;
 use ide_search::{FileMatches, SearchQuery, SearchScope};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -44,6 +45,12 @@ pub(super) struct TodoFeed {
     live_scan: Option<Task<()>>,
     /// The number of the preview last asked for: an answer for an older one closes its document.
     preview: u64,
+    /// The editor the preview shows, kept to move its caret when another item of its file is chosen.
+    preview_editor: Option<Entity<Editor>>,
+    /// Previews of other files with unsaved edits, by path: dropping one would drop its edits with its
+    /// document, so it stays open (Save All reaches it) and is shown again when its file is previewed again.
+    held: HeldPreviews,
+    held_editors: HashMap<String, Entity<Editor>>,
     _observer: Option<Subscription>,
     /// Follows the stored TODO settings, which Settings › Editor › TODO of any window changes.
     _settings: Subscription,
@@ -137,6 +144,9 @@ impl Workbench {
                 scope_scan: None,
                 live_scan: None,
                 preview: 0,
+                preview_editor: None,
+                held: HeldPreviews::default(),
+                held_editors: HashMap::new(),
                 _observer: None,
                 _settings: follow,
             });
@@ -347,11 +357,27 @@ impl Workbench {
         self.push_todo_data(cx);
     }
 
-    /// Shows the file of `item` in the preview pane: a read-only editor with the caret on the item.
+    /// Shows the file of `item` in the preview pane: an editor of the file with the caret on the item.
+    /// An item of the file already shown moves that editor's caret.
     fn preview_todo(&mut self, item: crate::features_a::todo::TodoItem, cx: &mut Context<Self>) {
         let (Some(view), Some(backend)) = (self.todo_window_view(), cx.try_global::<Backend>()) else { return };
         let Some(feed) = self.todo.as_mut() else { return };
         feed.preview += 1;
+        let of_item = |editor: &Entity<Editor>| editor.read(cx).path() == Path::new(&item.path);
+        let shown = feed.preview_editor.clone().filter(of_item).or_else(|| {
+            let editor = feed.held_editors.remove(&item.path)?;
+            // Shown again, it is no longer held: the check of a clean document lets it go.
+            feed.held.check(&item.path, false);
+            feed.retire_preview(cx);
+            feed.preview_editor = Some(editor.clone());
+            Some(editor)
+        });
+        if let Some(editor) = shown {
+            show_todo_item(&editor, &item, cx);
+            view.update(cx, |view, cx| view.set_preview(&item, editor.into(), cx));
+            return;
+        }
+        feed.retire_preview(cx);
         let request = feed.preview;
         let label = self.label.clone();
         let path = std::path::PathBuf::from(&item.path);
@@ -372,7 +398,6 @@ impl Workbench {
                 if workbench.todo.as_ref().is_none_or(|feed| feed.preview != request) {
                     return false;
                 }
-                let info = ide_workspace::DocumentInfo { read_only: true, ..info };
                 let snapshot = host.project(&label).and_then(|project| project.documents.rope_snapshot(info.id));
                 let (version, rope) = match snapshot {
                     Ok(snapshot) => snapshot,
@@ -383,11 +408,10 @@ impl Workbench {
                 };
                 // The editor holds the document it was opened for and closes it when it goes.
                 let editor = cx.new(|cx| Editor::with_text(host, &label, &info, version, rope, cx));
-                editor.update(cx, |editor, cx| {
-                    let at = editor.offset_of(item.line, item.col);
-                    editor.select(at, at, cx);
-                    editor.scroll_to_line(item.line.saturating_sub(5), cx);
-                });
+                show_todo_item(&editor, &item, cx);
+                if let Some(feed) = workbench.todo.as_mut() {
+                    feed.preview_editor = Some(editor.clone());
+                }
                 view.update(cx, |view, cx| view.set_preview(&item, editor.into(), cx));
                 true
             });
@@ -424,6 +448,7 @@ impl Workbench {
             TodoViewEvent::PreviewChanged(None) => {
                 if let Some(feed) = self.todo.as_mut() {
                     feed.preview += 1;
+                    feed.retire_preview(cx);
                 }
             }
             TodoViewEvent::ScanScope(scope) => self.scan_todo_scope(scope, cx),
@@ -454,6 +479,35 @@ impl Workbench {
 }
 
 /// Runs action `id` once the current update is over: it may reach for the workbench.
+impl TodoFeed {
+    /// Takes the shown preview's editor away: kept while its document has unsaved edits, dropped otherwise,
+    /// which closes its document. Held previews saved meanwhile go too.
+    fn retire_preview(&mut self, cx: &App) {
+        if let Some(editor) = self.preview_editor.take() {
+            let path = editor.read(cx).path().to_string_lossy().into_owned();
+            if !self.held.unmounted(&path, editor.read(cx).is_dirty()) {
+                self.held_editors.insert(path, editor);
+            }
+        }
+        let held = &mut self.held;
+        self.held_editors.retain(|path, editor| held.check(path, editor.read(cx).is_dirty()).0);
+    }
+
+    /// The editors of the preview, shown or held, whose documents Save All saves.
+    pub(super) fn preview_editors(&self) -> impl Iterator<Item = &Entity<Editor>> {
+        self.preview_editor.iter().chain(self.held_editors.values())
+    }
+}
+
+/// Puts the caret of the preview `editor` on `item` and scrolls the item into view.
+fn show_todo_item(editor: &Entity<Editor>, item: &crate::features_a::todo::TodoItem, cx: &mut App) {
+    editor.update(cx, |editor, cx| {
+        let at = editor.offset_of(item.line, item.col);
+        editor.select(at, at, cx);
+        editor.scroll_to_line(item.line.saturating_sub(5), cx);
+    });
+}
+
 fn run_later(id: &'static str, arg: Option<serde_json::Value>, window: &mut Window, cx: &mut Context<Workbench>) {
     window.defer(cx, move |window, cx| {
         if !execute_action_from(ActionSource::Other, id, arg.as_ref(), window, cx) {

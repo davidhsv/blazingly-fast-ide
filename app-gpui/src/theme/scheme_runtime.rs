@@ -5,7 +5,10 @@
 //! settings cascades the theme again.
 
 use super::ActiveTheme;
-use super::color_scheme::{ColorOverrides, SCHEME_LANGUAGES, SchemeSource, custom_schemes, scheme_style};
+use super::color_scheme::{
+    ColorOverrides, SCHEME_LANGUAGES, SchemeSource, custom_schemes, scheme_after_theme_change, scheme_style,
+};
+use super::themes::ThemeKind;
 use super::tokens::TOKENS_CSS;
 use crate::backend::Backend;
 use crate::platform::settings;
@@ -83,6 +86,7 @@ pub fn init(cx: &mut App) {
 /// Sets the chosen scheme's tokens, its edits and the typography weights on the active theme, and
 /// keeps the per-language edits for the editors.
 pub fn apply(cx: &mut App) {
+    follow_theme_kind(cx);
     let editor = settings::global(cx).editor;
     let customs = serde_json::to_value(&editor.custom_schemes).map(|raw| custom_schemes(&raw)).unwrap_or_default();
     let overrides: ColorOverrides = match serde_json::to_value(&editor.color_overrides).and_then(serde_json::from_value)
@@ -110,6 +114,36 @@ pub fn apply(cx: &mut App) {
     });
     cx.set_global(SchemeLanguageTokens(languages.collect()));
     cx.refresh_windows();
+}
+
+/// The light / dark kind of the theme the scheme was last applied over, and the scheme.
+#[derive(Default)]
+struct FollowedKind(Option<(ThemeKind, String)>);
+
+impl Global for FollowedKind {}
+
+/// When the theme has turned light or dark, a chosen scheme of the other kind gives way to the theme's
+/// own in the global settings, which every project's settings are read again with. A scheme chosen in
+/// the same change as the theme stays.
+fn follow_theme_kind(cx: &mut App) {
+    let kind = super::appearance::current_kind(cx);
+    let editor = settings::global(cx).editor;
+    let previous = cx.default_global::<FollowedKind>().0.replace((kind, editor.color_scheme.clone()));
+    if previous.is_none_or(|(previous, scheme)| previous == kind || scheme != editor.color_scheme) {
+        return;
+    }
+    let customs = serde_json::to_value(&editor.custom_schemes).map(|raw| custom_schemes(&raw)).unwrap_or_default();
+    let Some(scheme) = scheme_after_theme_change(Some(&editor.color_scheme), kind, &customs) else { return };
+    let write = settings::SettingsWrite { key: "editor.colorScheme", value: serde_json::Value::from(scheme) };
+    // A global value: no window's project decides it.
+    if let Err(error) = settings::set_global("", &[write], cx) {
+        return tracing::warn!("the color scheme cannot follow the theme: {}", error.message);
+    }
+    if let Some(backend) = cx.try_global::<Backend>() {
+        for project in backend.host.projects() {
+            project.settings.reload();
+        }
+    }
 }
 
 #[cfg(test)]

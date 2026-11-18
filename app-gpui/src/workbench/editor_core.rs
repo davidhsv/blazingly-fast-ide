@@ -147,6 +147,15 @@ fn reset_font_size_in_all_editors(cx: &mut App) {
 }
 
 /// Where the caret of `editor` is, as the histories keep it.
+impl EditorCore {
+    /// Back / Forward and Last Edit Location no longer step to `path`, whose tab closed because the
+    /// file was deleted.
+    pub(super) fn forget_path(&mut self, path: &str) {
+        self.nav.remove_path(path);
+        self.edits.remove_path(path);
+    }
+}
+
 fn place_of(editor: &Editor) -> Place {
     let (line, col) = editor.caret_position();
     Place { path: editor.path().to_string_lossy().into_owned(), line, col }
@@ -586,6 +595,70 @@ mod tests {
         settle(cx, |cx| at(&workbench, cx) == Some(("a.rs".to_owned(), 3, 1)));
         run(cx, "navigate.nextEditLocation", None);
         settle(cx, |cx| at(&workbench, cx) == Some(("b.rs".to_owned(), 0, 1)));
+        close(cx);
+    }
+
+    /// A file deleted in the project view leaves Back and Last Edit Location: neither opens it again,
+    /// and the surviving file stays in the editor.
+    #[gpui_kit::test]
+    async fn back_and_last_edit_location_skip_a_file_deleted_in_the_project_view(cx: &mut TestAppContext) {
+        use crate::project_view::file_dialogs::DeleteDialog;
+        use crate::workbench::tests::{start, trusted_project, wait_long};
+        let home = start(cx);
+        let trash = home.path().join("trash");
+        std::fs::create_dir_all(&trash).expect("the trash folder is made");
+        let into = trash.clone();
+        let host = cx.update(|cx| cx.global::<Backend>().host.clone());
+        host.set_trash(Some(std::sync::Arc::new(move |path: &Path| {
+            let name = path.file_name().ok_or_else(|| ide_core::IdeError::invalid("a path without a name"))?;
+            std::fs::rename(path, into.join(name)).map_err(ide_core::IdeError::from)
+        })));
+        let (_folder, root, workbench, cx) = trusted_project(cx, FILES);
+        cx.update(|window, _| window.activate_window());
+        let a = open(&workbench, &root.join("src/a.rs"), cx);
+        caret_to(&a, 3, 0, cx);
+        cx.simulate_input("x");
+        let gone = root.join("src/b.rs");
+        let b = open(&workbench, &gone, cx);
+        caret_to(&b, 1, 0, cx);
+        cx.simulate_input("y");
+        run(cx, "file.save", None);
+        wait_long(cx, "b.rs to be saved", |cx| !b.read_with(cx, |b, _| b.is_dirty()));
+        run(cx, "navigate.back", None);
+        wait_long(cx, "Back to a.rs", |cx| at(&workbench, cx).is_some_and(|(name, ..)| name == "a.rs"));
+
+        let tree = workbench.read_with(cx, |w, _| w.project_tree().cloned()).expect("a tree");
+        let path = gone.to_string_lossy().into_owned();
+        wait_long(cx, "the tree to load", |cx| tree.read_with(cx, |tree, _| tree.is_loaded(tree.root())));
+        assert!(tree.update(cx, |tree, cx| tree.reveal_path(&path, cx)), "b.rs is in the project");
+        cx.update(|window, cx| window.focus(&tree.focus_handle(cx), cx));
+        cx.run_until_parked();
+        run(cx, "project.delete", None);
+        assert!(workbench.read_with(cx, |w, _| w.file_dialog::<DeleteDialog>()).is_some());
+        cx.simulate_keystrokes("enter");
+        let tab_paths = |cx: &mut VisualTestContext| -> Vec<PathBuf> {
+            workbench
+                .read_with(cx, |w, cx| w.window_editors().iter().map(|e| e.read(cx).path().to_path_buf()).collect())
+        };
+        // The tab closes when the delete's answer arrives, after the file is gone from disk.
+        wait_long(cx, "b.rs to be deleted and its tab closed", |cx| {
+            !gone.exists()
+                && !tab_paths(cx).contains(&gone)
+                && at(&workbench, cx).is_some_and(|(name, ..)| name == "a.rs")
+        });
+
+        cx.update(|window, cx| window.focus(&a.focus_handle(cx), cx));
+        caret_to(&a, 0, 0, cx);
+        run(cx, "navigate.lastEditLocation", None);
+        wait_long(cx, "the edit of a.rs", |cx| at(&workbench, cx) == Some(("a.rs".to_owned(), 3, 1)));
+        run(cx, "navigate.lastEditLocation", None);
+        run(cx, "navigate.back", None);
+        run(cx, "navigate.back", None);
+        run(cx, "navigate.forward", None);
+        run(cx, "navigate.forward", None);
+        assert!(!tab_paths(cx).contains(&gone), "nothing opened the deleted file again");
+        assert!(!gone.exists());
+        assert_eq!(at(&workbench, cx).map(|(name, ..)| name), Some("a.rs".to_owned()));
         close(cx);
     }
 

@@ -348,7 +348,7 @@ impl EditorIntelligence {
 
     fn editor_event(&mut self, editor: &Entity<Editor>, event: &EditorEvent, cx: &mut Context<Self>) {
         match event {
-            EditorEvent::Edited { origin, changes } => {
+            EditorEvent::Edited { origin, changes, .. } => {
                 self.edited = Some(Instant::now());
                 self.hints.changed();
                 self.show_hint(cx);

@@ -878,18 +878,19 @@ impl Workbench {
             return;
         };
         let dirty = |id: &str| editors.get(id).is_some_and(|editor: &Entity<Editor>| editor.read(cx).is_dirty());
-        let mut gone: Vec<String> = Vec::new();
+        let mut gone: Vec<(String, String)> = Vec::new();
         for pane in &tabs.panes {
             for tab in &pane.tabs {
                 let Some(path) = tab.input.path.as_deref() else { continue };
                 if removed.iter().any(|at| is_same_or_inside(path, at)) && !dirty(&tab.id) {
-                    gone.push(tab.input.key.clone());
+                    gone.push((tab.input.key.clone(), path.to_owned()));
                 }
             }
         }
         let mut changed = false;
-        for key in gone {
+        for (key, path) in gone {
             changed |= tabs.close_key(&key);
+            self.editor_core.forget_path(&path);
         }
         if changed {
             self.tabs_changed(false, window, cx);

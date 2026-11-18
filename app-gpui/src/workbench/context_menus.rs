@@ -72,8 +72,8 @@ pub const MENU_GROUPS: [GroupDecl; 25] = [
     },
     GroupDecl { id: "build.module", menus: &[ContextMenu::ProjectView], order: 40, rows: Some(build_module) },
     GroupDecl { id: "debugger.evaluate", menus: &[ContextMenu::Editor], order: 0, rows: Some(debugger_evaluate) },
-    // The class files of the paths that can be reloaded into the paused session.
-    GroupDecl { id: "debugger.hotswap", menus: &[ContextMenu::Editor], order: 0, rows: None },
+    // Reload Changed Classes on one Java file while a debug session can reload classes.
+    GroupDecl { id: "debugger.hotswap", menus: &[ContextMenu::Editor], order: 0, rows: Some(debugger_hotswap) },
     // One row per live debug session in the Stop chooser.
     GroupDecl { id: "debugger.stop", menus: &[ContextMenu::StopProcess], order: 0, rows: None },
     // Upload / Download / Compare with the deployment server of the path.
@@ -185,6 +185,9 @@ pub struct GroupFacts {
     pub vcs_available: bool,
     /// The active debug session is paused.
     pub debug_paused: bool,
+    /// What Reload Changed Classes offers on the menu's paths: its action while a debug session can
+    /// reload the classes of the one Java file.
+    pub hot_swap: Option<&'static str>,
     /// The file of the active editor.
     pub editor_path: Option<String>,
     /// The menu's path has a line bookmark on the menu's line.
@@ -251,6 +254,10 @@ fn build_module(_: ContextMenu, ctx: &MenuGroupContext<'_>, facts: &GroupFacts) 
         [path] if facts.project_open => vec![action_row("build.buildModule", Some(json!(path)), None)],
         _ => Vec::new(),
     }
+}
+
+fn debugger_hotswap(_: ContextMenu, _: &MenuGroupContext<'_>, facts: &GroupFacts) -> Vec<GroupRow> {
+    facts.hot_swap.map(|action| action_row(action, None, None)).into_iter().collect()
 }
 
 fn debugger_evaluate(_: ContextMenu, _: &MenuGroupContext<'_>, facts: &GroupFacts) -> Vec<GroupRow> {
@@ -762,6 +769,10 @@ impl Workbench {
             project_open: self.project_root(cx).is_some(),
             vcs_available: self.vcs_state().is_some_and(|vcs| vcs.available),
             debug_paused: keys.is_truthy("debugSessionPaused"),
+            hot_swap: self.debug_driver().and_then(|driver| {
+                let paths: Vec<&str> = ctx.paths.iter().map(String::as_str).collect();
+                crate::debugger::hotswap::hot_swap_menu_action(&paths, &driver.read(cx).debugger().read(cx).state)
+            }),
             editor_path: self.editor().map(|editor| editor.read(cx).path().to_string_lossy().into_owned()),
             line_bookmarked: match (ctx.paths.first(), ctx.line) {
                 (Some(path), Some(line)) => has_bookmark(&data.items, path, line),
@@ -1411,7 +1422,6 @@ mod tests {
         assert_eq!(
             missing,
             [
-                "debugger.hotswap",
                 "debugger.stop",
                 "deployment",
                 "github.reviewMode",
@@ -1642,6 +1652,42 @@ mod tests {
         cx.run_until_parked();
         assert!(f.editor_menu(cx).is_none(), "Escape closes the menu");
         assert!(cx.update(|window, cx| editor.focus_handle(cx).is_focused(window)), "the editor has the keyboard");
+    }
+
+    /// The editor menu of a Java file offers Reload Changed Classes while a debug session can reload
+    /// classes (a stand-in session: nothing is started), and neither without one nor on another file.
+    #[gpui_kit::test]
+    async fn the_editor_menu_offers_reload_changed_classes_on_a_java_file_while_a_session_can_reload(
+        cx: &mut TestAppContext,
+    ) {
+        use ide_core::DebugSessionId;
+        use ide_dap::DebugCapabilities;
+        let files = [("App.java", "class App {}\n"), ("a.txt", "hello world\n")];
+        let (f, cx) = open(cx, &files, Setup::default());
+        let offered = |name: &str, cx: &mut VisualTestContext| {
+            let editor = f.open_file(name, cx);
+            let at = at_offset(&editor, 2, cx);
+            right_click(cx, at);
+            let menu = f.editor_menu(cx).expect("the editor's menu is open");
+            let offered = root_rows(&menu, cx).iter().any(|row| row == "Reload Changed Classes");
+            assert!(!offered || !disabled(&menu, "Reload Changed Classes", cx), "an offered reload can run");
+            cx.simulate_keystrokes("escape");
+            cx.run_until_parked();
+            offered
+        };
+        assert!(!offered("App.java", cx), "no session can reload classes");
+
+        let driver = f.workbench.read_with(cx, |w, _| w.debug_driver().cloned()).expect("a debugger");
+        let debugger = driver.read_with(cx, |driver, _| driver.debugger().clone());
+        debugger.update(cx, |debugger, _| {
+            debugger.state.adopt_session(DebugSessionId(1), 0.0, |session| {
+                session.adapter = "java-debug".to_owned();
+                session.caps = Some(DebugCapabilities { hot_code_replace: true, ..Default::default() });
+            });
+            debugger.state.take_effects();
+        });
+        assert!(offered("App.java", cx), "the Java session can reload classes");
+        assert!(!offered("a.txt", cx), "only on a Java file");
     }
 
     /// A right click inside the selection keeps it: Cut and Copy are offered with their hints, and

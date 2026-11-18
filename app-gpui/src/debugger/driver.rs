@@ -12,7 +12,8 @@ use crate::debugger::actions::{ActiveEditor, Debugger, Dispatch, Host, PluginEve
 use crate::debugger::breakpoints::exceptions::{self, ExceptionBreakpoints, KNOWN_KEY};
 use crate::debugger::breakpoints::{special, store};
 use crate::debugger::editor::breakpoint_gutter::{
-    ClickOutcome, GutterEditor, GutterPress, PressOutcome, gutter_click, gutter_mouse_down,
+    ChangeOrigin, ClickOutcome, GutterEditor, GutterPress, PressOutcome, document_changed, gutter_click,
+    gutter_mouse_down,
 };
 use crate::debugger::effects::{BackendCall, Effect, Env, EvaluateContext, path_text};
 use crate::debugger::state::{Ctx, WATCH_KEY};
@@ -304,6 +305,21 @@ impl DebugDriver {
             let crate::debugger::breakpoints::Breakpoints { lines, special, .. } = &mut debugger.breakpoints;
             gutter_mouse_down(lines, special, editor, line, press, can_place, host.env.now_ms)
         })
+    }
+
+    /// An editor of `path` changed its text from `before` by `changes`: the file's breakpoints move
+    /// with the lines, unless `origin` says another editor of the document moves them.
+    pub fn document_changed(
+        &mut self,
+        path: &str,
+        edit: (&ropey::Rope, &[ide_core::TextChange], &ropey::Rope),
+        origin: ChangeOrigin,
+        cx: &mut Context<Self>,
+    ) {
+        self.change(cx, |debugger, host| {
+            let crate::debugger::breakpoints::Breakpoints { lines, special, .. } = &mut debugger.breakpoints;
+            document_changed(lines, special, path, edit, origin, host.env.now_ms);
+        });
     }
 
     /// A click on `line` of the editor's gutter: a breakpoint is added or removed there.

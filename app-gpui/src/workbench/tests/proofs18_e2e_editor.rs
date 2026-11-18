@@ -136,6 +136,33 @@ async fn cmd_f_opens_the_find_bar_and_highlights_matches_escape_returns_to_the_e
     close_backend_project(cx);
 }
 
+/// Text selected inside a highlighted find match stays visible: the selection is painted again over the
+/// match's background, on the row where the two meet.
+#[gpui_kit::test]
+async fn the_selection_inside_a_find_match_is_painted_over_the_matchs_background(cx: &mut TestAppContext) {
+    use crate::editor::view::PaintedLayer;
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = acme(cx);
+    open_from_tree(&workbench, &root.join("build.gradle.kts"), cx);
+    let editor = editor_of(&workbench, cx);
+    cx.update(|window, cx| window.focus(&editor.focus_handle(cx), cx));
+    cx.simulate_keystrokes(&primary("f"));
+    cx.run_until_parked();
+    cx.simulate_input("Order");
+    cx.run_until_parked();
+    assert!(!editor.read_with(cx, |e, _| e.marks(MarkLayer::Find).is_empty()), "the matches are marked");
+    // "rde" inside the "Order" of "OrderController", on the third line.
+    let (from, to) = editor.read_with(cx, |e, _| (e.offset_of(2, 7), e.offset_of(2, 10)));
+    editor.update(cx, |e, cx| e.select(from, to, cx));
+    cx.update(|window, _| window.refresh());
+    cx.run_until_parked();
+    let layers = editor.read_with(cx, |e, _| e.painted_layers());
+    let marks = layers.iter().position(|layer| *layer == PaintedLayer::MarkBackgrounds(2));
+    let selected = layers.iter().position(|layer| *layer == PaintedLayer::SelectedText(2));
+    assert!(marks.is_some() && selected > marks, "the selection goes over the match: {layers:?}");
+    close_backend_project(cx);
+}
+
 /// Each file keeps its own find bar, query and caret: a second file has no bar until ⌘F, which starts from the
 /// last search without moving its caret; a third starts from the latest search; switching back shows each
 /// file's own query with its caret, and a bar closed with Escape leaves the others as they were.

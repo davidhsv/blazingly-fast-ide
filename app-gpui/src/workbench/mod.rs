@@ -1979,7 +1979,8 @@ impl Workbench {
     fn document_editors(&self, cx: &App) -> Vec<Entity<Editor>> {
         let mut editors = self.editors();
         let mut docs: std::collections::HashSet<_> = editors.iter().map(|editor| editor.read(cx).doc()).collect();
-        for editor in crate::ui::code_preview::preview_editors(&self.label, cx) {
+        let todo = self.todo.iter().flat_map(|feed| feed.preview_editors().cloned());
+        for editor in crate::ui::code_preview::preview_editors(&self.label, cx).into_iter().chain(todo) {
             if docs.insert(editor.read(cx).doc()) {
                 editors.push(editor);
             }
@@ -4624,6 +4625,7 @@ mod tests {
     mod proofs15_full_screen;
     mod proofs15_merge_resolve;
     mod proofs16_run_badge;
+    mod proofs16_todo_run_pending;
     #[cfg(unix)]
     mod proofs17_interrupt;
     mod proofs18_e2e_commit;
@@ -4790,6 +4792,55 @@ mod tests {
         assert_eq!(cx.update(|_, cx| crate::platform::settings::global(cx).appearance.theme), "dark");
         cx.update(|window, cx| execute_action_or_throw("view.toggleTheme", None, window, cx)).expect("it runs");
         assert!(!cx.update(|_, cx| cx.global::<theme::ActiveTheme>().is_dark()));
+    }
+
+    /// A chosen editor scheme of the other kind gives way to the theme's own when the theme turns dark
+    /// or light: Toggle Light/Dark Theme stores Theme default as the scheme, and the editor shows its
+    /// colours. A scheme of the theme's kind stays.
+    #[gpui_kit::test]
+    async fn the_editor_scheme_follows_the_theme_turning_dark_or_light(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        use crate::platform::settings::{SettingsWrite, global, set_global};
+        use crate::theme::color_scheme::THEME_DEFAULT_SCHEME;
+        let _home = start(cx);
+        cx.update(|cx| {
+            crate::theme::appearance::init(cx);
+            crate::theme::scheme_runtime::init(cx);
+        });
+        let (_workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        let editor_bg = |cx: &mut VisualTestContext| cx.update(|_, cx| theme::color(cx, "bg-editor"));
+        let light_bg = editor_bg(cx);
+        let scheme = |cx: &mut VisualTestContext| cx.update(|_, cx| global(cx).editor.color_scheme);
+        let write = SettingsWrite { key: "editor.colorScheme", value: serde_json::json!("light") };
+        cx.update(|_, cx| set_global("w1", &[write], cx)).expect("the scheme is stored");
+        settle(cx, |cx| scheme(cx) == "light");
+
+        cx.update(|window, cx| execute_action_or_throw("view.toggleTheme", None, window, cx)).expect("it runs");
+        assert!(cx.update(|_, cx| cx.global::<theme::ActiveTheme>().is_dark()));
+        settle(cx, |cx| scheme(cx) == THEME_DEFAULT_SCHEME);
+        settle(cx, |cx| editor_bg(cx) != light_bg);
+
+        // A dark scheme under the dark theme stays when the theme stays dark.
+        let write = SettingsWrite { key: "editor.colorScheme", value: serde_json::json!("dark") };
+        cx.update(|_, cx| set_global("w1", &[write], cx)).expect("the scheme is stored");
+        settle(cx, |cx| scheme(cx) == "dark");
+        cx.update(|_, cx| crate::theme::appearance::apply(cx));
+        cx.run_until_parked();
+        assert_eq!(scheme(cx), "dark");
+        cx.update(|window, cx| execute_action_or_throw("view.toggleTheme", None, window, cx)).expect("it runs");
+        settle(cx, |cx| scheme(cx) == THEME_DEFAULT_SCHEME);
+        settle(cx, |cx| editor_bg(cx) == light_bg);
+
+        // A scheme chosen in the same change as a dark theme stays.
+        let writes = [
+            SettingsWrite { key: "appearance.theme", value: serde_json::json!("dark") },
+            SettingsWrite { key: "editor.colorScheme", value: serde_json::json!("light") },
+        ];
+        cx.update(|_, cx| set_global("w1", &writes, cx)).expect("the theme and the scheme are stored");
+        settle(cx, |cx| cx.update(|_, cx| cx.global::<theme::ActiveTheme>().is_dark()));
+        cx.update(|_, cx| crate::theme::appearance::apply(cx));
+        cx.run_until_parked();
+        assert_eq!(scheme(cx), "light");
     }
 
     /// Waits for `done` while the backend's work comes back, without moving the executor's clock.
@@ -6780,14 +6831,14 @@ mod tests {
 
         // Enter on an item opens its file with the caret on the comment.
         click_on(cx, "todo-row-2");
-        // The preview pane shows the item's file, read-only, with the caret on the comment.
+        // The preview pane shows the item's file, editable, with the caret on the comment.
         settle(cx, |cx| view.read_with(cx, |view, _| view.preview().is_some()));
         let preview = view
             .read_with(cx, |view, _| view.preview().cloned())
             .and_then(|preview| preview.downcast::<Editor>().ok())
             .expect("the preview is an editor");
         preview.read_with(cx, |editor, _| {
-            assert!(editor.status().read_only);
+            assert!(!editor.status().read_only);
             assert_eq!(editor.caret_position(), (2, 3));
             assert_eq!(editor.text(), "// TODO first\nfn a() {}\n// FIXME second\n");
         });
