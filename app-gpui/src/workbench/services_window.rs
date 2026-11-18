@@ -16,8 +16,8 @@ use crate::run::store::{RunStore, StorageWrite};
 use crate::run::view::RunView;
 use crate::run_testing::service_sessions::{ServiceSession, StopServiceSessions, StopStep};
 use crate::run_testing::services::{
-    AddService, CONFIG_PREFIX, MenuCommand, RUN_PROVIDER, RunServices, ServiceCommand, ServiceDetail, Services,
-    StartAll, StartAllStep, StoredServices, TYPE_PREFIX, hidden_key, order_key, types_key,
+    AddService, CONFIG_PREFIX, FOLDER_PREFIX, MenuCommand, RUN_PROVIDER, RunServices, ServiceCommand, ServiceDetail,
+    Services, StartAll, StartAllStep, StoredServices, TYPE_PREFIX, hidden_key, order_key, types_key,
 };
 use crate::services::docker::{DOCKER_PROVIDER, DockerCommand, DockerRequest, DockerStore, FILTERS_KEY, POLL_MS};
 use crate::services::model::{
@@ -300,7 +300,8 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
             }
         })
     });
-    // The toolbar buttons of a type group, by the node key the argument names.
+    // The toolbar buttons of a type group, a folder of it or a configuration, by the node key the
+    // argument names.
     for (id, button, title, icon) in [
         ("run.services.runAll", "run-all", "Run All", "run"),
         ("run.services.restartAll", "restart-all", "Restart All", "rerun"),
@@ -310,9 +311,8 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
         let meta =
             ActionMeta { icon: Some(icon.to_owned()), hidden: true, ..ActionMeta::new(id, title).category("Run") };
         registry.register(Action::new(meta, move |call, window, cx| {
-            let Some(key) =
-                text_arg(call.arg).filter(|key| key.starts_with(TYPE_PREFIX) || key.starts_with(CONFIG_PREFIX))
-            else {
+            let node = |key: &String| [TYPE_PREFIX, FOLDER_PREFIX, CONFIG_PREFIX].iter().any(|p| key.starts_with(p));
+            let Some(key) = text_arg(call.arg).filter(node) else {
                 return Ok(());
             };
             on_workbench(window, cx, |workbench, window, cx| {
@@ -652,12 +652,13 @@ impl Workbench {
             ServiceCommand::StartRun { config, options } => {
                 driver.update(cx, |driver, cx| driver.start(*config, *options, cx)).detach();
             }
-            ServiceCommand::StartAll { kind, restart } => {
+            ServiceCommand::StartAll { kind, folder, restart } => {
                 let Some(services) = &self.services else { return };
                 let (store, types, state) =
                     (services.store.clone(), Rc::clone(&services.types), services.state.clone());
-                let (flow, step) =
-                    with_services(&store, &types, &state, cx, |services| StartAll::start(services, &kind, restart));
+                let (flow, step) = with_services(&store, &types, &state, cx, |services| {
+                    StartAll::start(services, &kind, folder.as_deref(), restart)
+                });
                 cx.spawn(async move |this, cx| start_all(this, flow, step, cx).await).detach();
             }
             ServiceCommand::Stop(sessions) => {

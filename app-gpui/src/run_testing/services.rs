@@ -34,6 +34,9 @@ pub const RUN_PROVIDER: &str = "runConfigurations";
 pub const TYPE_PREFIX: &str = "run:type:";
 /// Key prefix of a configuration's node; the configuration id follows.
 pub const CONFIG_PREFIX: &str = "run:config:";
+/// Key prefix of a folder node of a type's group, as in Run/Debug Configurations; `<kind>:<folder>`
+/// follows.
+pub const FOLDER_PREFIX: &str = "run:folder:";
 /// Storage key prefix of the added types; the project root follows.
 pub const TYPES_KEY: &str = "openidea.services.runTypes:";
 /// Storage key prefixes of the hidden configurations and the display order; the project location
@@ -61,6 +64,37 @@ pub fn hidden_key(location: &str) -> String {
 
 pub fn order_key(location: &str) -> String {
     format!("{ORDER_KEY}{location}")
+}
+
+pub fn folder_key(kind: &str, folder: &str) -> String {
+    format!("{FOLDER_PREFIX}{kind}:{folder}")
+}
+
+/// The kind and the folder a folder node's key names; a kind holds no colon, a folder may.
+fn parse_folder_key(key: &str) -> Option<(&str, &str)> {
+    key.strip_prefix(FOLDER_PREFIX)?.split_once(':')
+}
+
+/// The Run/Debug Configurations folder `config` is in; an empty name is none.
+fn folder_of(config: &RunConfig) -> Option<&str> {
+    config.extras.folder.as_deref().filter(|folder| !folder.is_empty())
+}
+
+/// `entries` with each folder's configurations first, the folders in the order their first
+/// configuration comes, then those in no folder; within each, the order they came in.
+fn folders_first(mut entries: Vec<&RunConfig>) -> Vec<&RunConfig> {
+    let mut folders: Vec<&str> = Vec::new();
+    for folder in entries.iter().filter_map(|config| folder_of(config)) {
+        if !folders.contains(&folder) {
+            folders.push(folder);
+        }
+    }
+    let rank = |config: &&RunConfig| match folder_of(config) {
+        Some(folder) => folders.iter().position(|known| *known == folder).unwrap_or(folders.len()),
+        None => folders.len(),
+    };
+    entries.sort_by_key(rank);
+    entries
 }
 
 /// The project's added types: none until the user adds one with "Add Service". A stored list that
@@ -386,15 +420,16 @@ fn kind_groups<'a>(input: TreeInput<'a>, latest: &[&'a ServiceSession]) -> Vec<K
         let hidden = input.hidden.get(kind).map(Vec::as_slice).unwrap_or_default();
         entries.retain(|config| !hidden.contains(&config.id));
         let saved = input.order.get(kind).map(Vec::as_slice).unwrap_or_default();
-        groups.push((kind.to_string(), order_services(entries, saved)));
+        groups.push((kind.to_string(), folders_first(order_services(entries, saved))));
     }
     groups
 }
 
-/// Groups by configuration type: only the types added in this window list their configurations
-/// (Docker kinds are the Docker provider's), and a configuration removed from the window stays out
-/// even while it runs (its console is in the Run tool window). A configuration deleted since it ran
-/// stays only while its run is live.
+/// Groups by configuration type, then by the configurations' folders (first, as in Run/Debug
+/// Configurations): only the types added in this window list their configurations (Docker kinds
+/// are the Docker provider's), and a configuration removed from the window stays out even while it
+/// runs (its console is in the Run tool window). A configuration deleted since it ran stays only
+/// while its run is live.
 pub fn run_service_items(input: TreeInput<'_>, types: &RunConfigTypes, i18n: &mut I18n) -> Vec<ServiceTreeItem> {
     let executions = service_sessions(input.sessions, input.debug);
     let latest = current_service_sessions(&executions);
@@ -402,7 +437,9 @@ pub fn run_service_items(input: TreeInput<'_>, types: &RunConfigTypes, i18n: &mu
     let mut items = Vec::new();
     for (kind, configs) in kind_groups(input, &latest) {
         let mut running = 0usize;
-        let mut children = Vec::new();
+        let mut children: Vec<ServiceTreeItem> = Vec::new();
+        // The running count of each folder node, by its place among `children`.
+        let mut folder_running: Vec<(usize, usize)> = Vec::new();
         for config in configs {
             let session = execution(&config.id);
             let live = session.is_some_and(ServiceSession::is_live);
@@ -414,7 +451,7 @@ pub fn run_service_items(input: TreeInput<'_>, types: &RunConfigTypes, i18n: &mu
             } else {
                 config_icon(&config.kind, config.is_test, types)
             };
-            children.push(ServiceTreeItem {
+            let item = ServiceTreeItem {
                 key: format!("{CONFIG_PREFIX}{}", config.id),
                 label: config.name.clone(),
                 icon,
@@ -422,7 +459,35 @@ pub fn run_service_items(input: TreeInput<'_>, types: &RunConfigTypes, i18n: &mu
                 dim: !live,
                 expanded: false,
                 children: None,
-            });
+            };
+            let Some(folder) = folder_of(config) else {
+                children.push(item);
+                continue;
+            };
+            let key = folder_key(&kind, folder);
+            let index = match children.iter().position(|child| child.key == key) {
+                Some(index) => index,
+                None => {
+                    children.push(ServiceTreeItem {
+                        key,
+                        label: folder.to_string(),
+                        icon: "folder".to_string(),
+                        detail: None,
+                        dim: false,
+                        expanded: true,
+                        children: Some(Vec::new()),
+                    });
+                    folder_running.push((children.len() - 1, 0));
+                    children.len() - 1
+                }
+            };
+            children[index].children.get_or_insert_with(Vec::new).push(item);
+            if let Some((_, count)) = folder_running.iter_mut().find(|(at, _)| *at == index) {
+                *count += usize::from(live);
+            }
+        }
+        for (index, count) in folder_running {
+            children[index].detail = (count > 0).then(|| i18n.tx_built(&["", " running"], &[Param::from(count)]));
         }
         items.push(ServiceTreeItem {
             key: format!("{TYPE_PREFIX}{kind}"),
@@ -464,9 +529,11 @@ pub struct UrlChoice {
 /// What a toolbar button, or activating a node, does.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ServiceCommand {
-    /// Run All (`restart: false`) or Restart All of a type group: drive [`StartAll`].
+    /// Run All (`restart: false`) or Restart All of a type group, or of one of its folders: drive
+    /// [`StartAll`].
     StartAll {
         kind: String,
+        folder: Option<String>,
         restart: bool,
     },
     /// Stop these executions: drive
@@ -529,6 +596,8 @@ pub struct Resolved {
     pub session: Option<ServiceSession>,
     /// The executions of a group's configurations, or the configuration's own.
     pub sessions: Vec<ServiceSession>,
+    /// A folder node's folder: the node stands for the group's configurations in it.
+    pub folder: Option<String>,
 }
 
 /// What the detail pane shows for a node.
@@ -614,31 +683,42 @@ impl Services<'_> {
         run_service_items(self.input(&removed), self.types, i18n)
     }
 
-    /// The configurations the group of `kind` shows, in display order.
-    pub fn group_configs(&self, kind: &str) -> Vec<RunConfig> {
+    /// The configurations the group of `kind` shows (those of its `folder` only, when given), in
+    /// display order.
+    pub fn group_configs(&self, kind: &str, folder: Option<&str>) -> Vec<RunConfig> {
         let removed = |id: &str| self.store.config_removed(id);
         let executions = self.executions();
         let latest = current_service_sessions(&executions);
         let groups = kind_groups(self.input(&removed), &latest);
-        let Some((_, configs)) = groups.into_iter().find(|(group, _)| group == kind) else { return Vec::new() };
+        let Some((_, mut configs)) = groups.into_iter().find(|(group, _)| group == kind) else { return Vec::new() };
+        if let Some(folder) = folder {
+            configs.retain(|config| folder_of(config) == Some(folder));
+        }
         // A configuration as saved now, else the one its execution ran with.
         configs.into_iter().map(|config| self.store.config(&config.id).unwrap_or(config).clone()).collect()
     }
 
-    /// What the node with `key` stands for: a configuration type's group (`run:type:spring-boot`)
-    /// or a configuration (`run:config:<id>`).
+    /// What the node with `key` stands for: a configuration type's group (`run:type:spring-boot`),
+    /// a folder of it (`run:folder:<kind>:<folder>`) or a configuration (`run:config:<id>`).
     pub fn resolve(&self, key: &str) -> Resolved {
         let executions = self.executions();
         if let Some(kind) = key.strip_prefix(TYPE_PREFIX) {
             let sessions = executions.into_iter().filter(|session| session.config.kind == kind).collect();
-            return Resolved { kind: Some(kind.to_string()), config: None, session: None, sessions };
+            return Resolved { kind: Some(kind.to_string()), config: None, session: None, sessions, folder: None };
+        }
+        if let Some((kind, folder)) = parse_folder_key(key) {
+            let inside =
+                |session: &ServiceSession| session.config.kind == kind && folder_of(&session.config) == Some(folder);
+            let sessions = executions.into_iter().filter(inside).collect();
+            let folder = Some(folder.to_string());
+            return Resolved { kind: Some(kind.to_string()), config: None, session: None, sessions, folder };
         }
         let id = key.strip_prefix(CONFIG_PREFIX).unwrap_or(key);
         let session = current_service_session(id, &executions).cloned();
         let ran_with = || session.as_ref().map(|session| session.config.clone());
         let config = self.store.config(id).cloned().or_else(ran_with);
         let kind = config.as_ref().map(|config| config.kind.clone());
-        Resolved { kind, config, sessions: session.iter().cloned().collect(), session }
+        Resolved { kind, config, sessions: session.iter().cloned().collect(), session, folder: None }
     }
 
     /// Runs (or reruns, in its tab) a configuration.
@@ -668,10 +748,12 @@ impl Services<'_> {
             let Some(kind) = r.kind.clone().filter(|kind| !kind.is_empty()) else {
                 return vec![(item_action("stop", "Stop", "stop", running.is_empty()), stop_command)];
             };
-            let mut entries = self.group_configs(&kind);
+            let mut entries = self.group_configs(&kind, r.folder.as_deref());
             entries.retain(|config| !is_debug_only(&config.kind, self.types));
             let all_running = entries.iter().all(|config| running.iter().any(|session| session.config.id == config.id));
-            let start = |restart: bool| Some(ServiceCommand::StartAll { kind: kind.clone(), restart });
+            let start = |restart: bool| {
+                Some(ServiceCommand::StartAll { kind: kind.clone(), folder: r.folder.clone(), restart })
+            };
             return vec![
                 (item_action("run-all", "Run All", "run", all_running), start(false)),
                 (item_action("restart-all", "Restart All", "rerun", entries.is_empty()), start(true)),
@@ -710,7 +792,7 @@ impl Services<'_> {
     /// What the toolbar button `action_id` of the node with `key` does now: nothing when the
     /// button is disabled by now, or the key is no node of this provider.
     pub fn invoke(&self, key: &str, action_id: &str) -> Option<ServiceCommand> {
-        if !key.starts_with(TYPE_PREFIX) && !key.starts_with(CONFIG_PREFIX) {
+        if ![TYPE_PREFIX, FOLDER_PREFIX, CONFIG_PREFIX].iter().any(|prefix| key.starts_with(prefix)) {
             return None;
         }
         let (action, command) = self.item_commands(key).into_iter().find(|(action, _)| action.id == action_id)?;
@@ -740,7 +822,8 @@ impl Services<'_> {
         let mut items: Vec<ServiceMenuItem> = self.item_actions(key).into_iter().map(button).collect();
         let r = self.resolve(key);
         let Some(config) = &r.config else {
-            let Some(kind) = r.kind.filter(|kind| !kind.is_empty()) else { return items };
+            // A folder's menu is its toolbar buttons: Add Service and Remove belong to the type.
+            let Some(kind) = r.kind.filter(|kind| !kind.is_empty() && r.folder.is_none()) else { return items };
             let addable = self.store.configs().iter().any(|config| config.kind == kind);
             items.push(ServiceMenuItem::Separator);
             items.push(menu_item("Add Service", "plus", addable.then(|| MenuCommand::AddService(kind.clone()))));
@@ -768,7 +851,8 @@ impl Services<'_> {
     pub fn detail(&self, key: &str) -> ServiceDetail {
         let r = self.resolve(key);
         let Some(config) = r.config else {
-            return ServiceDetail::Group { title: kind_label(r.kind.as_deref().unwrap_or_default(), self.types) };
+            let title = r.folder.unwrap_or_else(|| kind_label(r.kind.as_deref().unwrap_or_default(), self.types));
+            return ServiceDetail::Group { title };
         };
         if let Some(session) = &r.session {
             if let Some(run) = &session.run {
@@ -805,7 +889,7 @@ impl Services<'_> {
         }
         self.state.location()?;
         let kind = self.resolve(source).kind?;
-        let ids: Vec<String> = self.group_configs(&kind).into_iter().map(|config| config.id).collect();
+        let ids: Vec<String> = self.group_configs(&kind, None).into_iter().map(|config| config.id).collect();
         let (from, to) = (source.strip_prefix(CONFIG_PREFIX)?, target.strip_prefix(CONFIG_PREFIX)?);
         if !ids.iter().any(|id| id == from) || !ids.iter().any(|id| id == to) {
             return None;
@@ -955,8 +1039,8 @@ pub enum StartAllStep {
     Done,
 }
 
-/// Runs the configurations a type group shows, in display order; Restart All stops the running
-/// ones first. Configurations only a debugger can launch are left out.
+/// Runs the configurations a type group (or one of its folders) shows, in display order; Restart
+/// All stops the running ones first. Configurations only a debugger can launch are left out.
 #[derive(Clone, Debug)]
 pub struct StartAll {
     /// The project the configurations belong to.
@@ -969,8 +1053,8 @@ pub struct StartAll {
 }
 
 impl StartAll {
-    pub fn start(services: &Services<'_>, kind: &str, restart: bool) -> (Self, StartAllStep) {
-        let mut entries = services.group_configs(kind);
+    pub fn start(services: &Services<'_>, kind: &str, folder: Option<&str>, restart: bool) -> (Self, StartAllStep) {
+        let mut entries = services.group_configs(kind, folder);
         entries.retain(|config| !is_debug_only(&config.kind, services.types));
         let root = services.state.root().map(str::to_string);
         let mut flow = Self { root, entries: entries.into(), awaiting: None, starting: None };
@@ -978,8 +1062,12 @@ impl StartAll {
             let step = flow.next_start(services);
             return (flow, step);
         }
-        let live_of_kind = |session: &ServiceSession| session.config.kind == kind && session.is_live();
-        let running: Vec<ServiceSession> = services.executions().into_iter().filter(live_of_kind).collect();
+        let live_in_group = |session: &ServiceSession| {
+            session.config.kind == kind
+                && folder.is_none_or(|folder| folder_of(&session.config) == Some(folder))
+                && session.is_live()
+        };
+        let running: Vec<ServiceSession> = services.executions().into_iter().filter(live_in_group).collect();
         let runs = running.iter().filter_map(|session| session.run.as_ref());
         flow.awaiting = Some(runs.map(|run| run.id.clone()).collect());
         (flow, StartAllStep::StopSessions(running))
@@ -1251,10 +1339,11 @@ mod tests {
         /// Runs a group's Run All or Restart All to its end, every start succeeding; stopping ends
         /// the Run sessions. Returns the steps.
         fn run_batch(&mut self, key: &str, action_id: &str) -> Vec<StartAllStep> {
-            let Some(ServiceCommand::StartAll { kind, restart }) = self.services().invoke(key, action_id) else {
+            let Some(ServiceCommand::StartAll { kind, folder, restart }) = self.services().invoke(key, action_id)
+            else {
                 return Vec::new();
             };
-            let (mut flow, mut step) = StartAll::start(&self.services(), &kind, restart);
+            let (mut flow, mut step) = StartAll::start(&self.services(), &kind, folder.as_deref(), restart);
             let mut steps = Vec::new();
             while step != StartAllStep::Done {
                 if let StartAllStep::StopSessions(sessions) = &step {
@@ -1392,6 +1481,36 @@ mod tests {
                 ["run:config:workspace:two:app", "run:config:workspace:one:app", "run:config:workspace:two:new"];
             assert_eq!(keys(&items[0]), expected, "{kind}");
         }
+    }
+
+    #[test]
+    fn groups_configurations_by_their_folders_first_as_run_debug_configurations_does() {
+        let kind = "spring-boot";
+        let in_folder = |id: &str, folder: &str| {
+            let mut config = config(id, kind);
+            config.extras.folder = Some(folder.to_string());
+            config
+        };
+        let (gateway, auth, orders) =
+            (in_folder("gateway", "Infra"), in_folder("auth", "Infra"), in_folder("orders", "Business"));
+        let loose = config("loose", kind);
+        let sessions = vec![running("s1", &auth)];
+        let order = by_kind(&[(kind, "auth gateway")]);
+        let configs = vec![loose, gateway, orders, auth];
+        let items = Tree { configs, sessions, added: strings(&[kind]), order, ..Tree::default() }.items();
+        let group = &items[0];
+        assert_eq!(
+            keys(group),
+            ["run:folder:spring-boot:Infra", "run:folder:spring-boot:Business", "run:config:loose"]
+        );
+        let infra = &children(group)[0];
+        assert_eq!(
+            (infra.label.as_str(), infra.icon.as_str(), infra.detail.as_deref()),
+            ("Infra", "folder", Some("1 running"))
+        );
+        assert_eq!(keys(infra), ["run:config:auth", "run:config:gateway"]);
+        assert_eq!(keys(&children(group)[1]), ["run:config:orders"]);
+        assert_eq!(group.detail.as_deref(), Some("1 running"));
     }
 
     #[test]
@@ -1727,6 +1846,39 @@ mod tests {
         (world, configs)
     }
 
+    /// A folder node's buttons act on the folder's configurations only; its menu is those buttons
+    /// and its detail is titled with the folder's name.
+    #[test]
+    fn a_folder_node_acts_on_its_configurations() {
+        let (mut world, mut configs) = spring_world(&["out", "a", "b"]);
+        for config in &mut configs[1..] {
+            config.extras.folder = Some("Infra".to_string());
+        }
+        world.store.set_configs(configs.clone());
+        let folder = "run:folder:spring-boot:Infra";
+        assert_eq!(world.run_batch(folder, "run-all"), [start_run(&configs[1]), start_run(&configs[2])]);
+        world.store.sessions = vec![running("s0", &configs[0]), running("s1", &configs[1])];
+        let Some(ServiceCommand::Stop(stopped)) = world.services().invoke(folder, "stop-all") else {
+            panic!("Stop All stops the folder's running configuration")
+        };
+        assert_eq!(stopped.iter().map(|session| session.config.id.as_str()).collect::<Vec<_>>(), ["a"]);
+        let steps = world.run_batch(folder, "restart-all");
+        let StartAllStep::StopSessions(restarted) = &steps[0] else { panic!("the running one stops first") };
+        assert_eq!(restarted.iter().map(|session| session.config.id.as_str()).collect::<Vec<_>>(), ["a"]);
+        assert_eq!(started(&steps), ["a", "b"]);
+        let labels: Vec<&str> = world
+            .services()
+            .menu(folder)
+            .into_iter()
+            .filter_map(|item| match item {
+                ServiceMenuItem::Item { label, .. } => Some(label),
+                ServiceMenuItem::Separator => None,
+            })
+            .collect();
+        assert_eq!(labels, ["Run All", "Restart All", "Stop All", "Open in Browser"]);
+        assert_eq!(world.services().detail(folder), ServiceDetail::Group { title: "Infra".to_string() });
+    }
+
     #[test]
     fn enables_run_all_and_restart_all_with_stopped_configurations_stop_all_only_with_running_ones() {
         let (world, _) = spring_world(&["a", "b"]);
@@ -1772,7 +1924,7 @@ mod tests {
     fn waits_for_process_exit_before_restarting_any_configuration_and_continues_after_a_launch_failure() {
         let (mut world, configs) = spring_world(&["a", "b"]);
         world.store.sessions = vec![RunSession { run_id: Some(RunId(1)), ..running("s1", &configs[0]) }];
-        let (mut flow, step) = StartAll::start(&world.services(), "spring-boot", true);
+        let (mut flow, step) = StartAll::start(&world.services(), "spring-boot", None, true);
         assert!(matches!(step, StartAllStep::StopSessions(_)));
         // The process is still alive once the stop was asked for: nothing starts before it is gone.
         assert_eq!(flow.advance(&world.services()), StartAllStep::WaitForExit { session_ids: strings(&["s1"]) });
@@ -1960,7 +2112,8 @@ mod tests {
         let write = world.state.set_order(order);
         world.apply(write);
         assert_eq!(read_service_order(world.stored(&order_key("/selection"))), by_kind(&[("npm", "lint dev")]));
-        let shown: Vec<String> = world.services().group_configs("npm").into_iter().map(|config| config.id).collect();
+        let shown: Vec<String> =
+            world.services().group_configs("npm", None).into_iter().map(|config| config.id).collect();
         assert_eq!(shown, ["lint", "dev"]);
     }
 

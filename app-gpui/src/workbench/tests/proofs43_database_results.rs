@@ -264,3 +264,73 @@ async fn revert_confirms_the_result_cell_being_edited_and_drops_it(cx: &mut Test
     assert_eq!(db_query(cx, "select name from users where id = 1"), Ok(vec![vec![Some("ann".to_owned())]]));
     cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
 }
+
+/// Opens the `users` table with Edit Data and starts editing the first row's `name` in the table
+/// editor, its grid having the keyboard: the cell's field holds `amy`, typed over `ann`, and nothing
+/// is staged.
+fn edit_a_table_cell(
+    workbench: &Entity<Workbench>,
+    cx: &mut VisualTestContext,
+) -> (Entity<crate::database::table_editor_view::TableEditorView>, Entity<crate::database::grid_view::GridView>) {
+    run_action(cx, "db.showToolWindow", None);
+    let tree = db_tree(workbench, cx);
+    for label in ["app", "main", "tables"] {
+        db_expand(&tree, label, cx);
+    }
+    let users = db_row_key(&tree, "users", cx);
+    run_action(cx, "db.editData", Some(serde_json::Value::from(users)));
+    let editor = workbench.read_with(cx, |w, cx| w.database_table_editor(cx)).expect("the table editor shows");
+    wait_long(cx, "the rows", |cx| editor.read_with(cx, |editor, _| editor.state().page.is_some()));
+    let grid = editor.read_with(cx, |editor, _| editor.grid().clone());
+    grid.update_in(cx, |grid, window, cx| grid.reveal_column(1, window, cx));
+    cx.run_until_parked();
+    assert_eq!(grid.read_with(cx, |grid, _| grid.cell_text(0, 1)), "ann");
+    cx.simulate_keystrokes("f2");
+    assert!(grid.read_with(cx, |grid, _| grid.has_inline_editor()), "the cell is edited");
+    for _ in 0.."ann".len() {
+        cx.simulate_keystrokes("backspace");
+    }
+    cx.simulate_input("amy");
+    assert!(!editor.read_with(cx, |editor, _| editor.is_dirty()), "nothing is staged yet");
+    // The cell being edited counts as a change: Submit and Revert are offered for it.
+    assert!(context_is_on(cx, "dbTableEditorFocus") && context_is_on(cx, "dbTableEditorChanges"));
+    (editor, grid)
+}
+
+/// Revert with a cell of the table editor still being edited, nothing staged, drops the typed
+/// value: the field closes, the cell shows its stored value and nothing waits to be submitted.
+#[gpui_kit::test]
+async fn revert_drops_the_table_editors_cell_being_edited(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("README.md", "notes\n")]);
+    cx.update(|window, _| window.activate_window());
+    sqlite_source(&root, cx);
+    let (editor, grid) = edit_a_table_cell(&workbench, cx);
+
+    run_action(cx, "db.revertChanges", None);
+    assert!(!grid.read_with(cx, |grid, _| grid.has_inline_editor()), "the cell's field is closed");
+    assert!(!editor.read_with(cx, |editor, _| editor.is_dirty()), "nothing waits to be submitted");
+    assert_eq!(grid.read_with(cx, |grid, _| grid.cell_text(0, 1)), "ann");
+    assert!(!context_is_on(cx, "dbTableEditorChanges"), "nothing is left for Submit");
+    assert_eq!(db_query(cx, "select name from users where id = 1"), Ok(vec![vec![Some("ann".to_owned())]]));
+    cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+}
+
+/// Go to Column with a cell of the table editor still being edited confirms the typed value first:
+/// the cell shows it as a pending edit, and the column list opens.
+#[gpui_kit::test]
+async fn go_to_column_confirms_the_table_editors_cell_being_edited_first(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("README.md", "notes\n")]);
+    cx.update(|window, _| window.activate_window());
+    sqlite_source(&root, cx);
+    let (editor, grid) = edit_a_table_cell(&workbench, cx);
+
+    run_action(cx, "db.goToColumn", None);
+    assert!(!grid.read_with(cx, |grid, _| grid.has_inline_editor()), "the cell's field is closed");
+    assert!(editor.read_with(cx, |editor, _| editor.is_dirty()), "the typed value waits to be submitted");
+    assert_eq!(grid.read_with(cx, |grid, _| grid.cell_text(0, 1)), "amy");
+    assert!(editor.read_with(cx, |editor, _| editor.columns_query().is_some()), "the column list opens");
+    assert_eq!(db_query(cx, "select name from users where id = 1"), Ok(vec![vec![Some("ann".to_owned())]]));
+    cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+}

@@ -4295,7 +4295,11 @@ impl Render for Workbench {
                         )
                         .with_tooltip_shortcut(declared.title.clone(), action.clone())
                         .on_click(cx.listener(move |_, _, window, cx| {
-                            execute_action_from(ActionSource::Toolbar, &action, None, window, cx);
+                            // The action's handler updates this workbench, which the listener holds.
+                            let action = action.clone();
+                            window.defer(cx, move |window, cx| {
+                                execute_action_from(ActionSource::Toolbar, &action, None, window, cx);
+                            });
                         }))
                         .on_mouse_down(
                             gpui_kit::MouseButton::Right,
@@ -4685,6 +4689,8 @@ mod tests {
     mod proofs43_database_results;
     mod proofs44_attach_trust;
     mod proofs44_editor_tabs;
+    mod proofs47_services_folders;
+    mod proofs47_stripe_clicks;
     mod proofs4_run;
     mod proofs4_shell;
     mod proofs4_vcs;
