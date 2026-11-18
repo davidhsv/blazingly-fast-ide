@@ -32,12 +32,12 @@
     "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`"
   },
   "keymap:vscode-macos": {
-    "status": "partial",
-    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the preset's bindings load verbatim from the generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatch. Missing: the preset now binds Meta+N to file.newUntitled and leaves file.new unbound (src/platform/keymaps/vscode-macos.ts:198-199, 951e81e06 \"untitled buffers and Save As with a file type\"); the native app registers no file.newUntitled action (no \"file.newUntitled\" under app-gpui/src), so in this preset Meta+N does nothing natively where it ran file.new before the merge"
+    "status": "done",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`, `workbench::tests::proofs48_untitled::the_vs_code_keymaps_open_an_untitled_buffer_with_cmd_n_and_ctrl_n`; the preset's bindings load verbatim from the generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatch. With this preset Meta+N opens an untitled buffer"
   },
   "keymap:vscode-windows": {
-    "status": "partial",
-    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the preset's bindings load verbatim from the generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatch. Missing: the preset now binds Ctrl+N to file.newUntitled and leaves file.new unbound (src/platform/keymaps/vscode-macos.ts:198-199, 951e81e06 \"untitled buffers and Save As with a file type\"); the native app registers no file.newUntitled action (no \"file.newUntitled\" under app-gpui/src), so in this preset Ctrl+N does nothing natively where it ran file.new before the merge"
+    "status": "done",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`, `workbench::tests::proofs48_untitled::the_vs_code_keymaps_open_an_untitled_buffer_with_cmd_n_and_ctrl_n`; the preset's bindings load verbatim from the generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatch. With this preset Ctrl+N opens an untitled buffer"
   },
   "keymap:eclipse-macos": {
     "status": "done",
@@ -148,8 +148,8 @@
     "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::tests::a_click_on_the_line_separator_opens_its_menu_and_crlf_changes_the_files_separator`, `workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`"
   },
   "point.registerStatusItem:editor.encoding": {
-    "status": "partial",
-    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::tests::a_click_on_the_line_separator_opens_its_menu_and_crlf_changes_the_files_separator`, `workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`; the item shows the file's encoding and its menu offers Reload with Encoding (disabled while unsaved), Convert to Encoding and File Encodings Settings…. Missing: a file with a UTF-8 BOM shows UTF-8 BOM (src/editor/core/view/StatusItems.tsx:419) and a UTF-8 file's menu has Add UTF-8 BOM / Remove UTF-8 BOM, saving at once under auto-save (StatusItems.tsx:384-403, :436-445); Reload with Encoding is also disabled when the document cannot be re-read (canReloadEncoding, StatusItems.tsx:431). The native menu has neither (app-gpui/src/workbench/mod.rs:2185-2190)"
+    "status": "done",
+    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::tests::a_click_on_the_line_separator_opens_its_menu_and_crlf_changes_the_files_separator`, `workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`, `workbench::tests::proofs48_bom::the_encoding_menu_adds_and_removes_the_utf8_bom_and_the_save_writes_it`, `workbench::tests::proofs48_bom::with_autosave_on_adding_the_bom_writes_the_file_at_once`, `workbench::tests::proofs48_bom::the_bom_row_is_only_for_utf8_and_disabled_for_a_read_only_file`, `workbench::tests::proofs48_bom::reload_with_encoding_is_disabled_for_a_document_that_cannot_be_read_again`; the item shows the file's encoding and its menu offers Reload with Encoding (disabled while unsaved), Convert to Encoding and File Encodings Settings…. A UTF-8 file's menu has Add UTF-8 BOM or Remove UTF-8 BOM, saving at once under autosave, and Reload with Encoding is disabled for a document that cannot be read again"
   },
   "unit:src/ui/icons.test.tsx": {
     "status": "partial",
@@ -1909,7 +1909,7 @@
   },
   "ipc:doc_set_encoding": {
     "status": "partial",
-    "proof": "`workbench::tests::proofs_editor_actions_tabs::reload_with_encoding_reads_the_file_again_in_the_chosen_encoding`, `workbench::tests::reload_with_encoding_shows_the_byte_order_mark_state_the_backend_answers`; Reload with Encoding and Convert go through ide_host::ops::doc::doc_set_encoding as the adapter does, and the encoding item shows the byte-order-mark state of its answer; not proven: the re-read of a virtual document (no native code opens a library source, a server's document or a revision as an editor tab, so that branch is not reached); missing: the UTF-8 BOM entry of the encoding menu and Reload with Encoding disabled when the document cannot be re-read (src/editor/core/view/StatusItems.tsx:368-372)"
+    "proof": "`workbench::tests::proofs_editor_actions_tabs::reload_with_encoding_reads_the_file_again_in_the_chosen_encoding`, `workbench::tests::reload_with_encoding_shows_the_byte_order_mark_state_the_backend_answers`, `workbench::tests::proofs48_bom::reload_with_encoding_is_disabled_for_a_document_that_cannot_be_read_again`; Reload with Encoding and Convert go through the backend as the adapter does, the encoding item shows the byte-order-mark state of its answer, and Reload with Encoding is disabled when the document cannot be read again. Missing: the re-read of a virtual document is not proven (no native code opens a library source, a server's document or a revision as an editor tab, so that branch is not reached)"
   },
   "unit:src/features/run/producers.test.ts": {
     "status": "partial",
@@ -2088,8 +2088,8 @@
     "proof": "`workbench::tests::notifications_show_as_balloons_and_in_their_tool_window`, `workbench::notification_balloons::tests`; balloons with level icon, title, body, links and close, at most three stacked at the bottom right, fading by the model's clocks and pausing under the pointer or while the window is inactive. Not yet: the slide-in animation, the chime, bodies that are components (the update progress), and the links whose commands carry arguments of their own"
   },
   "unit:src/features/run/testing/comparison.test.ts": {
-    "status": "partial",
-    "proof": "`run_testing::comparison::tests`; expected/actual parsing is tested; missing: nothing in the app reaches it (native: app-gpui/src/run/store.rs:916 RunStore::output keeps console lines only and run_testing::parsers::create_test_parser is never called; webview: src/features/run/store.ts:687)"
+    "status": "done",
+    "proof": "`run_testing::comparison::tests`, `workbench::tests::proofs45_test_tree::the_context_menu_of_a_failed_test_shows_its_diff_runs_it_and_jumps_to_its_source`; expected/actual parsing is tested on the model, and through a window: a right click on a failed test of a finished run and a click on Show Diff open the diff window with the expected value against the actual one"
   },
   "unit:src/features/run/testing/dotnet.test.ts": {
     "status": "partial",
@@ -2097,7 +2097,7 @@
   },
   "unit:src/features/run/testing/go.test.ts": {
     "status": "partial",
-    "proof": "`run_testing::go::tests`; go test output parsing is tested and -json reporting args are reached (run/driver.rs:1075); missing: nothing in the app reaches it (native: app-gpui/src/run/store.rs:916 RunStore::output keeps console lines only and run_testing::parsers::create_test_parser is never called; webview: src/features/run/store.ts:687)"
+    "proof": "`run_testing::go::tests`, `workbench::tests::proofs45_test_tree::go_reruns_keep_each_packages_exact_failures_and_the_original_configuration`; go test output parsing is tested on the model and -json reporting args are reached; through a window a Go run's tests fill the tree by package. Missing: the console shows the raw -json events of a Go run, which the webview decodes into the text go test would print (src/features/run/store.ts:704)"
   },
   "unit:src/features/run/testing/parsers.test.ts": {
     "status": "partial",
@@ -2105,7 +2105,7 @@
   },
   "unit:src/features/run/testing/phpunit.test.ts": {
     "status": "partial",
-    "proof": "`run_testing::phpunit::tests`; PHPUnit/Pest parsing is tested and TeamCity args are reached; missing: nothing in the app reaches it (native: app-gpui/src/run/store.rs:916 RunStore::output keeps console lines only and run_testing::parsers::create_test_parser is never called; webview: src/features/run/store.ts:687)"
+    "proof": "`run_testing::phpunit::tests`; PHPUnit/Pest parsing is tested and TeamCity args are reached. Missing: no window test feeds this framework's output through a run (a run's lines reach the parser since 2026-11-18); the webview decodes the framework's records before the console shows them (src/features/run/store.ts:706) and no native decoder exists, so, as a hypothesis not yet run, the records show raw in the console"
   },
   "unit:src/features/run/testing/plugin.test.ts": {
     "status": "partial",
@@ -2113,19 +2113,19 @@
   },
   "unit:src/features/run/testing/rerun.test.ts": {
     "status": "partial",
-    "proof": "`run_testing::rerun::tests`; 24 of 26 cases; added upstream and not covered: 'zig: --test-filter per failed test, straight for 'zig test' and via the module root for 'zig build'', 'zig: --test-filter per failed test for 'zig test', null for build-based runs'; before the merge this row was model only: its tests are of code the app did not reach"
+    "proof": "`run_testing::rerun::tests`, `workbench::tests::proofs45_test_tree::a_cargo_test_run_fills_the_tree_jumps_to_the_failure_and_reruns_only_it`, `workbench::tests::proofs45_test_tree::go_reruns_keep_each_packages_exact_failures_and_the_original_configuration`; 24 of 26 cases; through a window the rerun of a cargo run receives the one failed test's filter, and a Go run is rerun once per package with each package's exact failures. Missing: the 2 zig cases ('zig: --test-filter per failed test, straight for zig test and via the module root for zig build', 'zig: --test-filter per failed test for zig test, null for build-based runs'): no zig parser exists natively"
   },
   "unit:src/features/run/testing/ruby.test.ts": {
     "status": "partial",
-    "proof": "`run_testing::ruby::tests`; Minitest/RSpec parsing is tested and reporting args are reached; missing: nothing in the app reaches it (native: app-gpui/src/run/store.rs:916 RunStore::output keeps console lines only and run_testing::parsers::create_test_parser is never called; webview: src/features/run/store.ts:687)"
+    "proof": "`run_testing::ruby::tests`; Minitest/RSpec parsing is tested and reporting args are reached. Missing: no window test feeds this framework's output through a run (a run's lines reach the parser since 2026-11-18); the webview decodes the framework's records before the console shows them (src/features/run/store.ts:708) and no native decoder exists, so, as a hypothesis not yet run, the records show raw in the console"
   },
   "unit:src/features/run/testing/states.test.ts": {
     "status": "partial",
-    "proof": "`run_testing::states::tests`; 5 of 6 cases; added upstream and not covered: 'matches Zig results rooted at the module stem of the file'; before the merge this row was model only: its tests are of code the app did not reach"
+    "proof": "`run_testing::states::tests`, `workbench::tests::proofs45_test_tree::a_cargo_test_run_fills_the_tree_jumps_to_the_failure_and_reruns_only_it`; 5 of 6 cases on the model; through a window the gutter shows the failed mark on the failed test's line and the passed mark on the passed one after a run. Missing: the zig case ('matches Zig results rooted at the module stem of the file'); and the gutter reads its states from the run producers' own table, not from the module the model tests cover (nothing outside app-gpui/src/run_testing/states.rs uses it)"
   },
   "unit:src/features/run/testing/unittest.test.ts": {
-    "status": "partial",
-    "proof": "`run_testing::unittest::tests`; unittest parsing is tested; missing: nothing in the app reaches it (native: app-gpui/src/run/store.rs:916 RunStore::output keeps console lines only and run_testing::parsers::create_test_parser is never called; webview: src/features/run/store.ts:687)"
+    "status": "done",
+    "proof": "`run_testing::unittest::tests`, `workbench::tests::proofs45_test_tree::a_unittest_run_shows_its_tests_in_the_tree_and_its_report_in_the_console`; unittest parsing is tested on the model, and through a window: a run whose stand-in prints a unittest report shows its tests in the tree, the report in the console and the failed test's own output when it is selected"
   },
   "unit:src/features/run/services.test.ts": {
     "status": "partial",
@@ -2217,7 +2217,7 @@
   },
   "point.registerToolWindow:run": {
     "status": "partial",
-    "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `workbench::tests::a_run_in_a_terminal_console_is_told_the_consoles_size_and_follows_a_resize`, `run::view::tests`, `workbench::tests::proofs16_run_badge::the_run_stripe_button_shows_the_number_of_running_processes`; the stripe button shows the number of running processes. Missing: tabs are drawn in the body rather than the header, and there are no test tree or stack-trace tabs"
+    "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `workbench::tests::a_run_in_a_terminal_console_is_told_the_consoles_size_and_follows_a_resize`, `run::view::tests`, `workbench::tests::proofs16_run_badge::the_run_stripe_button_shows_the_number_of_running_processes`, `workbench::tests::proofs45_test_tree::a_cargo_test_run_fills_the_tree_jumps_to_the_failure_and_reruns_only_it`, `workbench::tests::proofs45_test_tree::a_unittest_run_shows_its_tests_in_the_tree_and_its_report_in_the_console`, `workbench::tests::proofs45_test_tree::the_context_menu_of_a_failed_test_shows_its_diff_runs_it_and_jumps_to_its_source`; the stripe button shows the number of running processes. A run of tests draws its results tree beside the console; selecting a test shows that test's output with a Show all output link. Missing: tabs are drawn in the body rather than the header, and there are no stack-trace tabs; the tree has a fixed width with no split handle (src/features/run/RunView.tsx:257), a running test shows no spinner (src/features/run/TestTreeView.tsx:93), and the tree has no selection of several tests and no speed search (TestTreeView.tsx:173-176)"
   },
   "ipc:run_start": {
     "status": "done",
@@ -3124,8 +3124,8 @@
     "proof": "`editor_model::detach::tests`; the detach steps are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/workbench/menu_spec.rs:799 lists window.detachTab but no handler is registered for it and nothing constructs Detach; webview: src/features/app/windows.ts:405)"
   },
   "unit:src/editor/core/diskSync.test.ts": {
-    "status": "partial",
-    "proof": "`editor_model::disk_sync::tests`; 6 of 7 cases by name"
+    "status": "done",
+    "proof": "`editor_model::disk_sync::tests`, `workbench::tests::proofs48_disk_sync::controller_preserves_the_unchanged_documents_selection_and_scroll_then_stops_checking`; 7 of 7 cases: six on the model, which the window reaches on activation, and the controller's case through a window (the unchanged document keeps its selection and scroll, then the checking stops)"
   },
   "unit:src/editor/core/file-open-order.test.ts": {
     "status": "partial",
@@ -4424,12 +4424,12 @@
     "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the module is the preset's binding table, which the app loads verbatim from its generated copy (assets/gen/keymaps.json) and dispatches; same proof as the keymap:intellij-windows row"
   },
   "module:src/platform/keymaps/vscode-macos.ts": {
-    "status": "partial",
-    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the module is the preset's binding table, which the app loads verbatim from its generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatches. Missing: the preset now binds Meta+N to file.newUntitled and leaves file.new unbound (src/platform/keymaps/vscode-macos.ts:198-199, 951e81e06 \"untitled buffers and Save As with a file type\"); the native app registers no file.newUntitled action (no \"file.newUntitled\" under app-gpui/src), so in this preset Meta+N does nothing natively where it ran file.new before the merge"
+    "status": "done",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`, `workbench::tests::proofs48_untitled::the_vs_code_keymaps_open_an_untitled_buffer_with_cmd_n_and_ctrl_n`; the module is the preset's binding table, which the app loads verbatim from its generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatches. With this preset Meta+N opens an untitled buffer"
   },
   "module:src/platform/keymaps/vscode-windows.ts": {
-    "status": "partial",
-    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the module is the preset's binding table, which the app loads verbatim from its generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatches. Missing: the preset now binds Ctrl+N to file.newUntitled and leaves file.new unbound (src/platform/keymaps/vscode-macos.ts:198-199, 951e81e06 \"untitled buffers and Save As with a file type\"); the native app registers no file.newUntitled action (no \"file.newUntitled\" under app-gpui/src), so in this preset Ctrl+N does nothing natively where it ran file.new before the merge"
+    "status": "done",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`, `workbench::tests::proofs48_untitled::the_vs_code_keymaps_open_an_untitled_buffer_with_cmd_n_and_ctrl_n`; the module is the preset's binding table, which the app loads verbatim from its generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatches. With this preset Ctrl+N opens an untitled buffer"
   },
   "module:src/platform/keymaps/eclipse-macos.ts": {
     "status": "done",
@@ -6893,11 +6893,11 @@
   },
   "action:navigate.nextOccurrence": {
     "status": "partial",
-    "proof": "`workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`, `workbench::editor_extras::tests::the_occurrence_keys_do_nothing_without_a_project`, `workbench::editor_extras::tests::levels_and_choosers::next_and_previous_occurrence_step_the_usages_and_say_which_of_how_many`; run through the registry and by ⌥⌘↓ it steps the results of the focused, last active or a visible tool window (TODO, Problems, Find Usages), opening each, and the status bar says which of how many (1 of 2, 2 of 2 in Find Usages); with nothing to step the caret stays and nothing is said; in a window without a project it does not run. Missing: the Find, Inspection and Hierarchy tool windows do not step (the webview registers occurrence navigators for them), and a TODO step shows no i of n message"
+    "proof": "`workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`, `workbench::editor_extras::tests::the_occurrence_keys_do_nothing_without_a_project`, `workbench::editor_extras::tests::levels_and_choosers::next_and_previous_occurrence_step_the_usages_and_say_which_of_how_many`, `workbench::tests::proofs45_test_tree::next_and_previous_occurrence_step_through_the_failed_tests_of_the_run_tool_window`; run through the registry and by ⌥⌘↓ it steps the results of the focused, last active or a visible tool window (TODO, Problems, Find Usages), opening each, and the status bar says which of how many (1 of 2, 2 of 2 in Find Usages); with nothing to step the caret stays and nothing is said; in a window without a project it does not run. With the Run tool window's test tree it steps forward through the failed tests, saying which of how many, stopping at the ends, and keeps the keyboard in the tree when the step was taken there. Missing: the Find, Inspection and Hierarchy tool windows do not step (the webview registers occurrence navigators for them), and a TODO step shows no i of n message"
   },
   "action:navigate.prevOccurrence": {
     "status": "partial",
-    "proof": "`workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`, `workbench::editor_extras::tests::the_occurrence_keys_do_nothing_without_a_project`, `workbench::editor_extras::tests::levels_and_choosers::next_and_previous_occurrence_step_the_usages_and_say_which_of_how_many`; run through the registry and by ⌥⌘↑ it steps back through the results of the TODO, Problems and Find Usages tool windows, opening each, and the status bar says which of how many; in a window without a project it does not run. Missing: the Find, Inspection and Hierarchy tool windows do not step (the webview registers occurrence navigators for them), and a TODO step shows no i of n message"
+    "proof": "`workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`, `workbench::editor_extras::tests::the_occurrence_keys_do_nothing_without_a_project`, `workbench::editor_extras::tests::levels_and_choosers::next_and_previous_occurrence_step_the_usages_and_say_which_of_how_many`, `workbench::tests::proofs45_test_tree::next_and_previous_occurrence_step_through_the_failed_tests_of_the_run_tool_window`; run through the registry and by ⌥⌘↑ it steps back through the results of the TODO, Problems and Find Usages tool windows, opening each, and the status bar says which of how many; in a window without a project it does not run. With the Run tool window's test tree it steps back through the failed tests, saying which of how many, stopping at the ends, and keeps the keyboard in the tree when the step was taken there. Missing: the Find, Inspection and Hierarchy tool windows do not step (the webview registers occurrence navigators for them), and a TODO step shows no i of n message"
   },
   "action:editor.toggleRainbowBrackets": {
     "status": "done",
@@ -7173,7 +7173,7 @@
   },
   "module:src/workbench/EditorArea.tsx": {
     "status": "partial",
-    "proof": "`workbench::tests::empty_project_window::a_project_window_with_nothing_open_shows_the_status_bar_and_the_navigation_hints`, `workbench::light_edit_tabs::tests::an_empty_light_edit_pane_offers_open_file_and_dropping`; a pane with no tab shows the four navigation hints with the keymap's shortcuts and the drop remark, a click on a hint runs its action, and an open file takes their place; a single-file window whose last tab is closing offers Open File and the drop remark (its rows are asserted, not a click on them)"
+    "proof": "`workbench::tests::empty_project_window::a_project_window_with_nothing_open_shows_the_status_bar_and_the_navigation_hints`, `workbench::light_edit_tabs::tests::an_empty_light_edit_pane_offers_new_file_open_file_and_dropping`; a pane with no tab shows the four navigation hints with the keymap's shortcuts and the drop remark, a click on a hint runs its action, and an open file takes their place; a single-file window whose last tab is closing offers New File, Open File and the drop remark (src/workbench/EditorArea.tsx:21) (its rows are asserted, not a click on them)"
   },
   "context:debugCanHotSwap": {
     "status": "done",
@@ -7385,7 +7385,7 @@
   },
   "e2e:e2e/run.spec.ts": {
     "status": "partial",
-    "proof": "`workbench::tests::proofs18_e2e_run::cmd_f2_stops_a_running_process`, `workbench::tests::proofs18_e2e_run::ctrl_r_runs_the_selected_configuration_and_shows_its_output_and_exit`; 2 of 4 flows, each driven whole: the shortcut runs the selected configuration and shows its output and exit code, and the Stop shortcut ends a running process (exit code 130: the backend interrupts). Missing: Rerun Failed Tests of a Go run in the Run window, and CMake building the target before launch"
+    "proof": "`workbench::tests::proofs18_e2e_run::cmd_f2_stops_a_running_process`, `workbench::tests::proofs18_e2e_run::ctrl_r_runs_the_selected_configuration_and_shows_its_output_and_exit`, `workbench::tests::proofs45_test_tree::go_reruns_keep_each_packages_exact_failures_and_the_original_configuration`; 3 of 4 flows, each driven whole: the shortcut runs the selected configuration and shows its output and exit code, the Stop shortcut ends a running process (exit code 130: the backend interrupts), and Rerun Failed Tests of a Go run starts one rerun per package, each keeping the original arguments (e2e/run.spec.ts:84). Missing: CMake building the target before launch; and the console of the Go run shows the raw -json events"
   },
   "e2e:e2e/search.spec.ts": {
     "status": "partial",
@@ -8974,5 +8974,61 @@
   "ipc:gh_pr_view": {
     "status": "none",
     "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "action:run.rerunFailed": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs45_test_tree::rerun_failed_tests_reruns_only_the_failed_tests_and_is_refused_while_nothing_failed`, `workbench::tests::proofs45_test_tree::a_cargo_test_run_fills_the_tree_jumps_to_the_failure_and_reruns_only_it`; after a run with failures the action, and a click on the Run window's Rerun Failed Tests button, starts the configuration again for the failed tests only (the stand-in receives the one failed test's filter); while nothing failed it is refused and nothing is started (src/features/run/index.ts:661)"
+  },
+  "action:run.expandAllTests": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs45_test_tree::expand_all_and_collapse_all_run_from_the_registry_and_by_their_keys_in_the_tree`; run through the registry, by the tree header's button and by its key (⌘= and ⌘-) while the test tree has the keyboard, it opens every suite or folds back to the top-level ones; the same keys in the console change nothing (src/features/run/index.ts:682, :691)"
+  },
+  "action:run.collapseAllTests": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs45_test_tree::expand_all_and_collapse_all_run_from_the_registry_and_by_their_keys_in_the_tree`; run through the registry, by the tree header's button and by its key (⌘= and ⌘-) while the test tree has the keyboard, it opens every suite or folds back to the top-level ones; the same keys in the console change nothing (src/features/run/index.ts:682, :691)"
+  },
+  "context:run.canRerunFailed": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs45_test_tree::can_rerun_failed_is_on_after_a_run_with_failures_and_off_while_running_or_without_any`; off while the run is going, on once it ends with a failed test, off after a run of the same tab without failures (src/features/run/index.ts:110-141)"
+  },
+  "context:testTreeFocus": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs45_test_tree::test_tree_focus_is_on_in_the_tree_and_off_in_the_console_and_the_editor`, `workbench::tests::proofs45_test_tree::expand_all_and_collapse_all_run_from_the_registry_and_by_their_keys_in_the_tree`; on while the test tree has the keyboard, off in the console and in the editor after F4 or ⌘↓ jumped to the source; the keys bound with it reach the tree only then (src/features/run/testTree.ts)"
+  },
+  "unit:src/features/run/TestTreeView.test.tsx": {
+    "status": "partial",
+    "proof": "`run::test_tree::view_tests::hides_passed_tests_by_default_and_remembers_the_toggle`, `run::test_tree::view_tests::a_click_selects_without_navigating_double_click_jumps_to_the_source`, `run::test_tree::view_tests::context_menu_run_debug_the_test_and_show_diff_of_an_assertion_failure`, `run::test_tree::view_tests::steps_through_the_failed_tests_in_tree_order_and_stops_at_both_ends`, `run::test_tree::view_tests::expands_the_collapsed_suites_of_the_failure_it_selects`, `run::test_tree::view_tests::opens_the_failures_source_focusing_the_editor_only_when_asked`, `run::test_tree::view_tests::is_unavailable_when_no_test_failed`, `run::test_tree::view_tests::runs_previous_next_occurrence_so_cmd_alt_up_down_do_the_same`, `run::test_tree::view_tests::opens_every_suite_including_those_of_hidden_passed_tests_and_folds_back_to_the_top_level_suites`, `run::test_tree::view_tests::the_buttons_run_the_actions_and_are_unavailable_without_suites`; 10 of 11 cases, each driven in a window on the tree view: the filters and their stored toggle, click and double click, the context menu with Show Diff, stepping through the failures and its ends, the source opened with or without the keyboard, the header buttons, Expand All and Collapse All. Missing: the case \"enables Run and Debug only when the async selector returns support\": natively the selection is answered at once, and a plugin framework, the only one that would answer later, counts as unavailable (src/features/run/TestTreeView.tsx:208-216)"
+  },
+  "action:file.newUntitled": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs48_untitled::opens_editable_pathless_buffers_with_incrementing_names`, `workbench::tests::proofs48_light_edit_untitled::new_untitled_file_in_a_window_showing_nothing_turns_it_into_light_edit`, `workbench::tests::proofs48_untitled::the_vs_code_keymaps_open_an_untitled_buffer_with_cmd_n_and_ctrl_n`; it opens an editable buffer without a path, named Untitled-1, Untitled-2 and so on, in a project window; in a window showing nothing it first turns the window into a LightEdit one (src/features/app/windows.ts:497-508). Missing: the limit of open tabs is not applied to a new untitled tab; the native menu has a flat New Untitled File row where the webview has File › New › Untitled File (src-tauri/src/menu.rs:229); read by the integrator, not run: asked while a project is opening the webview still opens the buffer and natively it is ignored"
+  },
+  "ipc:doc_open_untitled": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs48_untitled::opens_editable_pathless_buffers_with_incrementing_names`, `workbench::tests::proofs48_untitled::reuses_the_buffer_for_a_re_opened_untitled_name_and_shares_it_across_tabs`, `workbench::tests::proofs48_untitled::reopening_a_closed_untitled_tab_gives_an_empty_buffer_of_that_name`, `workbench::tests::proofs48_untitled::the_session_never_holds_an_untitled_buffer`; a new untitled buffer is opened through the backend, a second tab of its name shares the buffer, a closed one reopened by its name is empty, and the saved session never holds one. Missing: untitled buffers are not carried into a project opened in the window's place (the webview reopens them by name, src/editor/core/model/document.ts:833), and an untitled tab has no breadcrumbs"
+  },
+  "ipc:doc_save_as": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs48_save_as::autosave_never_writes_an_untitled_buffer_explicit_save_asks_for_a_path_and_retargets_tab_and_model`, `workbench::tests::proofs48_save_as::keeps_the_buffer_open_and_dirty_when_the_save_dialog_is_cancelled`, `workbench::tests::proofs48_save_as::save_as_onto_a_file_open_in_another_tab_is_refused_and_keeps_the_buffer`, `workbench::tests::proofs48_save_as::stays_open_when_an_untitled_buffers_save_as_is_cancelled`, `workbench::tests::proofs48_save_as::close_project_counts_an_untitled_buffer_and_stays_when_its_save_as_is_cancelled`, `workbench::tests::proofs48_untitled::asks_about_a_dirty_untitled_buffer_when_its_last_tab_closes`; autosave never writes an untitled buffer; an explicit save runs the save cleanup, asks for a path in the save dialog (opened in the project, else beside the last used file, else at home), writes the file and turns every tab of the buffer into the file's tab with its language; a cancelled dialog keeps the buffer open and unsaved; a path open in another tab is refused with a notice; closing the last tab, the window or the project with an unsaved untitled buffer asks, and stays when the Save As is cancelled. Missing: the dialog offers no file types (the webview lists the registered languages, src/editor/core/untitled.test.ts:103; the toolkit's save dialog takes no filter); the Markdown and SQL layouts are not applied after Save As; Save All before a Git operation opens no Save As for untitled buffers (src/editor/core/controller.ts:2038); the close question has a Cancel button of its own where the webview has Don't Save and Save (controller.ts:1624-1631)"
+  },
+  "ipc:light_edit_open_untitled": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs48_light_edit_untitled::new_untitled_file_in_a_window_showing_nothing_turns_it_into_light_edit`; New Untitled File in a window showing nothing opens an empty LightEdit window under the app's home and the buffer in it (src/features/app/windows.ts:505)"
+  },
+  "unit:src/editor/core/untitled.test.ts": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs48_untitled::opens_editable_pathless_buffers_with_incrementing_names`, `workbench::tests::proofs48_save_as::autosave_never_writes_an_untitled_buffer_explicit_save_asks_for_a_path_and_retargets_tab_and_model`, `workbench::tests::proofs48_save_as::keeps_the_buffer_open_and_dirty_when_the_save_dialog_is_cancelled`, `workbench::tests::proofs48_untitled::asks_about_a_dirty_untitled_buffer_when_its_last_tab_closes`, `workbench::tests::proofs48_untitled::closes_an_untitled_buffer_without_saving_when_the_user_declines`, `workbench::tests::proofs48_untitled::reuses_the_buffer_for_a_re_opened_untitled_name_and_shares_it_across_tabs`; 6 of 7 cases, each through a window. Missing: the case \"offers the registered languages as save-as types\": the toolkit's save dialog takes no list of file types"
+  },
+  "ipc:doc_set_bom": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs48_bom::the_encoding_menu_adds_and_removes_the_utf8_bom_and_the_save_writes_it`, `workbench::tests::proofs48_bom::with_autosave_on_adding_the_bom_writes_the_file_at_once`, `workbench::tests::proofs48_bom::the_bom_row_is_only_for_utf8_and_disabled_for_a_read_only_file`; the encoding menu's Add UTF-8 BOM and Remove UTF-8 BOM rows, clicked, change the document's mark through the backend: the item reads UTF-8 BOM, the next save writes or drops the three bytes, and with autosave on the file is written at once; the row exists only for UTF-8 and is disabled for a read-only file (src/editor/core/view/StatusItems.tsx:384-403, :436-445)"
+  },
+  "ipc:doc_sync_from_disk": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs48_disk_sync::a_file_changed_outside_the_project_is_read_again_when_the_window_is_active_again`, `workbench::tests::proofs48_disk_sync::a_changed_file_with_unsaved_edits_keeps_them_and_a_warning_says_so`; when the window becomes active again its open files are checked against the disk through the backend: a file changed meanwhile, outside the project too, is read again; one with unsaved edits keeps them and a warning says so; with the setting off nothing is read (src/editor/core/controller.ts:466-469, its one call site)"
+  },
+  "module:src/editor/core/diskSync.ts": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs48_disk_sync::a_file_changed_outside_the_project_is_read_again_when_the_window_is_active_again`, `workbench::tests::proofs48_disk_sync::a_changed_file_with_unsaved_edits_keeps_them_and_a_warning_says_so`, `workbench::tests::proofs48_disk_sync::controller_preserves_the_unchanged_documents_selection_and_scroll_then_stops_checking`; the debounce, the setting, the follow-up of a slow check and the project that was replaced meanwhile are tested on the model; through a window the check runs on activation, follows the setting, and a LightEdit window is checked without project refreshes. Missing: the refresh of the project tree and of VCS after a check is wired (it runs the two refresh actions) and asserted on the model only: no window test shows the tree or the changes read again after an activation"
   }
 }

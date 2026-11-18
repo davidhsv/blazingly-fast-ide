@@ -1,6 +1,6 @@
 # Second-lane brief: compile, wire and prove the untitled documents draft in a worktree of your own (no whole-suite runs)
 
-You work in a second worktree, beside another agent that integrates a different draft in the main worktree and runs the whole test suite there. Your worktree: `$L` = `/Users/davidvieira/code/openidea-bazel-work/openidea/.claude/worktrees/gpui-lane2` (branch `gpui-lane2`, cut from `gpui` at the commit `git -C $L log -1` shows). `cd` into `$L` explicitly in every shell command. You never read, write or run anything in the main worktree (`…/worktrees/agent-a307dd904b5ae1f01`). The shared scratch folder is `$S` = `/private/tmp/claude-502/-Users-davidvieira--claude-personal-spares-spare-BDrKLZ/ef45d052-1f0c-4be6-a975-4f7e63cf4971/scratchpad`; your own subfolder is `$S/ddoc2/`.
+You work in a second worktree, beside another agent that integrates a different draft in the main worktree and runs the whole test suite there. Your worktree: `$L` = `(the second worktree)` (branch `gpui-lane2`, cut from `gpui` at the commit `git -C $L log -1` shows). `cd` into `$L` explicitly in every shell command. You never read, write or run anything in the main worktree (`…/worktrees/agent-a307dd904b5ae1f01`). The shared scratch folder is `$S` = `$S`; your own subfolder is `$S/ddoc2/`.
 
 Read first: `$S/int_rules.md` (hard rules and report format; where it names the main worktree or `$W`, read `$L`; its rule 12 is replaced by the gates below) and `$S/view_rules.md`.
 
