@@ -1066,3 +1066,7 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - The integrator's run died on a connection error after its gates; resumed with SendMessage to its agent id: works, the agent keeps its context.
 - Cargo is free. Next cargo slice: remote chooser (`$S/int_remote_chooser_brief.md`, fill "Changed since" with HEAD), then agents list, then visual slice 2, then wiring work.
 - `$S/undeclared_now.txt` refreshed from `verify_dswb_reach.log`.
+- RUNNING: cargo integrator REMOTE CHOOSER (`$S/int_remote_chooser_brief.md`, scratch `$S/drfci/`; when done: report → `$S/reports/int_remote_chooser.md`, verify with `verify_drfci`, rows script `parity_d175.py`, inventory `clean51`, D175).
+- Reader done: of the audit's 103 "few lines" wiring entries only 12 are a call plus a test (`$S/drafts/wiring_few_lines_batches.md`, copy in `notes/designs/`); 22 need a view, 11 are larger, 26 are not wiring items, 23 need care (trust, network, running, deleting), 4 already wired. Brief ready: `$S/int_wiring_batch1_brief.md` (fill "Changed since").
+- Cargo queue after the chooser: WIRING BATCH 1 → agents list (`$S/int_agents_list_brief.md`) → visual slice 2 → the "larger" wiring items → the plan's slices.
+- Found by the reader, owed: links in a hover do nothing (`editor/intelligence.rs:1214` ignores documentation-link clicks).
