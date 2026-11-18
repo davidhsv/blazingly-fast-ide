@@ -304,8 +304,8 @@
     "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`"
   },
   "action:toolwindow.hideActive": {
-    "status": "partial",
-    "proof": "`workbench::tests::proofs_tool_windows::hide_active_tool_window_hides_the_focused_project_view`; the focused Project view is hidden and toolWindowFocus is off; missing: with a maximized side whose window unregistered, it clears the maximized state instead of hiding a window (`src/workbench/toolwindows/store.ts:655`)"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_tool_windows::hide_active_tool_window_hides_the_focused_project_view`, `workbench::tests::proofs_tool_windows::hide_active_tool_window_clears_a_maximized_side_whose_window_went`; the focused Project view is hidden and toolWindowFocus is off. With a maximized side whose window went, it clears the maximized state instead of hiding a window"
   },
   "action:toolwindow.focusEditor": {
     "status": "done",
@@ -1128,12 +1128,12 @@
     "proof": "`workbench::tests::opening_another_project_here_asks_about_the_unsaved_changes_of_this_one`, `workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says`"
   },
   "action:file.openInNewWindow": {
-    "status": "partial",
-    "proof": "`workbench::tests::proofs3_windows::open_in_new_window_opens_the_given_or_picked_folder_in_a_new_window`; with a folder it opens it in a new window although the asking window has a project; a folder another window has brings that window to the front; without one it asks for a folder and opens the picked one in a new window; missing: the trust question comes before the new window opens (`src/features/app/windows.ts:140`)"
+    "status": "done",
+    "proof": "`workbench::tests::proofs3_windows::open_in_new_window_opens_the_given_or_picked_folder_in_a_new_window`, `workbench::app_actions::tests::a_project_opening_in_a_new_window_is_asked_about_in_this_window_first`, `workbench::app_actions::tests::open_in_new_window_opens_no_window_when_the_user_chooses_dont_open`; with a folder it opens it in a new window although the asking window has a project; a folder another window has brings that window to the front; without one it asks for a folder and opens the picked one in a new window. The trust question is asked in the current window before the new one opens, and Don't Open opens no window and decides nothing"
   },
   "action:file.openFile": {
-    "status": "partial",
-    "proof": "`workbench::tests::proofs3_windows::open_file_opens_the_picked_file_in_the_project_or_in_the_window_that_has_it`; run through the registry it asks for files; the picked file opens as a tab of the window's project; from an empty window a file of another window's project opens there and that window comes to the front; a file of no open project is edited on its own in the asking window; missing: the Welcome screen's Open File button runs it (`src/features/welcome/ProjectsPage.tsx:51`)"
+    "status": "done",
+    "proof": "`workbench::tests::proofs3_windows::open_file_opens_the_picked_file_in_the_project_or_in_the_window_that_has_it`, `workbench::welcome::tests::the_buttons_follow_the_registered_actions`, `workbench::welcome::tests::shows_the_landing_page_without_recent_projects`; run through the registry it asks for files; the picked file opens as a tab of the window's project; from an empty window a file of another window's project opens there and that window comes to the front; a file of no open project is edited on its own in the asking window. The Welcome window's Open File button runs it"
   },
   "action:window.toggleFullScreen": {
     "status": "done",
@@ -4229,7 +4229,7 @@
   },
   "action:db.newDataSource": {
     "status": "partial",
-    "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`; what the cited tests drive still holds: new data source tests and saves a sqlite file that then shows in the tree; missing: a request whose project changed while the data sources loaded is dropped (`src/features/database/requests.ts:20`)"
+    "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`; what the cited tests drive still holds: new data source tests and saves a sqlite file that then shows in the tree. Read, not tested: the native action opens its dialog at once and waits for no data sources, so it has no request to drop. Missing: a test that the dialog of one project does not act on the next (`src/features/database/requests.ts:20`)"
   },
   "action:db.properties": {
     "status": "done",
@@ -4264,24 +4264,24 @@
     "proof": "`workbench::tests::dropping_a_data_source_asks_and_removes_it_from_the_project_and_the_tree`"
   },
   "action:db.submitChanges": {
-    "status": "partial",
-    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`; what the cited tests drive still holds: edit data shows the rows submit writes an edit and revert discards one; missing: acts on the focused console result grid too (`src/features/database/ResultsView.tsx:449`); confirms the cell being edited before it runs (`src/features/database/tableEditorFocus.ts:92`)"
+    "status": "done",
+    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`, `workbench::tests::proofs43_database_results::submit_revert_and_go_to_column_reach_a_focused_console_result`; what the cited tests drive still holds: edit data shows the rows submit writes an edit and revert discards one. Acts on a focused console result grid and confirms the cell being edited before it runs, the value written to the database"
   },
   "action:db.revertChanges": {
     "status": "partial",
-    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`; what the cited tests drive still holds: edit data shows the rows submit writes an edit and revert discards one; missing: acts on the focused console result grid too (`src/features/database/ResultsView.tsx:449`); confirms the cell being edited before it runs (`src/features/database/tableEditorFocus.ts:92`)"
+    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`, `workbench::tests::proofs43_database_results::submit_revert_and_go_to_column_reach_a_focused_console_result`; what the cited tests drive still holds: edit data shows the rows submit writes an edit and revert discards one. Acts on a focused console result grid. Missing: confirming the cell being edited before Revert is not driven by a test (`src/features/database/tableEditorFocus.ts:92`)"
   },
   "action:db.editData": {
     "status": "partial",
     "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`, `workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; the table opens with its rows, from the action and from F4 in the tree only; it shows in the lower half of the Database window, not in an editor tab"
   },
   "action:db.execute": {
-    "status": "partial",
-    "proof": "`workbench::tests::execute_shows_a_querys_rows_and_its_output_lines_and_a_failing_statement_its_error`, `workbench::database_extras::tests::the_console_toolbar_chooses_the_data_source_of_a_plain_sql_file_and_executes_on_it`; the statement at the caret runs, rows and output shown; a plain .sql file with two or more sources runs on the one chosen in the toolbar; missing: a request whose project changed while the data sources loaded is dropped (`src/features/database/requests.ts:20`)"
+    "status": "done",
+    "proof": "`workbench::tests::execute_shows_a_querys_rows_and_its_output_lines_and_a_failing_statement_its_error`, `workbench::database_extras::tests::the_console_toolbar_chooses_the_data_source_of_a_plain_sql_file_and_executes_on_it`, `workbench::tests::proofs43_database_results::a_statement_waiting_for_the_data_sources_is_dropped_when_the_project_changes`; the statement at the caret runs, rows and output shown; a plain .sql file with two or more sources runs on the one chosen in the toolbar. A statement waiting for the data sources is dropped when the project changes"
   },
   "action:db.explainPlan": {
     "status": "partial",
-    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`, `workbench::database_extras::tests::the_console_banner_and_the_query_plan_tab_follow_the_runs`, `database::plan_view::tests::a_narrow_plan_puts_the_properties_under_the_tree_and_a_wide_one_beside_it`, `database::plan_view::tests::an_empty_plan_shows_no_rows`, `database::plan_view::tests::collapsing_an_operation_hides_what_is_under_it`, `database::plan_view::tests::explain_again_asks_once_until_the_new_plan_arrives`, `database::plan_view::tests::roots_the_operations_in_the_statement_with_everything_expanded`, `database::plan_view::tests::selecting_an_operation_shows_its_properties`; the statement is explained by the backend and the Query Plan tab shows the plan's tree with the selected node's properties, beside the tree in a wide pane and under it in a narrow one; running again replaces it; missing: a request whose project changed while the data sources loaded is dropped (`src/features/database/requests.ts:20`)"
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`, `workbench::database_extras::tests::the_console_banner_and_the_query_plan_tab_follow_the_runs`, `database::plan_view::tests::a_narrow_plan_puts_the_properties_under_the_tree_and_a_wide_one_beside_it`, `database::plan_view::tests::an_empty_plan_shows_no_rows`, `database::plan_view::tests::collapsing_an_operation_hides_what_is_under_it`, `database::plan_view::tests::explain_again_asks_once_until_the_new_plan_arrives`, `database::plan_view::tests::roots_the_operations_in_the_statement_with_everything_expanded`, `database::plan_view::tests::selecting_an_operation_shows_its_properties`; the statement is explained by the backend and the Query Plan tab shows the plan's tree with the selected node's properties, beside the tree in a wide pane and under it in a narrow one; running again replaces it. Read, not tested: the wait lives in the Database slot, which is rebuilt per project (`workbench/database.rs` `reset_database`), as proven for `db.execute`. Missing: the project change while the data sources load is not driven for this action (`src/features/database/requests.ts:20`)"
   },
   "action:db.openConsole": {
     "status": "partial",
@@ -4829,7 +4829,7 @@
   },
   "action:agents.forkTask": {
     "status": "partial",
-    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`; with an agent that can fork, Fork adds a third task copied from the first; missing: its failure message reads Couldn't fork the task (`src/features/agents/taskActions.ts:307`)"
+    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`, `agents::reply_actions::tests::reports_a_failed_fork_as_a_failed_fork`; with an agent that can fork, Fork adds a third task copied from the first. The failure text is \"Couldn't fork the task\", tested on the reply actions. Missing: the failure is not driven through the action in a window (`src/features/agents/taskActions.ts:307`)"
   },
   "action:agents.retractMessage": {
     "status": "done",
@@ -5457,7 +5457,7 @@
   },
   "action:debug.startConfig": {
     "status": "partial",
-    "proof": "`workbench::debug::tests::proofs_debug::debug_without_a_configuration_starts_the_only_debuggable_one`; run without a configuration, it starts the project's only configuration with a debug adapter, which stops at the breakpoint with the frame main, main.fake:2 in the Debug window's main tab; missing: the configuration's `.env` files are loaded into the debug launch (`src/features/debugger/actions.ts:369`); a JavaScript Debug (browser) configuration starts a browser debug session (`src/features/debugger/actions.ts:355`)"
+    "proof": "`workbench::debug::tests::proofs_debug::debug_without_a_configuration_starts_the_only_debuggable_one`, `debugger::actions::tests::a_debug_launch_loads_the_configurations_env_files_under_its_own_variables`, `debugger::actions::tests::a_debug_launch_without_env_files_reads_none_and_one_whose_file_is_unreadable_does_not_start`; run without a configuration, it starts the project's only configuration with a debug adapter, which stops at the breakpoint with the frame main, main.fake:2 in the Debug window's main tab. The configuration's `.env` files are loaded into the debug launch under its own variables, proven on the debugger's actions with a stand-in backend. Missing: the driver's call to the backend for the `.env` files is not run by a test; a JavaScript Debug (browser) configuration starts a browser debug session (`src/features/debugger/actions.ts:355`)"
   },
   "action:debug.forceRunToCursor": {
     "status": "done",
@@ -5477,7 +5477,7 @@
   },
   "action:agents.forkReply": {
     "status": "partial",
-    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`; Fork Conversation from Here opens a new task, docked, holding the first turn only; missing: its failure message reads Couldn't fork the task (`src/features/agents/replyActions.ts:149`)"
+    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`, `agents::reply_actions::tests::reports_a_failed_fork_as_a_failed_fork`; Fork Conversation from Here opens a new task, docked, holding the first turn only. The failure text is \"Couldn't fork the task\", tested on the reply actions. Missing: the failure is not driven through the action in a window (`src/features/agents/replyActions.ts:149`)"
   },
   "ipc:agent_fork": {
     "status": "partial",
@@ -6196,8 +6196,8 @@
     "proof": "`workbench::editor_language::tests::generate_lists_the_generate_actions_and_applies_the_chosen_one`, `workbench::editor_language::tests::proofs3_editor_keys::ctrl_o_in_the_editor_overrides_the_offered_method`, `workbench::editor_language::tests::proofs20_generate::override_methods_indents_the_inserted_method_under_the_brace`; with no override action it says Nothing to override; Ctrl-O in the editor applies the only override action the server offers, leaving the implement action. The method an override inserts is indented to the file's style under the brace"
   },
   "action:code.applyQuickFix": {
-    "status": "partial",
-    "proof": "`workbench::editor_language::tests::apply_quick_fix_applies_the_fix_of_the_problem_at_the_caret`, `workbench::editor_language::tests::proofs20_generate::apply_quick_fix_indents_the_inserted_lines_under_the_brace`; run through the registry it asks for quick fixes only and applies the preferred fix of the problem at the caret, or says No quick fixes available. The lines the applied fix inserts are indented to the file's style; missing: the fix applied is one whose code action names the problem at the caret (`src/editor/lsp/intentions.ts:154`)"
+    "status": "done",
+    "proof": "`workbench::editor_language::tests::apply_quick_fix_applies_the_fix_of_the_problem_at_the_caret`, `workbench::editor_language::tests::proofs20_generate::apply_quick_fix_indents_the_inserted_lines_under_the_brace`, `workbench::editor_language::tests::proofs41_stale_and_matching::uses_the_matching_fix_for_apply_quick_fix`; run through the registry it asks for quick fixes only and applies the preferred fix of the problem at the caret, or says No quick fixes available. The lines the applied fix inserts are indented to the file's style. The fix applied is one whose code action names the problem at the caret"
   },
   "action:navigate.nextError": {
     "status": "done",
@@ -6224,8 +6224,8 @@
     "proof": "`workbench::editor_language::tests::highlight_usages_marks_the_occurrences_and_the_caret_moves_through_them`, `workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`; run through the registry the caret goes to the previous highlighted usage at the same place in the name, wrapping; with no highlighted usages ⌃⌥↑ in the editor runs Previous Occurrence and steps back through the TODO tool window's items, as the webview's fallback does"
   },
   "action:code.quickDefinition": {
-    "status": "partial",
-    "proof": "`workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `workbench::editor_language::tests::proofs25_quick_definition::quick_definition_shows_the_whole_declaration_from_the_syntax_tree_in_colour`, `workbench::editor_language::tests::proofs25_quick_definition::quick_definition_in_the_edited_file_leaves_its_document_open`; run through the registry it shows the definition's file, line and lines in a popup with the keyboard, ← / → switch between several, and F4 opens it with the caret on it; missing: an answer that arrives after the document changed is dropped (`src/editor/lsp/hover.ts:368`)"
+    "status": "done",
+    "proof": "`workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `workbench::editor_language::tests::proofs25_quick_definition::quick_definition_shows_the_whole_declaration_from_the_syntax_tree_in_colour`, `workbench::editor_language::tests::proofs25_quick_definition::quick_definition_in_the_edited_file_leaves_its_document_open`, `workbench::editor_language::tests::proofs41_stale_and_matching::quick_definition_drops_an_answer_that_arrives_after_the_text_changed`; run through the registry it shows the definition's file, line and lines in a popup with the keyboard, ← / → switch between several, and F4 opens it with the caret on it. An answer that arrives after the document changed is dropped and its popup never shown"
   },
   "action:code.quickTypeDefinition": {
     "status": "partial",
@@ -6417,7 +6417,7 @@
   },
   "action:project.trust": {
     "status": "partial",
-    "proof": "`workbench::app_actions::tests::updates_the_running_projects_banner_after_a_backend_trust_transition`, `workbench::app_actions::tests::saves_the_parent_folder_choice_and_reuses_a_persisted_decision`, `workbench::app_actions::tests::a_project_opening_in_a_new_window_is_asked_about_in_that_window`, `workbench::tests::a_project_in_restricted_mode_runs_no_configuration_until_it_is_trusted`; Trust Project from the Restricted Mode banner, from the trust question (with its parent folder when the checkbox is ticked) and through the registry trusts the project, the banner goes and its tools run. Missing: a workspace whose attached member is untrusted is not named in the banner, and Trust Project does not ask about that member first"
+    "proof": "`workbench::app_actions::tests::updates_the_running_projects_banner_after_a_backend_trust_transition`, `workbench::app_actions::tests::saves_the_parent_folder_choice_and_reuses_a_persisted_decision`, `workbench::app_actions::tests::a_project_opening_in_a_new_window_is_asked_about_in_this_window_first`, `workbench::tests::a_project_in_restricted_mode_runs_no_configuration_until_it_is_trusted`; Trust Project from the Restricted Mode banner, from the trust question (with its parent folder when the checkbox is ticked) and through the registry trusts the project, the banner goes and its tools run. Missing: a workspace whose attached member is untrusted is not named in the banner, and Trust Project does not ask about that member first"
   },
   "action:project.previewRestricted": {
     "status": "partial",
@@ -6441,7 +6441,7 @@
   },
   "ipc:project_trust_status": {
     "status": "done",
-    "proof": "`workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::saves_the_parent_folder_choice_and_reuses_a_persisted_decision`, `workbench::app_actions::tests::a_project_opening_in_a_new_window_is_asked_about_in_that_window`; an undecided folder is asked about by its root as the store names it, a decided one and a sibling in a trusted location open without a question; the window reads TrustStore::status, as the adapter does"
+    "proof": "`workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::saves_the_parent_folder_choice_and_reuses_a_persisted_decision`, `workbench::app_actions::tests::a_project_opening_in_a_new_window_is_asked_about_in_this_window_first`; an undecided folder is asked about by its root as the store names it, a decided one and a sibling in a trusted location open without a question; the window reads TrustStore::status, as the adapter does"
   },
   "ipc:project_trust_remove_location": {
     "status": "done",
@@ -6465,7 +6465,7 @@
   },
   "module:src/platform/projectTrust.ts": {
     "status": "partial",
-    "proof": "`workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::a_project_opening_in_a_new_window_is_asked_about_in_that_window`; an opening waits for the trust question and Don't Open cancels it without a report. Missing: the local scope a remote window asks with"
+    "proof": "`workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::a_project_opening_in_a_new_window_is_asked_about_in_this_window_first`; an opening waits for the trust question and Don't Open cancels it without a report. Missing: the local scope a remote window asks with"
   },
   "action:layout.save": {
     "status": "done",
@@ -6661,7 +6661,7 @@
   },
   "action:terminal.openAt": {
     "status": "partial",
-    "proof": "`workbench::terminal_actions::tests::open_in_terminal_on_a_folder_opens_a_shell_there_named_after_it`, `workbench::terminal_actions::tests::the_terminal_actions_need_a_project`; run through the registry with a folder it opens a tab named after the folder whose shell starts there, beside the tabs already open; without a project it is refused; missing: in the agent task menu it reads Terminal and shows only for a task with its own terminal (`src/features/agents/taskActions.ts:399`)"
+    "proof": "`workbench::terminal_actions::tests::open_in_terminal_on_a_folder_opens_a_shell_there_named_after_it`, `workbench::terminal_actions::tests::the_terminal_actions_need_a_project`, `agents::task_actions::tests::offers_terminal_for_worktree_or_off_root_tasks_and_hides_it_for_local_checkout_tasks_at_the_project_root`; run through the registry with a folder it opens a tab named after the folder whose shell starts there, beside the tabs already open; without a project it is refused. The task menu's row reads Terminal and is offered only for a task with its own terminal, proven on the menu's model. Missing: the row in the agents window's task menu is not driven through a window (`src/features/agents/taskActions.ts:399`)"
   },
   "action:terminal.runCommand": {
     "status": "done",
@@ -7441,11 +7441,11 @@
   },
   "action:db.queryHistory": {
     "status": "partial",
-    "proof": "`workbench::database_extras::tests::query_history_lists_the_statements_run_and_pastes_one_into_the_console`, `workbench::tests::proofs6_database_console::delete_in_query_history_removes_the_statement_from_the_stored_history`; lists the statements run on the data source, filters them, pastes one into the console and deletes one from the stored history; missing: a request whose project changed while the data sources loaded is dropped (`src/features/database/requests.ts:20`)"
+    "proof": "`workbench::database_extras::tests::query_history_lists_the_statements_run_and_pastes_one_into_the_console`, `workbench::tests::proofs6_database_console::delete_in_query_history_removes_the_statement_from_the_stored_history`; lists the statements run on the data source, filters them, pastes one into the console and deletes one from the stored history. Read, not tested: the wait lives in the Database slot, which is rebuilt per project (`workbench/database.rs` `reset_database`), as proven for `db.execute`. Missing: the project change while the data sources load is not driven for this action (`src/features/database/requests.ts:20`)"
   },
   "action:db.goToColumn": {
     "status": "partial",
-    "proof": "`workbench::database_extras::tests::go_to_column_lists_the_columns_of_the_table_editor_with_the_keyboard`; lists the columns of the table editor, filters them by typing and moves to the chosen one with the keyboard; missing: acts on the focused console result grid too (`src/features/database/ResultsView.tsx:449`); confirms the cell being edited before it runs (`src/features/database/tableEditorFocus.ts:92`)"
+    "proof": "`workbench::database_extras::tests::go_to_column_lists_the_columns_of_the_table_editor_with_the_keyboard`, `workbench::tests::proofs43_database_results::submit_revert_and_go_to_column_reach_a_focused_console_result`; lists the columns of the table editor, filters them by typing and moves to the chosen one with the keyboard. Acts on a focused console result grid: filters as typed and Enter selects the column. Missing: confirming the cell being edited before Go to Column is not driven by a test (`src/features/database/tableEditorFocus.ts:92`)"
   },
   "ipc:db_history": {
     "status": "done",
@@ -8100,8 +8100,8 @@
     "proof": "`workbench::http_client::tests::new_http_request_creates_a_request_file_with_the_example_in_the_folder`, `workbench::http_client::tests::the_http_client_actions_run_only_where_their_when_clause_holds`; creates a request file with the example in the chosen folder; its condition is read on and off. Missing: the scratch file when there is no folder, and the hand-off to New from Template, have no test"
   },
   "action:http.openEndpoint": {
-    "status": "partial",
-    "proof": "`workbench::http_client::tests::open_in_http_client_appends_the_endpoint_to_the_generated_requests_scratch`; appends the endpoint's request to the generated requests scratch file and opens it; missing: the request uses the endpoint's module server address (`src/features/http-client/endpoints.ts:28`)"
+    "status": "done",
+    "proof": "`workbench::http_client::tests::open_in_http_client_appends_the_endpoint_to_the_generated_requests_scratch`, `workbench::http_client::tests::open_in_http_client_takes_the_server_address_of_the_endpoints_module`; appends the endpoint's request to the generated requests scratch file and opens it. The request takes the server address of the endpoint's module"
   },
   "action:http.generateSpringRequest": {
     "status": "done",
