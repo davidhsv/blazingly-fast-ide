@@ -95,6 +95,11 @@ async fn the_log_date_filter_keeps_the_commits_of_the_chosen_period(cx: &mut Tes
         git_in(root, &["commit", "-q", "-m", "recent change"]);
     });
     let log = git_log(&workbench, cx);
+    // The log opens on the current branch; the Branch chip's close button shows every branch.
+    wait_long(cx, "the log opens on the current branch", |cx| {
+        log.read_with(cx, |log, _| !log.is_loading() && log.filters().branches == ["HEAD"])
+    });
+    click_on(cx, "log-filter-clear-branch");
     wait_long(cx, "the log is read", |cx| subjects(&log, cx).len() == 3);
     assert!(subjects(&log, cx).contains(&"old change".to_owned()));
 

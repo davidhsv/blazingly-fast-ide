@@ -1,5 +1,5 @@
 use super::*;
-use crate::vcs::log_filters::FilterKind;
+use crate::vcs::log_filters::{BranchFilterRow, FilterKind};
 use crate::vcs::log_view::GitLog;
 use crate::vcs_more::log_branch_memory::remembered_log_branches;
 use std::fmt::Write as _;
@@ -210,8 +210,7 @@ async fn the_log_opens_on_the_current_branch_and_its_branch_chip_reads_head(cx: 
 async fn with_every_branch_shown_the_newest_rows_draw_their_node_and_their_subject(cx: &mut TestAppContext) {
     let (workbench, cx, _folders, _root) = git_project(cx, branches_newer_than_head);
     let log = open_log(&workbench, 60, cx);
-    let bar = log.read_with(cx, |log, _| log.filter_bar().cloned()).expect("the log has the filter bar");
-    bar.update(cx, |bar, cx| bar.clear(FilterKind::Branch, cx));
+    click_on(cx, "log-filter-clear-branch");
     wait_long(cx, "every branch is read", |cx| {
         log.read_with(cx, |log, _| !log.is_loading() && log.commits().len() == 140)
     });
@@ -269,9 +268,10 @@ async fn showing_the_git_window_gives_the_keyboard_to_the_branch_filter_field(cx
     assert!(!cx.update(|window, cx| log.focus_handle(cx).is_focused(window)), "the commit list waits for a click");
 }
 
-/// A commit made while the Git window is hidden is not read by the log until the window shows again, which lists it.
+/// A change of the repository that moves no reference leaves the log as it was read; a commit made outside, which
+/// moves HEAD, has the log read again, though the Git window is hidden.
 #[gpui_kit::test]
-async fn a_hidden_log_reads_the_repository_again_only_when_it_shows(cx: &mut TestAppContext) {
+async fn the_log_is_read_again_when_a_reference_moves_and_not_on_other_changes(cx: &mut TestAppContext) {
     let (workbench, cx, _folders, root) = git_project(cx, three_commits);
     let log = open_log(&workbench, 3, cx);
     let visible =
@@ -283,26 +283,108 @@ async fn a_hidden_log_reads_the_repository_again_only_when_it_shows(cx: &mut Tes
         }
     }
     assert!(!visible(cx), "the Git window is hidden");
+    let reads = log.read_with(cx, |log, _| log.reads());
 
-    git_dated(&root, &["commit", "-q", "--allow-empty", "-m", "later"], 10);
-    let head = git_in(&root, &["rev-parse", "HEAD"]);
+    std::fs::write(root.join("notes.txt"), "notes\n").expect("the file is written");
     let changed = IdeEvent::VcsChanged { root: ide_core::IpcPath(root.clone()) };
-    cx.update(|_, cx| cx.global::<Backend>().emit(Some("w1"), changed));
-    wait_long(cx, "the window reads the new HEAD", |cx| {
+    cx.update(|_, cx| cx.global::<Backend>().emit(Some("w1"), changed.clone()));
+    wait_long(cx, "the window reads the new file's status", |cx| {
         workbench.read_with(cx, |w, _| {
-            let commit =
-                w.vcs_state().and_then(|vcs| vcs.branch.as_ref()).and_then(|branch| branch.head_commit.clone());
-            commit.is_some_and(|commit| !commit.is_empty() && head.starts_with(&commit))
+            w.vcs_state().is_some_and(|vcs| vcs.status.iter().any(|file| file.rel_path == "notes.txt"))
         })
     });
     log.read_with(cx, |log, _| {
-        assert!(!log.is_loading(), "a hidden log reads nothing");
-        assert_eq!(log.commits().len(), 3, "a hidden log keeps what it showed");
+        assert_eq!(log.reads(), reads, "no reference moved: the log is not read again");
+        assert_eq!(log.commits().len(), 3);
     });
 
-    run_action(cx, "toolwindow.git", None);
-    wait_long(cx, "the shown log lists the new commit", |cx| {
+    git_dated(&root, &["commit", "-q", "--allow-empty", "-m", "later"], 10);
+    cx.update(|_, cx| cx.global::<Backend>().emit(Some("w1"), changed));
+    wait_long(cx, "the log lists the new commit", |cx| {
         subjects(&log, cx).first().is_some_and(|subject| subject == "later")
     });
     assert_eq!(subjects(&log, cx), ["later", "three", "two", "one"]);
+    assert!(!visible(cx), "the Git window is still hidden");
+}
+
+/// `main` with the commits "one", "two" and "three", and `feature`, forked at "two", with "feature work".
+fn main_and_feature(root: &Path) {
+    prepare(root);
+    let mut history = History::default();
+    let one = history.commit("refs/heads/main", &[], 1, "one");
+    let two = history.commit("refs/heads/main", &[one], 2, "two");
+    history.commit("refs/heads/main", &[two], 3, "three");
+    history.commit("refs/heads/feature", &[two], 4, "feature work");
+    import(root, &history, "main");
+}
+
+/// The Branch chip's value and the subjects the log lists, once the Git window of the project closed and opened
+/// again shows and its log, filtered on `branches`, has read `count` commits.
+fn reopened_log(
+    workbench: &Entity<Workbench>,
+    root: &Path,
+    (branches, count): (&[&str], usize),
+    cx: &mut VisualTestContext,
+) -> (Option<String>, Vec<String>) {
+    run_action(cx, "file.closeProject", None);
+    assert!(workbench.read_with(cx, |w, _| w.project_tree().is_none()), "the project is closed");
+    let path = root.to_path_buf();
+    workbench.update_in(cx, |workbench, window, cx| workbench.open_project(path, window, cx));
+    wait_long(cx, "the repository is read again", |cx| !branch_label(workbench, cx).is_empty());
+    if !workbench.read_with(cx, |w, _| w.is_tool_window_visible(GIT_TOOL_WINDOW)) {
+        run_action(cx, "toolwindow.git", None);
+    }
+    let log = workbench.read_with(cx, |w, _| w.git_log_view()).expect("the Git window holds the log");
+    wait_long(cx, "the log is read with the remembered filter", |cx| {
+        log.read_with(cx, |log, _| {
+            !log.is_loading() && log.filters().branches == branches && log.commits().len() == count
+        })
+    });
+    let bar = log.read_with(cx, |log, _| log.filter_bar().cloned()).expect("the log has the filter bar");
+    let chip = bar.read_with(cx, |bar, _| bar.chips().into_iter().find(|(kind, _)| *kind == FilterKind::Branch));
+    (chip.and_then(|(_, value)| value), subjects(&log, cx))
+}
+
+/// The branch chosen in the Log's Branch filter is the repository's: closed and opened again, the project's log
+/// shows that branch and its chip reads it; once the chip is cleared, the log opened again shows every branch and
+/// its chip stays empty.
+#[gpui_kit::test]
+async fn the_branch_chosen_for_the_log_is_remembered_when_the_project_is_opened_again(cx: &mut TestAppContext) {
+    let (workbench, cx, _folders, root) = git_project(cx, main_and_feature);
+    let log = open_log(&workbench, 3, cx);
+    assert_eq!(subjects(&log, cx), ["three", "two", "one"]);
+
+    let bar = log.read_with(cx, |log, _| log.filter_bar().cloned()).expect("the log has the filter bar");
+    click_on(cx, "log-filter-chip-branch");
+    let feature = |cx: &mut VisualTestContext| {
+        bar.update(cx, |bar, cx| bar.branch_lines(cx))
+            .unwrap_or_default()
+            .iter()
+            .position(|row| matches!(row, BranchFilterRow::Ref { value, .. } if value == "feature"))
+    };
+    if feature(cx).is_none() {
+        // The local branches are listed under their group, closed until it is opened.
+        let local = bar
+            .update(cx, |bar, cx| bar.branch_lines(cx))
+            .unwrap_or_default()
+            .iter()
+            .position(|row| matches!(row, BranchFilterRow::Group { label, .. } if label == "Local"));
+        let local = local.expect("the chooser lists the local branches");
+        click_on(cx, Box::leak(format!("log-filter-branch-{local}").into_boxed_str()));
+    }
+    let row = feature(cx).expect("the chooser lists feature");
+    click_on(cx, Box::leak(format!("log-filter-branch-{row}").into_boxed_str()));
+    wait_long(cx, "feature's log", |cx| subjects(&log, cx) == ["feature work", "two", "one"]);
+
+    let (chip, listed) = reopened_log(&workbench, &root, (&["feature"], 3), cx);
+    assert_eq!(chip.as_deref(), Some("feature"), "the chip reads the branch chosen before");
+    assert_eq!(listed, ["feature work", "two", "one"]);
+
+    click_on(cx, "log-filter-clear-branch");
+    let log = workbench.read_with(cx, |w, _| w.git_log_view()).expect("the Git window holds the log");
+    wait_long(cx, "every branch is read", |cx| subjects(&log, cx).len() == 4);
+    let (chip, listed) = reopened_log(&workbench, &root, (&[], 4), cx);
+    assert_eq!(chip, None, "a cleared chip stays cleared");
+    assert_eq!(listed, ["feature work", "three", "two", "one"]);
+    cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
 }

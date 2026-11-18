@@ -2,19 +2,22 @@
 //! the references on each commit, its author and its date.
 //!
 //! Commits are read a page at a time as the list is scrolled towards its end, and read again
-//! when the repository changes.
+//! when the window says HEAD or a branch tip moved.
 //!
 //! While the log's options ask for it, the details of the selected commit (its changed files and
 //! message) show to the right of the list, in a pane the window feeds. The filter bar above the
 //! list and the Branches pane to its left (while the options show it) set the log's filters: text,
 //! branches, users, dates and paths, which the log is read again with.
 
-use super::graph::{GraphCommit, GraphRow, GraphState, compute_graph, lane_color};
+use super::graph::{
+    GraphCommit, GraphRow, GraphState, LONG_EDGE, compact_lanes, compute_graph, hide_long_edges, lane_color,
+    straighten_lane_changes,
+};
 use super::log_branches::LogBranchesPane;
 use super::log_details::LogDetailsPane;
 use super::log_filters::LogFilterBar;
 use super::log_options::{LogOptions, LogSort, RefKind, STORAGE_KEY, parse_log_options, ref_labels};
-use crate::backend::{Backend, BackendEvent};
+use crate::backend::Backend;
 use crate::platform::date_format::{date_format_options, format_timestamp};
 use crate::platform::i18n::Localization;
 use crate::platform::local_time::{now_ms, utc_offset_minutes};
@@ -28,7 +31,6 @@ use gpui_kit::{
     PathBuilder, Pixels, Point, Render, ScrollStrategy, SharedString, Style, Task, UniformListScrollHandle, Window,
     div, fill, point, prelude::*, px, relative, size, uniform_list,
 };
-use ide_core::IdeEvent;
 use ide_core::IpcPath;
 use ide_vcs::{Commit, LogOrder, LogQuery};
 use std::collections::BTreeSet;
@@ -40,6 +42,9 @@ pub const PAGE: u32 = 300;
 /// Height of a commit row, and width of a graph lane.
 const ROW: f32 = 26.0;
 const LANE: f32 = 14.0;
+/// What the subject of a row keeps beside the graph, the references and the columns: a wide graph pushes the
+/// columns out of view rather than the subject.
+const SUBJECT_MIN: f32 = 120.0;
 
 /// What the log tells its window.
 #[derive(Debug, Clone, PartialEq)]
@@ -57,8 +62,6 @@ pub struct GitLog {
     /// Shared with the rows being drawn, so a frame copies no commit.
     commits: Rc<Vec<Commit>>,
     graph: Rc<Vec<GraphRow>>,
-    /// The lanes open below the last commit read, from which the next page's graph continues.
-    lanes: GraphState,
     /// Index of the selected commit.
     selected: Option<usize>,
     options: LogOptions,
@@ -69,7 +72,8 @@ pub struct GitLog {
     /// Why the log cannot be shown.
     error: Option<String>,
     scroll: UniformListScrollHandle,
-    listener: Option<u64>,
+    /// How many reads of the repository were started.
+    reads: usize,
     /// The read in flight; a newer one replaces it.
     reading: Option<Task<()>>,
     /// The details of the selection, drawn beside the list while the options show them.
@@ -94,39 +98,35 @@ fn graph_commit(commit: &Commit) -> GraphCommit {
     }
 }
 
+/// The graph rows of `commits` as the log draws them: laid out together, the long edges cut unless `long_edges`, the
+/// lanes packed side by side and their changes straightened.
+fn present_graph(commits: &[GraphCommit], long_edges: bool) -> Vec<GraphRow> {
+    let laid = compute_graph(commits, GraphState::default()).rows;
+    let edges = if long_edges { laid } else { hide_long_edges(&laid, LONG_EDGE) };
+    straighten_lane_changes(&compact_lanes(&edges))
+}
+
 impl GitLog {
     pub fn new(window_label: &str, cx: &mut Context<Self>) -> Self {
         let stored = cx.try_global::<UiStorage>().and_then(|storage| storage.get(STORAGE_KEY));
         let options = parse_log_options(stored.and_then(|text| serde_json::from_str(text).ok()).as_ref());
-        let weak = cx.weak_entity();
-        let listener = cx.try_global::<Backend>().is_some().then(|| {
-            cx.global_mut::<Backend>().listen(move |event, cx| {
-                let _ = weak.update(cx, |log, cx| log.backend_event(event, cx));
-            })
-        });
-        cx.on_release(|log, cx| {
-            if let Some(listener) = log.listener.filter(|_| cx.has_global::<Backend>()) {
-                cx.global_mut::<Backend>().unlisten(listener);
-            }
-        })
-        .detach();
         let mut log = Self {
             focus: cx.focus_handle(),
             window_label: window_label.to_owned(),
             commits: Rc::default(),
             graph: Rc::default(),
-            lanes: GraphState::default(),
             selected: None,
             options,
             loading: false,
             finished: false,
             error: None,
             scroll: UniformListScrollHandle::new(),
-            listener,
+            reads: 0,
             reading: None,
             details: None,
             selection_changed: false,
-            filters: LogFilters::default(),
+            // The current branch until the window settles the filter for the repository.
+            filters: LogFilters { branches: vec!["HEAD".to_owned()], ..LogFilters::default() },
             filter_bar: None,
             branches: None,
         };
@@ -209,8 +209,21 @@ impl GitLog {
         }
     }
 
+    /// Replaces every filter and reads the log again with them.
+    pub fn replace_filters(&mut self, filters: LogFilters, cx: &mut Context<Self>) {
+        if self.filters != filters {
+            self.filters = filters;
+            self.finished = false;
+            self.read(true, cx);
+        }
+    }
+
     pub fn set_options(&mut self, options: LogOptions, cx: &mut Context<Self>) {
+        let relayout = options.long_edges != self.options.long_edges;
         self.options = options;
+        if relayout {
+            self.present_graph();
+        }
         cx.notify();
     }
 
@@ -231,14 +244,9 @@ impl GitLog {
         self.read(true, cx);
     }
 
-    fn backend_event(&mut self, event: &BackendEvent, cx: &mut Context<Self>) {
-        if event.window.as_deref().is_some_and(|window| window != self.window_label) {
-            return;
-        }
-        // Commits, branches or the checkout moved: what is shown is read again.
-        if matches!(event.event, IdeEvent::VcsChanged { .. }) {
-            self.read(true, cx);
-        }
+    /// How many reads of the repository the log started.
+    pub fn reads(&self) -> usize {
+        self.reads
     }
 
     /// Reads the next page, or with `again` everything shown so far afresh, keeping the selected
@@ -286,12 +294,15 @@ impl GitLog {
             },
             first_parent: self.options.first_parent,
             no_merges: self.options.no_merges,
+            // A row shows the subject; the details read the whole message of the commit they show.
+            summary_only: true,
             ..LogQuery::default()
         };
         let window = self.window_label.clone();
         let page = backend
             .with_host(move |host| async move { ide_host::ops::vcs::vcs_log(&host, &window, None, query).await });
         self.loading = true;
+        self.reads += 1;
         self.reading = Some(cx.spawn(async move |log, cx| {
             let page = page.await;
             let _ = log.update(cx, |log: &mut GitLog, cx| {
@@ -317,18 +328,21 @@ impl GitLog {
         self.finished = (page.len() as u32) < asked;
         let selected = self.selected().map(|commit| commit.id.clone());
         let before = selected.clone();
-        // A page continues the graph where the last one stopped: what is already drawn is not
-        // computed again, however far the log has been scrolled.
         if again {
-            (self.commits, self.graph, self.lanes) = (Rc::default(), Rc::default(), GraphState::default());
+            self.commits = Rc::default();
         }
-        let lanes: Vec<GraphCommit> = page.iter().map(graph_commit).collect();
-        let computed = compute_graph(&lanes, std::mem::take(&mut self.lanes));
-        self.lanes = computed.state;
-        Rc::make_mut(&mut self.graph).extend(computed.rows);
         Rc::make_mut(&mut self.commits).extend(page);
+        self.present_graph();
         self.selected = selected.and_then(|id| self.commits.iter().position(|commit| commit.id == id));
         self.selection_changed = self.selected().map(|commit| &commit.id) != before.as_ref();
+    }
+
+    /// Lays out the graph of every commit read, as it is drawn: where a line goes depends on every reference read,
+    /// so a page is not laid out apart from the ones before it, and the gaps the layout leaves between lines are
+    /// packed away.
+    fn present_graph(&mut self) {
+        let commits: Vec<GraphCommit> = self.commits.iter().map(graph_commit).collect();
+        self.graph = Rc::new(present_graph(&commits, self.options.long_edges));
     }
 
     /// Selects the commit at `index` and brings it into view.
@@ -342,7 +356,7 @@ impl GitLog {
         }
         self.scroll.scroll_to_item(index, ScrollStrategy::Top);
         // Nearing the end of what is read: the next page is fetched ahead of the scroll.
-        if index + PAGE as usize / 2 >= self.commits.len() {
+        if index + PAGE as usize >= self.commits.len() {
             self.read(false, cx);
         }
         cx.notify();
@@ -354,7 +368,7 @@ impl GitLog {
             return;
         }
         let last = self.commits.len() - 1;
-        let page = 10;
+        let page = 20;
         let target = match (event.keystroke.key.as_str(), self.selected) {
             ("down", None) | ("home", _) => 0,
             ("down", Some(at)) => (at + 1).min(last),
@@ -513,13 +527,13 @@ impl GitLog {
         let selected = self.selected;
         let no_remotes = BTreeSet::new();
         let (commits, graph) = (Rc::clone(&self.commits), Rc::clone(&self.graph));
-        let width = graph.iter().map(|row| row.width).max().unwrap_or(1).min(24) as f32 * LANE;
         let list = uniform_list(
             "git-log",
             commits.len(),
             cx.processor(move |log, range: std::ops::Range<usize>, _, cx| {
-                // The rows near the end are on screen: read on.
-                if range.end + PAGE as usize / 2 >= commits.len() {
+                // A page of rows or less is left below those on screen: read on, so a quick scroll does not reach
+                // the end before the next page is read.
+                if range.end + PAGE as usize > commits.len() {
                     log.read(false, cx);
                 }
                 range
@@ -547,31 +561,55 @@ impl GitLog {
                             .pr(px(10.0))
                             .text_color(fg)
                             .when(selected == Some(index), |row| row.bg(selected_bg))
-                            .child(div().w(px(width)).h_full().flex_none().overflow_hidden().child(GraphCell {
-                                row: cell,
-                                head,
-                                colors: colors.clone(),
-                                background,
-                            }))
                             .child(
                                 div()
+                                    .debug_selector(move || format!("git-log-graph-{index}"))
+                                    .w(px(cell.width.max(1) as f32 * LANE))
+                                    .h_full()
+                                    .flex_none()
+                                    .overflow_hidden()
+                                    .child(GraphCell { row: cell, head, colors: colors.clone(), background }),
+                            )
+                            .child(
+                                div()
+                                    .debug_selector(move || format!("git-log-subject-{index}"))
                                     .flex_1()
-                                    .min_w_0()
+                                    .min_w(px(SUBJECT_MIN))
                                     .overflow_hidden()
                                     .whitespace_nowrap()
                                     .child(SharedString::from(commit.summary.clone())),
                             )
-                            .children(labels.into_iter().map(|label| {
-                                let color = ref_color(label.kind);
-                                div()
-                                    .flex_none()
-                                    .flex()
-                                    .items_center()
-                                    .gap(px(4.0))
-                                    .text_color(secondary)
-                                    .child(theme::icon(cx, "tag", 11.0, color))
-                                    .child(SharedString::from(label.text))
-                            }))
+                            // The references shrink, each to an ellipsis and down to the first one's icon, before
+                            // they crowd out the subject.
+                            .when(!labels.is_empty(), |row| {
+                                row.child(
+                                    div()
+                                        .flex()
+                                        .flex_shrink(1.0)
+                                        .min_w(px(11.0))
+                                        .overflow_hidden()
+                                        .gap(px(8.0))
+                                        .children(labels.into_iter().map(|label| {
+                                            let color = ref_color(label.kind);
+                                            div()
+                                                .flex()
+                                                .flex_shrink(1.0)
+                                                .min_w(px(11.0))
+                                                .items_center()
+                                                .gap(px(4.0))
+                                                .text_color(secondary)
+                                                .child(div().flex_none().child(theme::icon(cx, "tag", 11.0, color)))
+                                                .child(
+                                                    div()
+                                                        .min_w_0()
+                                                        .overflow_hidden()
+                                                        .whitespace_nowrap()
+                                                        .text_ellipsis()
+                                                        .child(SharedString::from(label.text)),
+                                                )
+                                        })),
+                                )
+                            })
                             .when(options.show_author, |row| {
                                 row.child(
                                     div()
@@ -586,7 +624,7 @@ impl GitLog {
                             .when(options.show_date, |row| {
                                 row.child(
                                     div()
-                                        .w(px(120.0))
+                                        .w(px(140.0))
                                         .flex_none()
                                         .overflow_hidden()
                                         .whitespace_nowrap()
@@ -676,7 +714,7 @@ impl Render for GitLog {
             .children(details.map(|pane| {
                 div()
                     .flex_none()
-                    .w(relative(0.4))
+                    .w(relative(0.28))
                     .min_w(px(220.0))
                     .h_full()
                     .border_l_1()
@@ -740,7 +778,7 @@ mod tests {
 
     /// The log of a real repository with a merged branch: newest first, a second lane for the
     /// branch, the references on their commits, the arrow keys moving the selection, and a new
-    /// commit appearing when the backend says the repository changed.
+    /// commit appearing when the log is read again.
     #[gpui_kit::test]
     async fn shows_a_repositorys_commits_with_their_graph(cx: &mut TestAppContext) {
         cx.executor().allow_parking();
@@ -795,14 +833,10 @@ mod tests {
         cx.simulate_keystrokes("end");
         assert_eq!(log.read_with(cx, |log, _| log.selected().map(|c| c.summary.clone())).as_deref(), Some("first"));
 
-        // A commit made outside: the backend's change event has the log read again, and the
-        // selected commit stays selected.
+        // A commit made outside: read again, the log lists it, and the selected commit stays
+        // selected.
         commit(&root, "d.txt", "later");
-        let changed = BackendEvent {
-            window: Some("w1".to_owned()),
-            event: IdeEvent::VcsChanged { root: ide_core::IpcPath(root.clone()) },
-        };
-        log.update(cx, |log, cx| log.backend_event(&changed, cx));
+        log.update(cx, |log, cx| log.reload(cx));
         settle(cx, "the new commit is listed", |cx| subjects(&log, cx).first().is_some_and(|s| s == "later"));
         assert_eq!(subjects(&log, cx).len(), 5);
         assert_eq!(log.read_with(cx, |log, _| log.selected().map(|c| c.summary.clone())).as_deref(), Some("first"));
@@ -837,6 +871,48 @@ mod tests {
             rows.extend(compute_graph(&commits[split..], first.state).rows);
             assert_eq!(rows, whole, "split after {split} commits");
         }
+    }
+
+    /// 3,000 commits newest first: 50 remote-tracking branches of 20 commits each, newer than the 2,000 commits of
+    /// the checked-out `main` they fork from, each from its own commit of `main`.
+    fn large_history() -> Vec<GraphCommit> {
+        let main_id = |n: usize| format!("m{n}");
+        let mut commits = Vec::new();
+        for topic in (0..50).rev() {
+            for n in (0..20).rev() {
+                let parent = if n == 0 { main_id(1999 - topic * 30) } else { format!("t{topic}-{}", n - 1) };
+                let refs = if n == 19 { vec![format!("origin/topic-{topic}")] } else { Vec::new() };
+                commits.push(GraphCommit {
+                    id: format!("t{topic}-{n}"),
+                    parents: vec![parent],
+                    refs: Some(refs),
+                    ..GraphCommit::default()
+                });
+            }
+        }
+        for n in (0..2000).rev() {
+            let refs = if n == 1999 { vec!["HEAD".to_owned(), "main".to_owned()] } else { Vec::new() };
+            let parents = if n == 0 { Vec::new() } else { vec![main_id(n - 1)] };
+            commits.push(GraphCommit { id: main_id(n), parents, refs: Some(refs), ..GraphCommit::default() });
+        }
+        commits
+    }
+
+    // Not from a spec: a measurement of laying out everything read, which the log does on every page.
+    #[test]
+    fn the_graph_of_three_thousand_commits_is_laid_out_in_one_pass() {
+        let commits = large_history();
+        assert_eq!(commits.len(), 3000);
+        let started = std::time::Instant::now();
+        let rows = present_graph(&commits, false);
+        let took = started.elapsed();
+        eprintln!("present_graph of 3000 commits: {took:?}");
+        assert_eq!(rows.len(), 3000);
+        assert_eq!((rows[0].lane, rows[0].width), (0, 1), "the newest commit opens the first lane once packed");
+        let first = present_graph(&commits[..PAGE as usize], false);
+        let second = present_graph(&commits[..2 * PAGE as usize], false);
+        let moved = (0..PAGE as usize).filter(|&index| first[index] != second[index]).count();
+        eprintln!("rows of the first page whose graph changed once the second page is read: {moved}");
     }
 
     /// A folder that is not a repository: the log says so instead of staying empty.

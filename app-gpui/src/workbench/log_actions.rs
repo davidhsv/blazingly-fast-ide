@@ -48,7 +48,7 @@ use crate::vcs_ops::git_log::{CommitMenuContext, LogCommand, commit_menu};
 use crate::vcs_ops::log_pane_actions::{
     BranchTarget, branch_arg, branch_targets, can_update_branch, new_branch_source,
 };
-use crate::vcs_ops::log_store::{GitLog as LogModel, RepoCommit};
+use crate::vcs_ops::log_store::{GitLog as LogModel, LogFilters, RepoCommit, has_filters};
 use crate::vcs_ops::menu::MenuItem;
 use crate::vcs_ops::operations::{InProgress, in_progress};
 use crate::vcs_ops::ops::vcs_notice;
@@ -802,6 +802,32 @@ async fn undo_commit(this: This, cx: &mut AsyncWindowContext, commit: Commit) ->
     })
 }
 
+/// Copy Commit Message: the whole message of `commit`, read from the repository when the log carries its subject
+/// only.
+async fn copy_commit_message(this: This, cx: &mut AsyncWindowContext, commit: Commit) -> anyhow::Result<()> {
+    let message = if commit.message_truncated {
+        let repo = vcs_state(&this, cx, |state| state.repo.clone())?;
+        let (path, revision) = (repo_path(repo.as_deref()), commit.id.clone());
+        let read =
+            call(
+                &this,
+                cx,
+                move |host, label| async move { git::vcs_log_details(&host, &label, path, revision).await },
+            )
+            .await?;
+        read.map_or_else(
+            |error| {
+                tracing::warn!("the message of {} cannot be read: {error}", commit.short_id);
+                commit.message.clone()
+            },
+            |details| details.message,
+        )
+    } else {
+        commit.message.clone()
+    };
+    this.update(cx, |_, cx| cx.write_to_clipboard(ClipboardItem::new_string(message.trim_end().to_owned())))
+}
+
 /// Edit Commit Message…: rewords one commit of the current branch without touching the index or
 /// the working tree.
 async fn edit_message(this: This, cx: &mut AsyncWindowContext, commit: Commit) -> anyhow::Result<()> {
@@ -1051,7 +1077,37 @@ async fn go_to_ref(
     let Some(id) = found.ok().and_then(|commits| commits.into_iter().next()).map(|commit| commit.id) else {
         return Ok(false);
     };
-    // A log just shown is still being read.
+    let select = |this: &This, cx: &mut AsyncWindowContext, id: &str| {
+        this.update(cx, |workbench, cx| {
+            workbench.git_log_view().is_some_and(|log| log.update(cx, |log, cx| log.select_rev(id, cx)))
+        })
+    };
+    // A commit the filters leave out is looked for with none, then in its own history.
+    let widened = [LogFilters::default(), LogFilters { branches: vec![id.clone()], ..LogFilters::default() }];
+    for filters in std::iter::once(None).chain(widened.map(Some)) {
+        if let Some(filters) = filters {
+            let (shown, failed) = this.update(cx, |workbench, cx| {
+                workbench.git_log_view().map_or((LogFilters::default(), true), |log| {
+                    let log = log.read(cx);
+                    (log.filters().clone(), log.error().is_some())
+                })
+            })?;
+            let unfiltered = filters.branches.is_empty();
+            if (unfiltered && !has_filters(&shown)) || (!unfiltered && failed) {
+                continue;
+            }
+            this.update(cx, |workbench, cx| workbench.replace_log_filters(filters, cx))?;
+        }
+        log_read(this, cx).await?;
+        if select(this, cx, &id)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+/// Waits until the log has read what it was last asked for: a log just shown or filtered is still being read.
+async fn log_read(this: &This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
     for _ in 0..200 {
         let loading =
             this.update(cx, |workbench, cx| workbench.git_log_view().is_some_and(|log| log.read(cx).is_loading()))?;
@@ -1060,9 +1116,7 @@ async fn go_to_ref(
         }
         cx.background_executor().timer(Duration::from_millis(25)).await;
     }
-    this.update(cx, |workbench, cx| {
-        workbench.git_log_view().is_some_and(|log| log.update(cx, |log, cx| log.select_rev(&id, cx)))
-    })
+    Ok(())
 }
 
 /// [`go_to_ref`], saying so when there is no such commit.
@@ -1446,8 +1500,11 @@ impl Workbench {
                 }
                 LogCommand::CopyCommitMessage(key) => {
                     let commits = workbench.log_commits(Some(&Value::String(key)), cx);
-                    if let Some(commit) = commits.first() {
-                        cx.write_to_clipboard(ClipboardItem::new_string(commit.message.trim_end().to_owned()));
+                    if let Some(commit) = commits.into_iter().next() {
+                        cx.spawn_in(window, async move |this, cx| {
+                            finished(copy_commit_message(this, cx, commit).await)
+                        })
+                        .detach();
                     }
                 }
                 other => tracing::info!("{other:?} of the commit menu is not available"),
@@ -1890,7 +1947,8 @@ mod tests {
         cx: &mut TestAppContext,
     ) {
         let (workbench, cx, _folders, root) = git_project(cx, feature_branch);
-        show_log(&workbench, 4, cx);
+        // The log opens on the current branch: the commits of main.
+        show_log(&workbench, 2, cx);
         let work = rev(&root, "feature~1");
         run_action(cx, "vcs.log.cherryPick", Some(json!([work])));
         wait_for_notice(&workbench, &format!("Cherry-picked {} “feature work”", short(&work)), cx);
@@ -2224,7 +2282,8 @@ mod tests {
         wait_for_notice(&workbench, &format!("Created tag v0 on {}", short(&first)), cx);
         assert_eq!(rev(&root, "v0^{commit}"), first);
 
-        wait_long(cx, "the log follows", |cx| log_subjects(&log, cx).len() == 3);
+        // The log shows the current branch, now from-two: first and two.
+        wait_long(cx, "the log follows", |cx| log_subjects(&log, cx) == ["two", "first"]);
         run_action(cx, "vcs.log.rebaseOntoCommit", Some(json!(three)));
         // Git moves the branch before it puts HEAD back on it: the rebase is over once it is told.
         wait_long(cx, "the rebase", |cx| {
@@ -2482,7 +2541,8 @@ mod tests {
             git_in(&other, &["push", "-q", "origin", "topic"]);
             git_in(root, &["fetch", "-q", "origin"]);
         });
-        let log = show_log(&workbench, 2, cx);
+        // The log opens on the current branch, main: Navigate finds feature's commit outside it.
+        let log = show_log(&workbench, 1, cx);
         let target = |name: &str, cx: &mut VisualTestContext| {
             let branch = workbench.read_with(cx, |w, _| {
                 w.vcs_state().and_then(|state| state.branches.iter().find(|b| !b.remote && b.name == name).cloned())
@@ -2590,11 +2650,39 @@ mod tests {
             cx.run_until_parked();
         }
         choose("Copy Commit Message", cx);
-        // A paged log may carry the subject only.
-        let copied = cx.read_from_clipboard().and_then(|item| item.text()).unwrap_or_default();
-        assert!(copied.starts_with("Second"), "{copied:?}");
+        // The log carries the subject only: the whole message is read before it is copied.
+        let clipboard = |cx: &mut VisualTestContext| cx.read_from_clipboard().and_then(|item| item.text());
+        wait_long(cx, "the message is copied", |cx| clipboard(cx).is_some());
+        assert_eq!(clipboard(cx).as_deref(), Some("Second\n\nWith a body"));
         choose("Copy Revision Number", cx);
         assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()), Some(rev(&root, "HEAD")));
+    }
+
+    /// The log lists a commit of several lines by its subject only; Copy Commit Message copies its whole message.
+    #[gpui_kit::test]
+    async fn copy_commit_message_copies_the_whole_message_of_a_commit_listed_by_its_subject(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, _root) = git_project(cx, |root| {
+            init_repo(root);
+            commit_file(root, "b.txt", "b\n", "Second\n\nWith a body\nof two lines");
+        });
+        let log = show_log(&workbench, 2, cx);
+        let listed = log.read_with(cx, |log, _| log.commits()[0].clone());
+        assert_eq!((listed.summary.as_str(), listed.message_truncated), ("Second", true), "{listed:?}");
+        log.update(cx, |log, cx| log.select(0, cx));
+        cx.write_to_clipboard(ClipboardItem::new_string(String::new()));
+        let menu = commit_menu_of(&workbench, cx);
+        let lines = |cx: &mut VisualTestContext| menu.read_with(cx, |menu, _| menu.lines().remove(0));
+        for _ in 0..lines(cx).len() {
+            if lines(cx).iter().any(|line| line == "> Copy Commit Message") {
+                break;
+            }
+            cx.simulate_keystrokes("down");
+        }
+        assert!(lines(cx).iter().any(|line| line == "> Copy Commit Message"), "{:?}", lines(cx));
+        cx.simulate_keystrokes("enter");
+        let clipboard = |cx: &mut VisualTestContext| cx.read_from_clipboard().and_then(|item| item.text());
+        wait_long(cx, "the message is copied", |cx| clipboard(cx).is_some_and(|text| !text.is_empty()));
+        assert_eq!(clipboard(cx).as_deref(), Some("Second\n\nWith a body\nof two lines"));
     }
 
     /// The commit context menu of the log's selected commit, once it shows.

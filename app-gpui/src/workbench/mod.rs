@@ -4615,6 +4615,7 @@ mod tests {
     mod proofs41_e2e_search_everywhere;
     mod proofs41_e2e_search_layout;
     mod proofs41_recent_edited;
+    mod proofs42_gitlog_real_repo;
     mod proofs4_run;
     mod proofs4_shell;
     mod proofs4_vcs;
@@ -5749,7 +5750,12 @@ mod tests {
         let subjects: Vec<String> =
             log.read_with(cx, |log, _| log.commits().iter().map(|c| c.summary.clone()).collect());
         assert_eq!(subjects, ["notes"]);
-        assert!(cx.update(|window, cx| log.focus_handle(cx).is_focused(window)), "showing it gives it the keyboard");
+        let pane = log.read_with(cx, |log, _| log.branches_pane().cloned()).expect("the log has the Branches pane");
+        let field = pane.read_with(cx, |pane, _| pane.search_field().clone());
+        assert!(
+            cx.update(|window, cx| field.focus_handle(cx).is_focused(window)),
+            "showing it gives the keyboard to the first field of its content"
+        );
 
         // The Commit window shares the left side with the Project view: it takes its place, and
         // a changed file opens from it (F4, Jump to Source).
@@ -11754,6 +11760,11 @@ for line in sys.stdin:
             pane.read_with(cx, |pane, _| !pane.is_loading() && pane.lines().len() == 2)
         });
         assert_eq!(pane.read_with(cx, |pane, _| pane.lines()), ["a.txt", "c.txt"]);
+        // The log lists commits by their subject; the body comes with the selection's details, read
+        // on the backend's runtime after the changed files.
+        wait_long(cx, "the whole message", |cx| {
+            pane.update(cx, |pane, cx| pane.message_lines(cx)).iter().any(|line| line == "With a body")
+        });
         let message = pane.update(cx, |pane, cx| pane.message_lines(cx));
         assert_eq!(message.first().map(String::as_str), Some("Second change"), "{message:?}");
         assert!(message.iter().any(|line| line == "With a body"), "{message:?}");
@@ -11829,8 +11840,9 @@ for line in sys.stdin:
             log.read_with(cx, |log, _| log.commits().iter().map(|commit| commit.summary.clone()).collect())
         };
         wait_long(cx, "the log is read", |cx| subjects(cx).contains(&"beta change".to_owned()));
-        // Without a branch filter the log shows every branch.
-        assert_eq!(subjects(cx), ["beta change", "on feature", "alpha fix", "first"]);
+        // A log whose branch filter was never chosen in the repository shows the current branch.
+        assert_eq!(subjects(cx), ["beta change", "alpha fix", "first"]);
+        assert_eq!(log.read_with(cx, |log, _| log.filters().branches.clone()), ["HEAD"]);
 
         // The text filter applies once the typing rests.
         let bar = log.read_with(cx, |log, _| log.filter_bar().cloned()).expect("the log has the filter bar");
@@ -11844,7 +11856,7 @@ for line in sys.stdin:
         for _ in 0.."alpha".len() {
             cx.simulate_keystrokes("backspace");
         }
-        wait_long(cx, "the filter cleared", |cx| subjects(cx).len() == 4);
+        wait_long(cx, "the filter cleared", |cx| subjects(cx).len() == 3);
 
         // A double click on feature in the Branches pane shows feature's log.
         let pane = log.read_with(cx, |log, _| log.branches_pane().cloned()).expect("the log has the Branches pane");

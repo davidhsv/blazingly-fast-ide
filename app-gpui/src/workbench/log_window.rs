@@ -29,17 +29,21 @@ use crate::vcs::log_filters::{LogFilterBar, LogFilterEvent, LogFilterInput};
 use crate::vcs::log_options::{LogOptions, STORAGE_KEY};
 use crate::vcs::log_view::{GitLog, GitLogEvent};
 use crate::vcs_diff::diff_input::DiffSurface;
+use crate::vcs_more::log_branch_memory::{remember_log_branches, remembered_log_branches};
 use crate::vcs_more::log_changes::{ChangeSide, LogChange, ShownChanges, compare_change_with_local, show_changes_diff};
 use crate::vcs_more::show_diff::DiffTab;
-use crate::vcs_ops::log_store::{LogFiltersPatch, RepoCommit};
+use crate::vcs_ops::log_store::{LogFilters, LogFiltersPatch, RepoCommit, refs_signature, resolve_log_branches};
 use crate::vcs_ops::ops::vcs_notice;
+use crate::vcs_ops::store::RepoHead;
 use crate::workbench::notifications::NotificationLevel;
 use gpui_kit::{App, AppContext, ClipboardItem, Context, Entity, Focusable, Subscription, Task, Window};
 use ide_core::IdeResult;
 use ide_host::Host;
 use ide_host::ops::vcs as git;
+use std::collections::BTreeMap;
 use std::future::Future;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Arc;
 
 /// The details pane of the Git tool window, with the reads it asked for.
@@ -55,8 +59,15 @@ pub(super) struct LogSlot {
     changes: Option<Task<()>>,
     stats: Option<Task<()>>,
     detail: Option<Task<()>>,
+    /// The repository the log's branch filter was settled for.
+    branch_scope: Option<String>,
+    /// HEAD, the branch tips, the heads of the repositories and the tags the log was last read at.
+    refs: Option<LogRefs>,
     _events: [Subscription; 4],
 }
+
+/// What the log's commits depend on besides its filters: when any of it moves, the log is read again.
+type LogRefs = (String, BTreeMap<String, RepoHead>, Vec<String>);
 
 fn repo_path(repo: Option<&str>) -> Option<PathBuf> {
     repo.map(PathBuf::from)
@@ -143,6 +154,7 @@ impl Workbench {
         let asked = cx.subscribe_in(&details, window, |workbench, _, event: &LogDetailsEvent, window, cx| {
             workbench.log_details_event(event, window, cx);
         });
+        let (pane, bar, shown) = (branches.clone(), filter_bar.clone(), log.clone());
         self.git_log = Some(LogSlot {
             log: log.clone(),
             details,
@@ -153,10 +165,24 @@ impl Workbench {
             changes: None,
             stats: None,
             detail: None,
+            branch_scope: None,
+            refs: None,
             _events: [selected, asked, filtered, chosen],
         });
         self.sync_log_panes(cx);
-        Panel::new(log, None)
+        // Like any tool window, the Git window gives the keyboard to the first field of its content: the Branches
+        // pane's filter while the pane shows, else the filter bar's text field.
+        Panel {
+            view: log.into(),
+            focus: Rc::new(move |cx| {
+                if shown.read(cx).options().show_branches {
+                    pane.read(cx).search_field().focus_handle(cx)
+                } else {
+                    bar.read(cx).text_field().focus_handle(cx)
+                }
+            }),
+            _events: None,
+        }
     }
 
     /// The project goes: the Git tool window's view and its reads go with it.
@@ -212,8 +238,57 @@ impl Workbench {
         }
     }
 
+    /// Settles the log's branch filter once the repository's branches are known (the choice last made there, else
+    /// the current branch; every branch in a project of several repositories), and reads the log again when HEAD,
+    /// a branch tip or a tag moved since it was read.
+    fn settle_git_log(&mut self, cx: &mut Context<Self>) {
+        let Some(vcs) = self.vcs_state().filter(|vcs| vcs.branches_loaded) else { return };
+        let repo = vcs.current_repo_root().map(str::to_owned);
+        let single = vcs.roots.len() <= 1;
+        let names: Vec<String> = vcs
+            .branches
+            .iter()
+            .filter(|branch| !branch.name.ends_with("/HEAD"))
+            .map(|branch| branch.name.clone())
+            .collect();
+        let refs =
+            (refs_signature(vcs.branch.as_ref(), &vcs.branches), vcs.heads.clone(), self.vcs_tags_and_favorites().0);
+        let settled = match repo.as_deref().filter(|_| single) {
+            Some(repo) => {
+                let remembered =
+                    cx.try_global::<UiStorage>().and_then(|storage| remembered_log_branches(storage, repo));
+                resolve_log_branches(remembered.as_deref(), &names)
+            }
+            None => Vec::new(),
+        };
+        let Some(slot) = self.git_log.as_mut() else { return };
+        let log = slot.log.clone();
+        if slot.branch_scope != repo {
+            // Settling reads the log with the settled filter, or keeps the read in flight when it is the same.
+            slot.branch_scope = repo;
+            slot.refs = Some(refs);
+            let patch = LogFiltersPatch { branches: Some(settled), ..LogFiltersPatch::default() };
+            log.update(cx, |log, cx| log.set_filters(patch, cx));
+        } else if slot.refs.as_ref() != Some(&refs) {
+            let moved = slot.refs.is_some();
+            slot.refs = Some(refs);
+            if moved {
+                log.update(cx, |log, cx| log.reload(cx));
+            }
+        }
+    }
+
+    /// Remembers the main log's branch choice for the repository, unless the project has several.
+    fn remember_log_branch_choice(&self, branches: &[String], cx: &mut Context<Self>) {
+        let vcs = self.vcs_state().filter(|vcs| vcs.roots.len() <= 1);
+        if let Some(repo) = vcs.and_then(|vcs| vcs.current_repo_root()).map(str::to_owned) {
+            remember_log_branches(cx.default_global::<UiStorage>(), &repo, branches);
+        }
+    }
+
     /// The filter bar and the Branches pane show the repository and the log's filters again.
     pub(super) fn sync_log_panes(&mut self, cx: &mut Context<Self>) {
+        self.settle_git_log(cx);
         let Some(slot) = &self.git_log else { return };
         let (log, bar, pane) = (slot.log.clone(), slot.filter_bar.clone(), slot.branches.clone());
         let input = self.log_filter_input(&log, &slot.users, cx);
@@ -239,6 +314,13 @@ impl Workbench {
         pane.update(cx, |pane, cx| pane.set_input(input, cx));
     }
 
+    /// The log reads again with `filters` in place of its own.
+    pub(super) fn replace_log_filters(&mut self, filters: LogFilters, cx: &mut Context<Self>) {
+        let Some(slot) = &self.git_log else { return };
+        slot.log.update(cx, |log, cx| log.replace_filters(filters, cx));
+        self.sync_log_panes(cx);
+    }
+
     /// The log reads again with `patch` applied to its filters.
     fn filter_log(&mut self, patch: LogFiltersPatch, cx: &mut Context<Self>) {
         let Some(slot) = &self.git_log else { return };
@@ -250,6 +332,7 @@ impl Workbench {
         match event.clone() {
             LogFilterEvent::SetFilters(patch) => self.filter_log(*patch, cx),
             LogFilterEvent::SetBranches(branches) => {
+                self.remember_log_branch_choice(&branches, cx);
                 self.filter_log(LogFiltersPatch { branches: Some(branches), ..LogFiltersPatch::default() }, cx);
             }
             LogFilterEvent::LoadUsers => {
@@ -302,6 +385,7 @@ impl Workbench {
     fn log_branches_event(&mut self, event: &BranchesPaneEvent, window: &mut Window, cx: &mut Context<Self>) {
         match event.clone() {
             BranchesPaneEvent::SetLogFilter { branches, repositories } => {
+                self.remember_log_branch_choice(&branches, cx);
                 let repositories = Some(Some(repositories).filter(|repos| !repos.is_empty()));
                 self.filter_log(LogFiltersPatch { branches: Some(branches), repositories, ..Default::default() }, cx);
             }

@@ -19,7 +19,8 @@ pub fn remembered_log_branches(storage: &UiStorage, repo: &str) -> Option<Vec<St
     Some(stored.as_array()?.iter().filter_map(Value::as_str).map(str::to_owned).collect())
 }
 
-fn remember_log_branches(storage: &mut UiStorage, repo: &str, branches: &[String]) {
+/// Remembers `branches` as the main Log's branch filter chosen for `repo`.
+pub fn remember_log_branches(storage: &mut UiStorage, repo: &str, branches: &[String]) {
     storage.set(&branch_memory_key(repo), json!(branches).to_string());
 }
 
