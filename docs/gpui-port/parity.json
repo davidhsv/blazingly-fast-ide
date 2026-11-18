@@ -341,7 +341,7 @@
   },
   "unit:src/editor/core/model/editHistory.test.ts": {
     "status": "partial",
-    "proof": "`editor::nav_history::tests`; back/forward and edit places are tested and reached; dropping places of deleted files and is_navigation are tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/editor_core.rs:156 records caret moves with navigation=false and no deletion handler calls NavigationHistory::remove_path / EditHistory::remove_path; webview: src/editor/core/controller.ts:1915)"
+    "proof": "`editor::nav_history::tests`, `workbench::editor_core::tests::back_and_last_edit_location_skip_a_file_deleted_in_the_project_view`; back/forward and edit places are tested and reached; a file deleted in the Project view is dropped from Back, Forward and Last Edit Location, through a window. Missing: caret moves are recorded with navigation=false, so is_navigation is tested on the model only (app-gpui/src/workbench/editor_core.rs, the selection-moved handler; webview: src/editor/core/controller.ts:1915); a file removed outside the app is not dropped from the histories (controller.ts:1896-1922)"
   },
   "unit:src/editor/core/model/session.test.ts": {
     "status": "done",
@@ -581,7 +581,7 @@
   },
   "module:src/platform/colorScheme.ts": {
     "status": "partial",
-    "proof": "`theme::color_scheme::tests`, `editor::command_actions::tests::proofs23_color_scheme::the_editor_draws_tokens_with_the_schemes_edits_and_the_typography_weights`, `editor::command_actions::tests::proofs23_color_scheme::offers_a_language_scheme_page_and_scopes_its_overrides_to_that_languages_editors`, `editor::command_actions::tests::proofs23_color_scheme::applies_an_explicit_scheme_to_the_editor`; the editor draws tokens with the scheme's edits and the typography weights, a language's scheme page scopes its overrides to that language's editors, and an explicit scheme applies. Missing: token backgrounds and effects, switching the scheme back when the theme turns light or dark, per-language root tokens"
+    "proof": "`theme::color_scheme::tests`, `editor::command_actions::tests::proofs23_color_scheme::the_editor_draws_tokens_with_the_schemes_edits_and_the_typography_weights`, `editor::command_actions::tests::proofs23_color_scheme::offers_a_language_scheme_page_and_scopes_its_overrides_to_that_languages_editors`, `editor::command_actions::tests::proofs23_color_scheme::applies_an_explicit_scheme_to_the_editor`, `workbench::tests::the_editor_scheme_follows_the_theme_turning_dark_or_light`; the editor draws tokens with the scheme's edits and the typography weights, a language's scheme page scopes its overrides to that language's editors, and an explicit scheme applies; a scheme of the other kind is replaced by Theme default when the theme turns light or dark, and a scheme chosen in the same change is kept. Missing: token backgrounds and effects, per-language root tokens"
   },
   "unit:src/platform/icls.test.ts": {
     "status": "partial",
@@ -1505,7 +1505,7 @@
   },
   "unit:src/features/debugger/__tests__/breakpoints.test.ts": {
     "status": "partial",
-    "proof": "`debugger::breakpoints::model::tests`, `debugger::breakpoints::store::tests`; breakpoint store, persistence and backend sync are tested and reached; missing: nothing in the app reaches it for moving breakpoints with edits (native: app-gpui/src/workbench/debug.rs:785 subscribes only to GutterPressed and never calls breakpoint_gutter::document_changed; webview: src/features/debugger/editor/breakpointGutter.ts:232)"
+    "proof": "`debugger::breakpoints::model::tests`, `debugger::breakpoints::store::tests`, `workbench::debug::tests::a_breakpoint_moves_with_the_lines_typed_or_deleted_above_it`; breakpoint store, persistence and backend sync are tested and reached; a line breakpoint moves with lines typed or deleted above it, is stored at its new line, survives a reload of the stored breakpoints, and moves once for a line the backend inserted. Missing: special breakpoints moving with edits go through the same call and have no test (src/features/debugger/editor/breakpointGutter.ts:225-238)"
   },
   "unit:src/features/debugger/__tests__/codeLines.test.ts": {
     "status": "done",
@@ -1528,8 +1528,8 @@
     "proof": "`debugger::state::tests::selects_each_stopped_thread_and_its_fresh_top_frame`, `debugger::state::tests::clears_the_old_point_while_a_new_stack_or_selected_thread_is_loading`, `debugger::state::tests::ignores_a_stack_response_from_an_earlier_stop_on_the_same_thread`, `debugger::state::tests::keeps_the_selected_paused_thread_when_only_another_thread_continues`, `debugger::state::tests::clears_the_execution_point_when_continued_or_terminated`, `debugger::state::tests::proofs11_execution_state::retains_locals_whose_names_are_object_prototype_properties`, `debugger::state::tests::clears_suspended_data_before_a_step_or_continue_request_resolves`, `debugger::state::tests::restores_suspended_data_if_the_command_fails_without_a_newer_event`, `debugger::state::tests::does_not_restore_an_older_stop_when_a_failed_command_has_already_stopped_again`, `debugger::state::tests::discards_locals_from_an_earlier_stop_even_when_the_frame_id_is_reused`; 10 of 14 cases; not covered: counts stops per session; reloads the selected frame's variables without counting a stop; reloads for areas %j; changes nothing while the program runs or for other areas; a per-session stop count and a variables epoch do not exist natively (only a global stop_seq)"
   },
   "unit:src/features/debugger/__tests__/hotswap.test.ts": {
-    "status": "partial",
-    "proof": "`debugger::hotswap::tests`; Reload Changed Classes is tested and reached from the Run menu; its editor context menu entry is tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/context_menus.rs:469 builds the editor menu without it, debugger::hotswap::hot_swap_menu_action has no production caller; webview: src/features/debugger/index.ts:99)"
+    "status": "done",
+    "proof": "`debugger::hotswap::tests`, `workbench::context_menus::tests::the_editor_menu_offers_reload_changed_classes_on_a_java_file_while_a_session_can_reload`; Reload Changed Classes is tested and reached from the Run menu, and the editor's context menu offers it on a Java file while a session can reload, not without a session and not on another file"
   },
   "unit:src/features/debugger/__tests__/java.test.ts": {
     "status": "partial",
@@ -2336,8 +2336,8 @@
     "proof": "`editor_commands::indent_guides::tests`; 4 of 18 cases; added upstream and not covered: 'is the guide in the caret's column whose block holds the caret line (IDEA)', 'is none in column 0, between indent units, in text, or on the closing line', 'is the matched brace colour's guide while the caret is at a brace of a multi-line block', 'draws the brace guide over the caret's', 'draws that guide on its lines in the selected colour' and 9 more; before the merge this row was model only: its tests are of code the app did not reach"
   },
   "unit:src/editor/core/cm/selectionMarks.test.ts": {
-    "status": "partial",
-    "proof": "`editor_commands::selection_marks::tests`; the repainted selection ranges are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/editor/view.rs:2665 paints mark backgrounds after the selection and never calls selection_marks::selected_ranges; webview: src/editor/core/cm/selectionMarks.ts:32)"
+    "status": "done",
+    "proof": "`editor_commands::selection_marks::tests`, `workbench::tests::proofs18_e2e_editor::the_selection_inside_a_find_match_is_painted_over_the_matchs_background`; the repainted selection ranges are tested on the model, and through a window the selection inside a find match is painted after the match's background (asserted on the recorded paint order)"
   },
   "unit:src/editor/core/cm/regions.test.ts": {
     "status": "done",
@@ -3225,11 +3225,11 @@
   },
   "unit:src/features/todo/PreviewEditor.test.tsx": {
     "status": "partial",
-    "proof": "`features_a::todo::tests`; the state and logic of 4 of 7 cases, on the model; the view is not built"
+    "proof": "`features_a::todo::tests`, `workbench::tests::proofs16_todo_run_pending::the_todo_preview_edits_the_file_and_moves_its_caret_to_another_item_of_the_same_file`, `workbench::tests::proofs16_todo_run_pending::an_edit_in_the_todo_preview_survives_another_file_and_save_all_writes_it`; the state and logic of 4 of 7 cases on the model; through a window the preview is an editable editor of the file, follows another item of the same file, and holds unsaved edits across files. Missing: the three remaining cases of the spec were not compared with the native preview one by one (src/features/todo/PreviewEditor.test.tsx)"
   },
   "unit:src/features/todo/TodoView.test.tsx": {
-    "status": "partial",
-    "proof": "`features_a::todo::tests`, `features_a::todo_view::tests`; TODO scanning, grouping and filters are tested and reached; the editable preview's held documents are tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/workbench/todo_window.rs:375 opens the preview with read_only: true and never uses HeldPreviews; webview: src/features/todo/PreviewEditor.tsx:29)"
+    "status": "done",
+    "proof": "`features_a::todo::tests`, `features_a::todo_view::tests`, `workbench::tests::proofs16_todo_run_pending::the_todo_preview_edits_the_file_and_moves_its_caret_to_another_item_of_the_same_file`, `workbench::tests::proofs16_todo_run_pending::an_edit_in_the_todo_preview_survives_another_file_and_save_all_writes_it`; TODO scanning, grouping and filters are tested and reached; the preview edits the item's file and moves its caret to another item of the same file; a preview with unsaved edits is held when another file is previewed, written by Save All and shown again with its text"
   },
   "unit:src/features/todo/todo.test.ts": {
     "status": "partial",

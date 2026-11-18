@@ -49,7 +49,9 @@ Order: the rows in the order listed. When about two thirds of your budget is use
 
 ## Changed since
 
-BEFORE LAUNCH (for the manager; delete this paragraph then): say HEAD, what landed since the ranking (`0b0ad9528`), and refresh `$S/undeclared_now.txt`.
+HEAD is the commit after `98f7405fc`. Since the rows were ranked (`0b0ad9528`) one integration landed (wiring batch 1): it changed `debugger/driver.rs`, `editor/intelligence.rs`, `editor/view.rs` (`EditorEvent::Edited` gained the text before the edit), `theme/scheme_runtime.rs`, `workbench/context_menus.rs`, `workbench/debug.rs`, `workbench/editor_core.rs`, `workbench/mod.rs`, `workbench/project_files.rs`, `workbench/todo_window.rs`. None of this slice's rows was touched by it.
+
+The other agents' undeclared drafts now in the tree are listed in `$S/undeclared_now.txt`: leave every file named there alone. Tests that wait on a process or on the file system have failed under a machine load above 100 when they asserted right after a wait that did not cover what they assert: make every wait cover exactly what the next assertion needs. Eight tests that wait for a run or debug process to stop timed out once under such a load (`workbench::debug::tests::proofs40_debug_guards::*`, `workbench::tests::proofs18_e2e_run::cmd_f2_stops_a_running_process`, `workbench::tests::proofs40_run_start::*`): if they fail in your whole-suite runs, quote them and go on.
 
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 
