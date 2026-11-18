@@ -48,7 +48,9 @@ Order: the rows in the order listed. When about two thirds of your budget is use
 
 ## Changed since
 
-BEFORE LAUNCH (for the manager; delete this paragraph then): say HEAD, what landed since the ranking (`0b0ad9528`), and refresh `$S/undeclared_now.txt`.
+HEAD is `e7a41fddf` (the worktree is clean except docs the manager is editing: do not touch `docs/`). Since the ranking (`0b0ad9528`) landed: wiring batch 1 (`98f7405fc`), harvest H2 (`5b90b6556`: the fork failures, Squash Into, Update on the current branch, Go to Test's chooser, the log's remembered branches and others) and harvest H3 (`e7a41fddf`: the editor now applies the inspection profile to a server's problems; tests for Find Usages' syntax fallback, plugin settings scope, tool window menus, Build Module's menu row, the server status popup, templates, locale catalogues, plugin storage and reveal). `context:dbTableEditorFocus` is at parity now (`workbench::tests::proofs43_database_results::submit_revert_and_go_to_column_reach_a_focused_console_result`): if a row below repeats its clause, cite that test and move on. The undeclared files to leave alone are listed in `$S/undeclared_now.txt` (refreshed at this HEAD). The suite at this HEAD: 8,415 tests, twice, no failure.
+
+Lessons of the two harvests before this one: read the native caller before believing a row's text (six of seventeen row texts were stale or false last time); an empty IPC row whose native caller turns out not to exist is a correction, report it with the webview's `file:line` and go on; a mutation must be of code under `app-gpui/` (when the code a test exercises lives under `crates/`, say so and name the line: the manager runs that mutation).
 
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 
