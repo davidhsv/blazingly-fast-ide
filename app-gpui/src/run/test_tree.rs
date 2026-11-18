@@ -8,4 +8,8 @@ pub mod view;
 mod view_tests;
 
 pub use model::{RunTests, can_rerun_failed, rerun_failed_starts, rerun_failed_target};
+
+/// The context key that is on while the test tree has the keyboard: Expand All and Collapse All
+/// take their keys then.
+pub const TEST_TREE_FOCUS: &str = "testTreeFocus";
 pub use view::{TestTreeCommand, TestTreeEvent, TestTreeView, TreeSession};

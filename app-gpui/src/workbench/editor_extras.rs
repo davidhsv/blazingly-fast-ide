@@ -220,6 +220,9 @@ impl Workbench {
                 PROBLEMS_TOOL_WINDOW => self
                     .problems_view()
                     .map(|view| view.update(cx, |view, cx| view.step_occurrence(direction, focus_editor, cx))),
+                super::RUN_TOOL_WINDOW => self
+                    .run_test_tree(cx)
+                    .map(|tree| tree.update(cx, |tree, cx| tree.step_failed(direction, focus_editor, cx))),
                 TODO_TOOL_WINDOW => self.todo_window_view().map(|view| {
                     let forward = direction == Direction::Next;
                     view.update(cx, |view, cx| view.select_occurrence(forward, focus_editor, cx));

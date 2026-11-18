@@ -5,7 +5,7 @@ use super::*;
 async fn reloaded(cx: &mut TestAppContext, label: &str, root: &str) -> Entity<RunDriver> {
     let driver = cx.update(|cx| {
         let store = cx.new(|_| RunStore::new());
-        cx.new(|_| RunDriver::new(label, store))
+        cx.new(|cx| RunDriver::new(label, store, cx))
     });
     let (sender, done) = oneshot::channel();
     driver.update(cx, |driver, cx| {

@@ -16,12 +16,13 @@ use crate::platform::{input, keymap};
 use crate::run::ansi::{AnsiColor, SpanStyle};
 use crate::run::config_types::RunConfigTypes;
 use crate::run::configs::cwd_of;
-use crate::run::console::{ChunkKind, ConsoleLine, ConsoleModel};
+use crate::run::console::{ChunkKind, ConsoleLine, ConsoleModel, ConsoleOptions};
 use crate::run::links::{FileTarget, OutputLink, find_output_links};
 use crate::run::navigate::run_directory;
 use crate::run::segments::{SegmentMark, segment_line};
 use crate::run::sessions::{failed, finished_tooltip, session_icon};
 use crate::run::store::{RunSession, RunStore, SessionStatus};
+use crate::run::test_tree::{RunTests, TestTreeEvent, TestTreeView, TreeSession, can_rerun_failed};
 use crate::run_producers::console_folds::{DisplayRow, Fold, fold_rows};
 use crate::theme;
 use crate::ui::console_find::{FindOptions, FindResult, LineMatcher, MAX_MATCHES, find_in_lines};
@@ -29,10 +30,10 @@ use crate::ui::text_field::{TextField, TextFieldEvent};
 use crate::ui::tooltip::WithTooltip;
 use crate::vcs_ops::menu::MenuItem;
 use gpui_kit::{
-    AnyElement, App, ClipboardItem, Context, Div, Entity, EventEmitter, FocusHandle, Focusable, FollowMode, Font,
-    FontStyle, FontWeight, Hsla, InteractiveText, IntoElement, Keystroke, ListAlignment, ListState, Modifiers,
+    AnyElement, App, ClickEvent, ClipboardItem, Context, Div, Entity, EventEmitter, FocusHandle, Focusable, FollowMode,
+    Font, FontStyle, FontWeight, Hsla, InteractiveText, IntoElement, Keystroke, ListAlignment, ListState, Modifiers,
     MouseButton, MouseDownEvent, Pixels, Point, Render, SharedString, Stateful, StrikethroughStyle, StyledText,
-    Subscription, TextRun, UnderlineStyle, Window, div, font, list, prelude::*, px,
+    Subscription, TextRun, UnderlineStyle, Window, div, font, list, prelude::*, px, relative,
 };
 use ide_core::settings::ConsoleSettings;
 use ide_run::RunConfig;
@@ -43,6 +44,9 @@ use std::rc::Rc;
 const ROW: f32 = 20.0;
 /// Width of the toolbar beside the console.
 const TOOLBAR_WIDTH: f32 = 32.0;
+/// The test tree's share of the session's width beside the console, and its least width.
+const TEST_TREE_SHARE: f32 = 0.32;
+const TEST_TREE_MIN_WIDTH: f32 = 140.0;
 
 /// What the Run tool window asks of its window.
 #[derive(Clone, Debug, PartialEq)]
@@ -71,6 +75,10 @@ pub enum RunViewEvent {
     },
     /// Show the console's context menu ([`RunView::console_menu`]) here.
     ShowMenu(Point<Pixels>),
+    /// Rerun Failed Tests of the session.
+    RerunFailed(String),
+    /// What the test tree asks of the window (its selection is the view's own business).
+    Tree(TestTreeEvent),
     /// The terminal console of the session fits `cols` × `rows` cells: its process's terminal
     /// follows.
     Resize {
@@ -79,6 +87,9 @@ pub enum RunViewEvent {
         rows: u16,
     },
 }
+
+/// What the shown test output was made from: session, start, test and results version.
+type TestOutputKey = (String, u64, String, u64);
 
 /// A row of the console's context menu.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -162,6 +173,16 @@ fn pasted(pending: &str, text: &str) -> (Vec<String>, String) {
 pub struct RunView {
     store: Entity<RunStore>,
     types: Rc<RunConfigTypes>,
+    tests: Entity<RunTests>,
+    /// The test tree beside the console of a test run.
+    test_tree: Entity<TestTreeView>,
+    /// The shown session runs tests: the tree and Rerun Failed Tests are shown.
+    has_tests: bool,
+    /// Rerun Failed Tests can run for the shown session.
+    can_rerun_failed: bool,
+    /// The output of the test selected in the tree, which the console shows instead of the whole
+    /// output; with what it was made from (session, start, test, results version).
+    test_output: Option<(TestOutputKey, ConsoleModel)>,
     /// The console's keyboard focus: typed input, ⌘F, ⌘A.
     focus: FocusHandle,
     list: ListState,
@@ -199,7 +220,12 @@ pub struct RunView {
 impl EventEmitter<RunViewEvent> for RunView {}
 
 impl RunView {
-    pub fn new(store: Entity<RunStore>, types: Rc<RunConfigTypes>, cx: &mut Context<Self>) -> Self {
+    pub fn new(
+        store: Entity<RunStore>,
+        types: Rc<RunConfigTypes>,
+        tests: Entity<RunTests>,
+        cx: &mut Context<Self>,
+    ) -> Self {
         let placeholder = cx.default_global::<Localization>().0.tx("Find in console");
         let field = cx.new(|cx| TextField::new(cx).with_placeholder(placeholder));
         let list = ListState::new(0, ListAlignment::Top, px(400.0));
@@ -210,10 +236,22 @@ impl RunView {
             let _ = scrolled.update(cx, |view, cx| view.scrolled(following, cx));
         });
         let focus = cx.focus_handle();
+        let test_tree = cx.new(|cx| TestTreeView::new(tests.clone(), cx));
         let subscriptions = vec![
             cx.observe(&store, |view, _, cx| {
                 view.refresh(cx);
                 cx.notify();
+            }),
+            cx.observe(&tests, |view, _, cx| {
+                view.refresh(cx);
+                cx.notify();
+            }),
+            cx.subscribe(&test_tree, |view, _, event: &TestTreeEvent, cx| match event {
+                TestTreeEvent::Selected { .. } => {
+                    view.refresh(cx);
+                    cx.notify();
+                }
+                other => cx.emit(RunViewEvent::Tree(other.clone())),
             }),
             cx.subscribe(&field, |view, _, event: &TextFieldEvent, cx| {
                 if *event == TextFieldEvent::Changed {
@@ -250,6 +288,11 @@ impl RunView {
         let mut view = Self {
             store,
             types,
+            tests,
+            test_tree,
+            has_tests: false,
+            can_rerun_failed: false,
+            test_output: None,
             focus,
             list,
             rows: Rc::default(),
@@ -336,6 +379,9 @@ impl RunView {
     }
 
     fn console<'a>(&'a self, store: &'a RunStore) -> Option<&'a ConsoleModel> {
+        if let Some((_, output)) = &self.test_output {
+            return Some(output);
+        }
         if self.terminal.is_some() {
             return self.terminal.as_ref();
         }
@@ -385,8 +431,12 @@ impl RunView {
         self.rows.iter().filter_map(line).collect()
     }
 
-    /// The notice over the console: how many earlier lines the cycle buffer discarded.
+    /// The notice over the console: the link back to all output while a test's output is shown,
+    /// else how many earlier lines the cycle buffer discarded.
     pub fn notice(&self, cx: &mut App) -> Option<String> {
+        if self.test_output.is_some() {
+            return Some(tx(cx, "Show all output"));
+        }
         let dropped = self.console(self.store.read(cx)).map_or(0, ConsoleModel::dropped);
         if dropped == 0 {
             return None;
@@ -518,8 +568,72 @@ impl RunView {
     // ---------------------------------------------------------------------------------------------
     // Keeping up with the store
 
+    /// The test tree of the shown session, while it runs tests.
+    pub fn test_tree(&self) -> Option<&Entity<TestTreeView>> {
+        self.has_tests.then_some(&self.test_tree)
+    }
+
+    /// Whether the test tree has the keyboard.
+    pub fn test_tree_focused(&self, window: &Window, cx: &App) -> bool {
+        self.has_tests && self.test_tree.focus_handle(cx).contains_focused(window, cx)
+    }
+
+    /// Whether the Rerun Failed Tests button is enabled.
+    pub fn can_rerun_failed(&self) -> bool {
+        self.can_rerun_failed
+    }
+
+    /// Shows the shown session's tests in the tree and, while a test with output is selected, that
+    /// output in the console. Tells whether what the console shows changed.
+    fn sync_tests(&mut self, cx: &mut Context<Self>) -> bool {
+        let store = self.store.read(cx);
+        let tests = self.tests.read(cx);
+        let session = self.current(store).filter(|session| tests.results(&session.id).is_some());
+        let tree = session.map(|session| TreeSession {
+            id: session.id.clone(),
+            running: session.is_live(),
+            cwd: run_directory(self.project_root.as_deref(), cwd_of(&session.config)),
+            base_config: store.base_config_of(session).clone(),
+        });
+        self.can_rerun_failed = session.is_some_and(|session| can_rerun_failed(store, tests, &session.id));
+        self.has_tests = tree.is_some();
+        self.test_tree.update(cx, |view, cx| view.show(tree, cx));
+        let key = {
+            let tree = self.test_tree.read(cx);
+            let session = tree.session_id();
+            let tests = self.tests.read(cx);
+            session.zip(tree.selected()).and_then(|(session, test)| {
+                let version = tests.results(session)?.version;
+                Some((session.to_owned(), tests.generation(session)?, test.to_owned(), version))
+            })
+        };
+        if key.as_ref() == self.test_output.as_ref().map(|(shown, _)| shown) {
+            return false;
+        }
+        let shown = self.test_output.is_some();
+        let lines = key.as_ref().and_then(|_| self.test_tree.read(cx).selected_output(cx));
+        self.test_output = key.zip(lines).map(|(key, lines)| {
+            let mut console = ConsoleModel::new(ConsoleOptions::default());
+            console.append(ChunkKind::Stdout, &(lines.join("\n") + "\n"));
+            console.flush();
+            (key, console)
+        });
+        shown || self.test_output.is_some()
+    }
+
+    /// Show all output: the console shows the whole output again.
+    pub fn show_all_output(&mut self, cx: &mut Context<Self>) {
+        self.test_tree.update(cx, |tree, cx| tree.select(None, cx));
+    }
+
     /// Brings the rows in line with the shown session's console; another tab starts afresh.
     fn refresh(&mut self, cx: &mut Context<Self>) {
+        let swapped = self.sync_tests(cx);
+        if swapped {
+            // The console shows other lines: its rows start afresh.
+            self.keys.clear();
+            self.all_selected = false;
+        }
         let store = self.store.read(cx);
         let current = self.current(store).map(|session| {
             let version = store.versions.get(&session.id).copied().unwrap_or(0);
@@ -542,7 +656,7 @@ impl RunView {
         // A process that starts or stops taking input adds or removes the input row.
         let input_listed = self.keys.last() == Some(&RowKey::Input);
         let unchanged = self.shown.as_ref().is_some_and(|(_, shown)| *shown == version) && !self.keys.is_empty();
-        if !switched && unchanged && input_listed == self.input_row(store) {
+        if !switched && !swapped && unchanged && input_listed == self.input_row(store) {
             return;
         }
         self.terminal = terminal.then(|| {
@@ -1223,6 +1337,19 @@ impl RunView {
                 )
                 .with_tooltip_shortcut("Debug", "run.debug"),
             )
+            .when(self.has_tests, |el| {
+                let session = session.id.clone();
+                el.child(
+                    self.tool_button(
+                        "run-rerun-failed",
+                        "rerun",
+                        ButtonState { enabled: self.can_rerun_failed, danger: true, ..on },
+                        cx,
+                        move |_, _, cx| cx.emit(RunViewEvent::RerunFailed(session.clone())),
+                    )
+                    .with_tooltip_shortcut("Rerun Failed Tests", "run.rerunFailed"),
+                )
+            })
             .child(
                 self.tool_button(
                     "run-stop",
@@ -1526,8 +1653,13 @@ impl Render for RunView {
         let console =
             list(self.list.clone(), cx.processor(|view, ix, window, cx| view.render_row(ix, window, cx))).size_full();
         let focused = self.focus.is_focused(window);
+        let tree = self.has_tests.then(|| {
+            div().w(relative(TEST_TREE_SHARE)).min_w(px(TEST_TREE_MIN_WIDTH)).h_full().child(self.test_tree.clone())
+        });
+        let link = self.test_output.is_some();
+        let (link_color, link_hover) = (theme::color(cx, "link"), theme::color(cx, "link-hover"));
         root.child(self.render_tabs(cx)).child(
-            div().flex_1().min_h_0().flex().child(self.render_toolbar(&session, cx)).child(
+            div().flex_1().min_h_0().flex().child(self.render_toolbar(&session, cx)).children(tree).child(
                 div()
                     .flex_1()
                     .min_w_0()
@@ -1535,15 +1667,28 @@ impl Render for RunView {
                     .flex()
                     .flex_col()
                     .children(notice.map(|notice| {
+                        let text = div().child(SharedString::from(notice));
+                        let text = if link {
+                            text.id("run-show-all-output")
+                                .debug_selector(|| "run-show-all-output".to_owned())
+                                .cursor_pointer()
+                                .text_color(link_color)
+                                .hover(move |el| el.text_color(link_hover).underline())
+                                .on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.show_all_output(cx)))
+                                .into_any_element()
+                        } else {
+                            text.into_any_element()
+                        };
                         div()
                             .flex_none()
+                            .flex()
                             .px(px(12.0))
                             .py(px(4.0))
                             .text_size(theme::length(cx, "fs-small"))
                             .text_color(theme::color(cx, "fg-subtle"))
                             .border_b_1()
                             .border_color(theme::color(cx, "border"))
-                            .child(SharedString::from(notice))
+                            .child(text)
                     }))
                     .when(self.find.open, |el| el.child(self.render_find_bar(cx)))
                     .child(
@@ -1712,7 +1857,8 @@ mod tests {
         });
         let store = cx.update(|cx| cx.new(|_| store));
         let shared = store.clone();
-        let (view, cx) = cx.add_window_view(|_, cx| RunView::new(shared, types(), cx));
+        let tests = cx.update(|cx| cx.new(|_| RunTests::new()));
+        let (view, cx) = cx.add_window_view(|_, cx| RunView::new(shared, types(), tests, cx));
         let events: Events = Rc::default();
         let seen = Rc::clone(&events);
         cx.update(|_, cx| {

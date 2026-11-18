@@ -464,7 +464,7 @@ async fn a_main_gets_a_run_mark_whose_menu_offers_to_run_and_to_modify_its_confi
     });
     let editor = open(&workbench, &root, "hello.rs", cx);
     wait_long(cx, "the run mark", |cx| {
-        workbench.read_with(cx, |w, _| w.editor_gutter_run_marks(&editor)) == [(0, "gutter-run")]
+        workbench.read_with(cx, |w, cx| w.editor_gutter_run_marks(&editor, cx)) == [(0, "gutter-run")]
     });
     let (bookmarks, run) = editor.read_with(cx, |editor, cx| {
         (editor.gutter_column("bookmarks", cx).expect("bookmarks"), editor.gutter_column("run", cx).expect("run"))
@@ -503,7 +503,7 @@ async fn a_package_json_script_gets_a_run_mark_whose_menu_runs_it_with_the_lockf
     });
     let editor = open(&workbench, &root, "package.json", cx);
     wait_long(cx, "the script's mark", |cx| {
-        workbench.read_with(cx, |w, _| w.editor_gutter_run_marks(&editor)) == [(3, "gutter-run")]
+        workbench.read_with(cx, |w, cx| w.editor_gutter_run_marks(&editor, cx)) == [(3, "gutter-run")]
     });
     let mark = mark_of(&editor, "run-gutter", 3);
     wait_long(cx, "the mark is drawn", |cx| cx.debug_bounds(mark).is_some());
@@ -543,7 +543,9 @@ async fn an_open_editor_asks_the_backend_nothing_while_nothing_changes(cx: &mut 
         std::fs::write(root.join("hello.rs"), "fn main() {}\n").expect("written");
     });
     let rust = open(&workbench, &root, "hello.rs", cx);
-    wait_long(cx, "the run mark", |cx| workbench.read_with(cx, |w, _| w.editor_gutter_run_marks(&rust).len() == 1));
+    wait_long(cx, "the run mark", |cx| {
+        workbench.read_with(cx, |w, cx| w.editor_gutter_run_marks(&rust, cx).len() == 1)
+    });
     let editor = open(&workbench, &root, "b.txt", cx);
     wait_long(cx, "the bars", |cx| drawn_lane(&editor, cx).len() == 3);
     asked(&workbench, &editor, cx);

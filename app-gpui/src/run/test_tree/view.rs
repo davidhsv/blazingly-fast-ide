@@ -95,8 +95,8 @@ pub struct TestTreeView {
     selected: Option<String>,
     index: Rc<TreeIndex>,
     rows: Rc<Vec<TestRow>>,
-    /// What the index was built from: session, results version, filters.
-    built: Option<(String, u64, TestFilters)>,
+    /// What the index was built from: session, its start, results version, filters.
+    built: Option<(String, u64, u64, TestFilters)>,
     /// A failed test before / after the selection.
     has_failed: (bool, bool),
     /// The run's counts and printed duration, as of the index.
@@ -155,8 +155,9 @@ impl TestTreeView {
     /// Rebuilds the index when the results or the filters changed, then the rows.
     fn sync(&mut self, cx: &App) {
         let key = self.session.as_ref().and_then(|session| {
-            let results = self.tests.read(cx).results(&session.id)?;
-            Some((session.id.clone(), results.version, self.filters))
+            let tests = self.tests.read(cx);
+            let results = tests.results(&session.id)?;
+            Some((session.id.clone(), tests.generation(&session.id)?, results.version, self.filters))
         });
         if key.is_some() && key == self.built {
             return;
@@ -207,6 +208,11 @@ impl TestTreeView {
         self.selected.as_deref()
     }
 
+    /// The session whose tests are shown.
+    pub fn session_id(&self) -> Option<&str> {
+        self.session.as_ref().map(|session| session.id.as_str())
+    }
+
     /// The output of the selected test or suite, `None` when it printed nothing (the console then
     /// shows all output).
     pub fn selected_output(&self, cx: &App) -> Option<Vec<String>> {
@@ -215,7 +221,7 @@ impl TestTreeView {
         Some(node_output(results, node)).filter(|output| !output.is_empty())
     }
 
-    fn run_status(&self, cx: &App) -> Option<TestStatus> {
+    fn run_status(&self) -> Option<TestStatus> {
         let counts = self.counts;
         if self.session.as_ref().is_some_and(|session| session.running) {
             Some(TestStatus::Running)
@@ -229,8 +235,8 @@ impl TestTreeView {
     }
 
     /// The header's status icon.
-    pub fn header_icon(&self, cx: &App) -> &'static str {
-        status_icon(self.run_status(cx))
+    pub fn header_icon(&self) -> &'static str {
+        status_icon(self.run_status())
     }
 
     /// The header's texts: failing, passed and ignored counts (each when not zero), "Running…" or "No
@@ -586,10 +592,11 @@ impl TestTreeView {
     }
 
     fn render_header(&self, cx: &mut Context<Self>) -> Div {
-        let icon = self.header_icon(cx);
+        let icon = self.header_icon();
         let failed = self.counts.failed;
         let texts = self.header(cx);
-        let (danger, fg, subtle) = (theme::color(cx, "danger"), theme::color(cx, "fg"), theme::color(cx, "fg-subtle"));
+        let (danger, fg, subtle) =
+            (theme::color(cx, "danger"), theme::color(cx, "fg-secondary"), theme::color(cx, "fg-subtle"));
         let passed_at = usize::from(failed > 0);
         let passed = self.counts.passed > 0;
         let counts = div().flex().gap(px(10.0)).min_w_0().overflow_hidden().whitespace_nowrap().children(
@@ -663,6 +670,9 @@ impl TestTreeView {
         let (fg, subtle) = (theme::color(cx, "fg"), theme::color(cx, "fg-subtle"));
         let chevron = theme::color(cx, "fg-icon");
         let small = theme::length(cx, "fs-small");
+        let mono = SharedString::from(
+            crate::theme::installed_fonts::theme_family(cx, "font-mono", theme::fonts::BUNDLED_MONO_FAMILY).to_string(),
+        );
         uniform_list(
             "test-tree",
             rows.len(),
@@ -717,7 +727,14 @@ impl TestTreeView {
                             )
                             .when_some(duration, |el, duration| {
                                 let duration = SharedString::from(duration);
-                                el.child(div().flex_none().text_size(small).text_color(subtle).child(duration))
+                                el.child(
+                                    div()
+                                        .flex_none()
+                                        .font_family(mono.clone())
+                                        .text_size(small)
+                                        .text_color(subtle)
+                                        .child(duration),
+                                )
                             })
                             .on_click(cx.listener(move |view, event: &ClickEvent, window, cx| {
                                 view.click_row(&clicked, event, window, cx);

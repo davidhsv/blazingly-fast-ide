@@ -12,8 +12,8 @@ use crate::platform::keymap::is_mac_host;
 use crate::run::context::RunEnv;
 use crate::run::targets::{RunTarget, TargetKind};
 use crate::run_producers::context_run::{
-    ContextArg, ContextShortcuts, DEBUG_CONTEXT, MenuRow, RUN_CONTEXT, RunCommand, WITH_EXECUTOR, marker_icon,
-    nothing_to_run, target_label, target_menu_items, target_title,
+    ContextArg, ContextShortcuts, DEBUG_CONTEXT, MenuRow, RUN_CONTEXT, RunCommand, TestState, WITH_EXECUTOR,
+    marker_icon, nothing_to_run, target_label, target_menu_items, target_title,
 };
 use crate::run_producers::npm_gutter::{ScriptCommand, ScriptEntry, ScriptMenuFlow, ScriptMenuStep, script_entries};
 use crate::run_producers::producers::{ContextInput, file_targets, jvm_build_owns};
@@ -167,7 +167,19 @@ impl Workbench {
                 workbench.find_run_marks(id, Duration::ZERO, cx);
             }
         });
+        // The marks show the last test results: they redraw when a test run records new ones.
+        let tests = self.run_driver().map(|driver| driver.read(cx).tests().clone());
+        let states = tests.map(|tests| {
+            cx.observe(&tests, |workbench, tests, cx| {
+                let version = tests.read(cx).states().version();
+                if workbench.editor_gutter.states_seen != Some(version) {
+                    workbench.editor_gutter.states_seen = Some(version);
+                    cx.notify();
+                }
+            })
+        });
         self.editor_gutter.configs_observer = Some((store.entity_id(), observer));
+        self.editor_gutter.states_observer = states;
     }
 
     /// Finds the editor `id`'s run marks once `delay` has passed without another edit, off the
@@ -247,14 +259,22 @@ impl Workbench {
         cx.notify();
     }
 
+    /// The last test result of a gutter target of the file at `path`.
+    fn target_state(&self, target: &RunTarget, path: &str, cx: &App) -> Option<TestState> {
+        self.run_driver()?.read(cx).tests().read(cx).states().gutter_state(target, path)
+    }
+
     /// The lines of `editor` that have a run mark, with the mark's icon.
-    pub fn editor_gutter_run_marks(&self, editor: &Entity<Editor>) -> Vec<(u32, &'static str)> {
+    pub fn editor_gutter_run_marks(&self, editor: &Entity<Editor>, cx: &App) -> Vec<(u32, &'static str)> {
         let Some(followed) = self.editor_gutter.followed.get(&editor.entity_id()) else { return Vec::new() };
         match &followed.run {
             RunMarks::None => Vec::new(),
-            RunMarks::Targets(marks) => {
-                marks.iter().map(|(target, _)| (target.line, marker_icon(target.kind, None))).collect()
-            }
+            RunMarks::Targets(marks) => marks
+                .iter()
+                .map(|(target, _)| {
+                    (target.line, marker_icon(target.kind, self.target_state(target, &followed.path, cx)))
+                })
+                .collect(),
             RunMarks::Scripts(marks) => marks.iter().map(|(entry, _)| (entry.line, "gutter-run")).collect(),
         }
     }
@@ -352,8 +372,9 @@ impl Workbench {
         match &followed.run {
             RunMarks::Targets(marks) => {
                 let target = &marks[index].0;
+                let state = self.target_state(target, &followed.path, cx);
                 let verb = target_title(target, &cx.default_global::<Localization>().0);
-                (marker_icon(target.kind, None), format!("{verb} '{}'", target_label(target)))
+                (marker_icon(target.kind, state), format!("{verb} '{}'", target_label(target)))
             }
             RunMarks::Scripts(marks) => {
                 let name = marks[index].0.name.as_str();

@@ -170,6 +170,9 @@ pub(super) struct EditorGutterSlot {
     configs_seen: Option<(bool, Vec<String>)>,
     /// The run store the run marks follow, and the subscription to it.
     configs_observer: Option<(EntityId, Subscription)>,
+    /// The version of the test states the run marks were drawn with, and the subscription to them.
+    states_seen: Option<u64>,
+    states_observer: Option<Subscription>,
     popup: Option<PopupFor>,
 }
 

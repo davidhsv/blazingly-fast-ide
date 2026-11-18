@@ -54,6 +54,7 @@ pub mod sessions;
 pub mod store;
 pub mod targets;
 pub mod terminal_output;
+pub mod test_tree;
 pub mod types;
 pub mod view;
 pub mod widget_view;

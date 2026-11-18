@@ -15,7 +15,7 @@ use crate::run::before_launch::{BeforeLaunch, LaunchEnv, LaunchStep};
 use crate::run::build_task::{BUILD_LAST_STATUS, BuildRequest, build_outcome};
 use crate::run::config_types::{RunConfigTypes, TypeEnv};
 use crate::run::configs::param;
-use crate::run::console::ChunkKind;
+use crate::run::console::{ChunkKind, CompletedLine};
 use crate::run::gradle_run::{GradleDelegation, gradle_boot_script, gradle_test_script, launch_with_script};
 use crate::run::java_launch::{FoundSource, JavaLaunchError, ModuleStep, PrepareStep, PreparedLaunch};
 use crate::run::jvm_types::{gradle_jvm_args_script, with_jvm_args_script};
@@ -27,13 +27,15 @@ use crate::run::store::{
     SELECTED_KEY, SaveConfigs, SaveStep, SessionStatus, StartEffect, StartEnv, StartOptions, StartRun, StartStep,
     StopAction, StorageWrite, TEMPORARY_KEY,
 };
+use crate::run::test_tree::{RunTests, rerun_failed_starts};
 use crate::run::types::register_builtin_types;
 use crate::run_testing::parsers::with_test_reporting;
+use crate::run_testing::rerun::{leaf_test_paths, tests_configs};
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
 use futures::StreamExt as _;
 use futures::channel::{mpsc, oneshot};
 use futures::future::LocalBoxFuture;
-use gpui_kit::{AnyWindowHandle, App, AsyncApp, Context, Entity, EventEmitter, Task, WeakEntity};
+use gpui_kit::{AnyWindowHandle, App, AppContext as _, AsyncApp, Context, Entity, EventEmitter, Task, WeakEntity};
 use ide_core::settings::Settings;
 use ide_core::{IdeError, IdeEvent, RunId};
 use ide_host::Host;
@@ -55,11 +57,13 @@ pub enum RunDriverEvent {
     Notify(NotificationRequest),
     /// A before launch task shows this tool window.
     ShowToolWindow(String),
-    /// Open a file location printed in the output: 0-based line and UTF-16 column.
+    /// Open a file location printed in the output: 0-based line and UTF-16 column; `focus`: the
+    /// editor takes the keyboard, else it stays where it is.
     OpenFile {
         path: PathBuf,
         line: u32,
         col: u32,
+        focus: bool,
     },
     /// Run another slice's action: running the current file's context, or the configuration chooser.
     RunAction {
@@ -154,6 +158,8 @@ pub struct RunDriver {
     pumps: HashMap<String, Task<()>>,
     /// The pending console flush of each session.
     flushes: HashMap<String, Task<()>>,
+    /// The test results of the sessions that run tests, fed with their output.
+    tests: Entity<RunTests>,
     loading: Option<Task<()>>,
     /// What runs once the configurations are listed (or could not be).
     after_load: Vec<AfterLoad>,
@@ -164,7 +170,7 @@ type AfterLoad = Box<dyn FnOnce(&mut RunDriver, &mut Context<RunDriver>)>;
 impl EventEmitter<RunDriverEvent> for RunDriver {}
 
 impl RunDriver {
-    pub fn new(label: &str, store: Entity<RunStore>) -> Self {
+    pub fn new(label: &str, store: Entity<RunStore>, cx: &mut App) -> Self {
         let mut types = RunConfigTypes::new();
         register_builtin_types(&mut types);
         Self {
@@ -178,6 +184,7 @@ impl RunDriver {
             waiters: Vec::new(),
             pumps: HashMap::new(),
             flushes: HashMap::new(),
+            tests: cx.new(|_| RunTests::new()),
             loading: None,
             after_load: Vec::new(),
         }
@@ -204,6 +211,11 @@ impl RunDriver {
 
     pub fn types(&self) -> Rc<RunConfigTypes> {
         Rc::clone(&self.types)
+    }
+
+    /// The test results of the window's runs.
+    pub fn tests(&self) -> &Entity<RunTests> {
+        &self.tests
     }
 
     fn settings(&self, cx: &App) -> Settings {
@@ -363,6 +375,10 @@ impl RunDriver {
         }
         self.pumps.clear();
         self.flushes.clear();
+        self.tests.update(cx, |tests, cx| {
+            tests.reset();
+            cx.notify();
+        });
         self.loading = None;
         self.after_load.clear();
         self.resolve_waiters(cx);
@@ -391,6 +407,70 @@ impl RunDriver {
         let base_config = session.base_config.as_ref().map(|_| store.base_config_of(session).clone());
         let options = StartOptions { reuse: Some(session_id.to_owned()), base_config, ..StartOptions::default() };
         Some(self.start(config, options, cx))
+    }
+
+    /// Rerun Failed Tests of a session: each run its framework needs, the first in the session's tab.
+    /// False when there is nothing to rerun (the process runs, nothing failed, the framework cannot
+    /// select tests).
+    pub fn rerun_failed(&mut self, session_id: &str, cx: &mut Context<Self>) -> bool {
+        let Some(starts) = rerun_failed_starts(self.store.read(cx), self.tests.read(cx), session_id) else {
+            return false;
+        };
+        for (config, options) in starts {
+            self.start(config, options, cx).detach();
+        }
+        true
+    }
+
+    /// Run / Debug of the tests under the nodes `ids` of the session's test tree: a temporary
+    /// configuration for each run their framework needs, keeping the unfiltered configuration. Runs
+    /// them, or (`debug`) returns them for the debugger.
+    pub fn run_selected_tests(
+        &mut self,
+        session_id: &str,
+        ids: &[String],
+        debug: bool,
+        cx: &mut Context<Self>,
+    ) -> Vec<RunConfig> {
+        let selected = {
+            let (store, tests) = (self.store.read(cx), self.tests.read(cx));
+            store.session(session_id).zip(tests.results(session_id)).map(|(session, results)| {
+                let nodes: Vec<_> = ids.iter().filter_map(|id| results.get(id)).collect();
+                let single = match nodes.as_slice() {
+                    [node] => Some(node.name.clone()),
+                    _ => None,
+                };
+                (store.base_config_of(session).clone(), leaf_test_paths(results, &nodes), single)
+            })
+        };
+        let Some((base, paths, single)) = selected else { return Vec::new() };
+        let name = single.unwrap_or_else(|| {
+            let count = paths.len().to_string();
+            cx.default_global::<Localization>().0.tx_built(&["", " tests"], &[Param::from(count.as_str())])
+        });
+        let Some(configs) = tests_configs(&base, &paths, &name).ready() else { return Vec::new() };
+        let joined = paths.iter().map(|path| path.join("/")).collect::<Vec<_>>().join("|");
+        let configs: Vec<RunConfig> = configs
+            .into_iter()
+            .enumerate()
+            .map(|(index, config)| RunConfig { id: format!("context:tests:{}:{index}:{joined}", base.id), ..config })
+            .collect();
+        let mut debugged = Vec::new();
+        for config in configs {
+            let (adopted, persist) = self.store.update(cx, |store, cx| {
+                let adopted = store.adopt_temporary(config, &[]);
+                cx.notify();
+                adopted
+            });
+            self.carry_out_persist(persist, cx);
+            if debug {
+                debugged.push(adopted);
+            } else {
+                let options = StartOptions { base_config: Some(base.clone()), ..StartOptions::default() };
+                self.start(adopted, options, cx).detach();
+            }
+        }
+        debugged
     }
 
     /// Runs backend work that takes the host; an error when there is no backend.
@@ -729,7 +809,13 @@ impl RunDriver {
         let mut step = first;
         loop {
             let effects = start.take_effects();
-            this.update(cx, |driver, cx| driver.apply_effects(effects, cx)).ok()?;
+            this.update(cx, |driver, cx| {
+                driver.apply_effects(effects, cx);
+                if let Some(session) = start.session_id() {
+                    driver.tests_started(session, start.generation(), cx);
+                }
+            })
+            .ok()?;
             step = match step {
                 StartStep::Done(session) => return session,
                 StartStep::Build(request) => {
@@ -1089,6 +1175,31 @@ impl RunDriver {
         }
     }
 
+    /// A start took the session's tab: a test run gets an empty tree and its framework's parser
+    /// (chosen from the tab's configuration), any other run drops the tree the tab showed.
+    fn tests_started(&mut self, session: &str, generation: u64, cx: &mut Context<Self>) {
+        if self.tests.read(cx).generation(session) == Some(generation) {
+            return;
+        }
+        let Some(config) = self.store.read(cx).session(session).map(|s| s.config.clone()) else { return };
+        self.tests.update(cx, |tests, cx| {
+            tests.started(session, generation, &config);
+            cx.notify();
+        });
+    }
+
+    /// Feeds lines a flush completed to the session's test run.
+    fn feed_tests(&mut self, session: &str, lines: &[CompletedLine], cx: &mut Context<Self>) {
+        let Some(generation) = self.store.read(cx).generation(session).filter(|_| !lines.is_empty()) else {
+            return;
+        };
+        self.tests.update(cx, |tests, cx| {
+            if tests.feed(session, generation, lines) {
+                cx.notify();
+            }
+        });
+    }
+
     /// Starts the process, its output streaming into the session's console.
     async fn run_process(
         this: &WeakEntity<Self>,
@@ -1186,7 +1297,7 @@ impl RunDriver {
                 let _ = this.update(cx, |driver, cx| {
                     let fired = driver.store.update(cx, |store, _| store.flush_timer_fired(&id, now_ms(), false));
                     match fired {
-                        Ok(flushed) => driver.flushed(&id, flushed.changed, flushed.open_browser, cx),
+                        Ok(flushed) => driver.flushed(&id, flushed.changed, flushed.open_browser, &flushed.lines, cx),
                         Err(next) => driver.schedule_flush(&id, next, cx),
                     }
                 });
@@ -1197,10 +1308,18 @@ impl RunDriver {
 
     fn flush(&mut self, session: &str, cx: &mut Context<Self>) {
         let flushed = self.store.update(cx, |store, _| store.flush(session, now_ms()));
-        self.flushed(session, flushed.changed, flushed.open_browser, cx);
+        self.flushed(session, flushed.changed, flushed.open_browser, &flushed.lines, cx);
     }
 
-    fn flushed(&mut self, session: &str, changed: bool, open_browser: bool, cx: &mut Context<Self>) {
+    fn flushed(
+        &mut self,
+        session: &str,
+        changed: bool,
+        open_browser: bool,
+        lines: &[CompletedLine],
+        cx: &mut Context<Self>,
+    ) {
+        self.feed_tests(session, lines, cx);
         if changed {
             self.store.update(cx, |_, cx| cx.notify());
         }
@@ -1236,10 +1355,21 @@ impl RunDriver {
     }
 
     fn finish(&mut self, session: &str, generation: Option<u64>, code: Option<i32>, cx: &mut Context<Self>) {
+        // The test tree takes the last lines and settles before the exit notification counts its
+        // failures.
+        let current = self.store.read(cx).generation(session);
+        if let Some(current) = current.filter(|current| generation.is_none_or(|exited| exited == *current)) {
+            let lines = self.store.update(cx, |store, _| store.take_final_lines(session, now_ms()));
+            self.tests.update(cx, |tests, cx| {
+                tests.feed(session, current, &lines);
+                tests.finish(session, current, code);
+                cx.notify();
+            });
+        }
         let settings = self.settings(cx);
         let context = FinishContext {
             run_window_visible: self.run_window_visible,
-            failed_tests: 0,
+            failed_tests: self.tests.read(cx).failed_count(session),
             go_root_set: !settings.languages.go.goroot.trim().is_empty(),
         };
         let finished = self.store.update(cx, |store, cx| {
@@ -1379,6 +1509,10 @@ impl RunDriver {
 
     fn closed(&mut self, session: &str, stop: Option<StopAction>, cx: &mut Context<Self>) {
         self.flushes.remove(session);
+        self.tests.update(cx, |tests, cx| {
+            tests.closed(session);
+            cx.notify();
+        });
         if let Some(stop) = stop {
             self.carry_out_stop(None, stop, cx);
         }
@@ -1408,6 +1542,11 @@ impl RunDriver {
     /// the project root, then by name through the file index. A library class without sources (the
     /// language server is not asked here) and a missing file are told in a notification.
     pub fn open_location(&mut self, target: FileTarget, cwd: String, cx: &mut Context<Self>) {
+        self.open_location_focusing(target, cwd, true, cx);
+    }
+
+    /// [`Self::open_location`], the editor taking the keyboard only when `focus`.
+    pub fn open_location_focusing(&mut self, target: FileTarget, cwd: String, focus: bool, cx: &mut Context<Self>) {
         let root = self.store.read(cx).project_root.clone();
         let label = self.label.clone();
         cx.spawn(async move |this, cx| {
@@ -1446,11 +1585,11 @@ impl RunDriver {
                         ResolveStep::WorkspaceSymbols { .. } => resolver.symbols_found(None),
                     };
             };
-            let action = Self::with_i18n(cx, |i18n| open_resolved(&target, path.as_deref(), true, i18n));
+            let action = Self::with_i18n(cx, |i18n| open_resolved(&target, path.as_deref(), focus, i18n));
             let _ = this.update(cx, |driver, cx| match action {
-                OpenAction::OpenFile { path, selection, .. } => {
+                OpenAction::OpenFile { path, selection, focus } => {
                     let (line, col) = selection.map_or((0, 0), |at| (at.line, at.col));
-                    cx.emit(RunDriverEvent::OpenFile { path: PathBuf::from(path), line, col });
+                    cx.emit(RunDriverEvent::OpenFile { path: PathBuf::from(path), line, col, focus });
                 }
                 OpenAction::Notify(request) => driver.notify(request, cx),
             });
@@ -1535,7 +1674,7 @@ mod tests {
     use super::*;
     use crate::run::configs::blank_config;
     use crate::run::store::FlushSchedule;
-    use gpui_kit::{AppContext as _, TestAppContext};
+    use gpui_kit::TestAppContext;
     use std::cell::RefCell;
     mod proofs8_chooser_pinned;
 
@@ -1598,7 +1737,7 @@ mod tests {
         let _ = view;
         let driver = cx.update(|_, cx| {
             let store = cx.new(|_| RunStore::new());
-            cx.new(|_| RunDriver::new("w1", store).with_window(handle))
+            cx.new(|cx| RunDriver::new("w1", store, cx).with_window(handle))
         });
         let events: Rc<RefCell<Vec<RunDriverEvent>>> = Rc::default();
         let seen = Rc::clone(&events);
@@ -1760,7 +1899,7 @@ mod tests {
         opening.await.expect("the task completes").expect("the project opens");
         let driver = cx.update(|cx| {
             let store = cx.new(|_| RunStore::new());
-            cx.new(|_| RunDriver::new(label, store))
+            cx.new(|cx| RunDriver::new(label, store, cx))
         });
         let events: Rc<RefCell<Vec<RunDriverEvent>>> = Rc::default();
         let seen = Rc::clone(&events);
@@ -1878,7 +2017,7 @@ mod tests {
         assert_eq!(templates.iter().map(|t| t.kind.as_str()).collect::<Vec<_>>(), ["program"]);
         let failing = cx.update(|cx| {
             let store = cx.new(|_| RunStore::new());
-            cx.new(|_| RunDriver::new("w2", store))
+            cx.new(|cx| RunDriver::new("w2", store, cx))
         });
         let loading = failing.update(cx, |driver, cx| driver.load_templates(cx));
         assert!(loading.await.is_err(), "a window without a project has no templates");

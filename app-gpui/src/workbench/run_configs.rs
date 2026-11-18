@@ -17,6 +17,7 @@ use crate::run::config_types::BrowseKind;
 use crate::run::driver::RunDriver;
 use crate::run::edit_configs_view::{AfterSave, EditConfigs, EditConfigsEvent};
 use crate::run::store::{CURRENT_FILE, ChooserMode, RunStore, current_file_arg};
+use crate::run::test_tree::{TEST_TREE_FOCUS, can_rerun_failed, rerun_failed_target};
 use crate::run::widget_view::{RunWidget, RunWidgetEvent};
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
 use futures::channel::oneshot;
@@ -160,6 +161,13 @@ impl Workbench {
             None => clear_context(window, cx, "run.cmakeBuild"),
         }
         set_context(window, cx, "run.updatableRunning", context.updatable_running);
+        let rerun_failed = self.run_driver().is_some_and(|driver| {
+            let (store, tests) = (driver.read(cx).store().read(cx), driver.read(cx).tests().read(cx));
+            rerun_failed_target(store, tests).is_some_and(|session| can_rerun_failed(store, tests, &session))
+        });
+        set_context(window, cx, "run.canRerunFailed", rerun_failed);
+        let tree_focused = self.run_view().is_some_and(|view| view.read(cx).test_tree_focused(window, cx));
+        set_context(window, cx, TEST_TREE_FOCUS, tree_focused);
     }
 
     /// A popup closed: when it was the chooser, the store says so (the widget's button is no longer

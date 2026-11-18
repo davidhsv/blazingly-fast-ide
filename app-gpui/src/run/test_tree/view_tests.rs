@@ -5,7 +5,9 @@ use crate::platform_more::occurrences::{Direction, OccurrenceStep};
 use crate::run::configs::blank_config;
 use crate::run::console::{ChunkKind, CompletedLine};
 use crate::theme;
-use gpui_kit::{Entity, Modifiers, MouseButton, MouseDownEvent, MouseUpEvent, TestAppContext, VisualTestContext};
+use gpui_kit::{
+    AppContext as _, Entity, Modifiers, MouseButton, MouseDownEvent, MouseUpEvent, TestAppContext, VisualTestContext,
+};
 use ide_run::RunConfig;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -40,6 +42,15 @@ failures:
 ---- db::writes stdout ----
 thread 'db::writes' panicked at src/db.rs:20:5:
 boom
+";
+
+/// A failure whose output names the expected and the actual value.
+const JUNIT_STYLE: &str = "test math::subs ... FAILED
+
+failures:
+
+---- math::subs stdout ----
+org.opentest4j.AssertionFailedError: expected: <1> but was: <2>
 ";
 
 const PASSING: &str = "test api::lists ... ok\ntest db::reads ... ok\n";
@@ -106,7 +117,10 @@ fn opened(events: &Events) -> Vec<(String, Option<u32>, bool)> {
         .borrow()
         .iter()
         .filter_map(|event| match event {
-            TestTreeEvent::OpenLocation { target, focus, .. } => Some((target.path.clone(), target.line, *focus)),
+            TestTreeEvent::OpenLocation { target, focus, cwd } => {
+                assert_eq!(cwd, "/p", "locations resolve against the run directory");
+                Some((target.path.clone(), target.line, *focus))
+            }
             _ => None,
         })
         .collect()
@@ -136,6 +150,18 @@ async fn hides_passed_tests_by_default_and_remembers_the_toggle(cx: &mut TestApp
     assert!(again.read_with(vcx, |view, _| view.filters().show_passed));
 }
 
+// Not from a spec: Show Ignored hides the ignored tests and shows them again.
+#[gpui_kit::test]
+async fn show_ignored_hides_and_shows_the_ignored_tests(cx: &mut TestAppContext) {
+    let (view, _, cx) = open(cx, NESTED, 101);
+    assert!(rows(&view, cx).contains(&"skips".to_owned()));
+    click(cx, "test-show-ignored", 1);
+    assert!(!rows(&view, cx).contains(&"skips".to_owned()));
+    assert!(!view.read_with(cx, |view, _| view.filters().show_ignored));
+    click(cx, "test-show-ignored", 1);
+    assert!(rows(&view, cx).contains(&"skips".to_owned()));
+}
+
 #[gpui_kit::test]
 async fn a_click_selects_without_navigating_double_click_jumps_to_the_source(cx: &mut TestAppContext) {
     let (view, events, cx) = open(cx, MATH, 101);
@@ -150,8 +176,8 @@ async fn a_click_selects_without_navigating_double_click_jumps_to_the_source(cx:
 }
 
 #[gpui_kit::test]
-async fn context_menu_run_debug_the_test_and_show_diff_of_an_assertion_failure(cx: &mut TestAppContext) {
-    let (view, events, cx) = open(cx, MATH, 101);
+async fn context_menu_run_debug_the_test_and_show_diff_of_an_assertion_failure(app: &mut TestAppContext) {
+    let (view, events, cx) = open(app, MATH, 101);
     let at = cx.debug_bounds("test-row:math/subtracts").expect("drawn").center();
     cx.simulate_mouse_down(at, MouseButton::Right, Modifiers::default());
     cx.simulate_mouse_up(at, MouseButton::Right, Modifiers::default());
@@ -173,6 +199,14 @@ async fn context_menu_run_debug_the_test_and_show_diff_of_an_assertion_failure(c
     assert_eq!(arg["left"], serde_json::json!({ "text": "1", "label": "Left" }));
     assert_eq!(arg["right"], serde_json::json!({ "text": "2", "label": "Right" }));
     assert_eq!(arg["path"], "math/subtracts.txt");
+    assert_eq!(arg["title"], "Comparison Failure: subtracts");
+
+    // A framework that says which side is expected: Expected on the left, Actual on the right.
+    let (view, events, cx) = open(app, JUNIT_STYLE, 101);
+    view.update(cx, |view, cx| view.run_command(TestTreeCommand::ShowDiff("math\0subs".to_owned()), cx));
+    let Some(TestTreeEvent::ShowDiff(arg)) = events.borrow().last().cloned() else { panic!("a diff is asked for") };
+    assert_eq!(arg["left"], serde_json::json!({ "text": "1", "label": "Expected" }));
+    assert_eq!(arg["right"], serde_json::json!({ "text": "2", "label": "Actual" }));
 }
 
 #[gpui_kit::test]
@@ -283,12 +317,12 @@ async fn the_buttons_run_the_actions_and_are_unavailable_without_suites(cx: &mut
 async fn the_header_shows_the_runs_status_counts_and_duration_and_rows_their_status(cx: &mut TestAppContext) {
     let (view, _, vcx) = open(cx, MATH, 101);
     assert_eq!(view.update(vcx, |view, cx| view.header(cx)), ["1 failing", "1 passed", "10 ms"]);
-    assert_eq!(view.read_with(vcx, |view, cx| view.header_icon(cx)), "test-failed");
+    assert_eq!(view.read_with(vcx, |view, _| view.header_icon()), "test-failed");
     let marks = view.read_with(vcx, |view, _| view.marks());
     assert_eq!(marks, [("math".to_owned(), "test-failed"), ("subtracts".to_owned(), "test-failed")]);
     let (passing, _, vcx) = open(cx, PASSING, 0);
     passing.update(vcx, |view, cx| view.toggle_show_passed(cx));
-    assert_eq!(passing.read_with(vcx, |view, cx| view.header_icon(cx)), "test-passed");
+    assert_eq!(passing.read_with(vcx, |view, _| view.header_icon()), "test-passed");
     assert!(passing.read_with(vcx, |view, _| view.marks()).iter().all(|(_, icon)| *icon == "test-passed"));
 }
 
@@ -304,7 +338,8 @@ async fn arrows_move_and_fold_and_enter_and_f4_jump_to_the_source(cx: &mut TestA
     assert_eq!(selected_name(&view, cx).as_deref(), Some("writes"));
     cx.simulate_keystrokes("enter");
     cx.simulate_keystrokes("f4");
-    assert_eq!(opened(&events).len(), 2);
+    cx.simulate_keystrokes("cmd-down");
+    assert_eq!(opened(&events).len(), 3);
     cx.simulate_keystrokes("left");
     assert_eq!(selected_name(&view, cx).as_deref(), Some("db"));
     cx.simulate_keystrokes("enter");
@@ -319,5 +354,5 @@ async fn a_running_session_without_results_waits_for_them(cx: &mut TestAppContex
     view.update(cx, |view, cx| view.show(Some(running), cx));
     assert_eq!(view.read_with(cx, |view, cx| view.empty_text(cx)).as_deref(), Some("Waiting for test results…"));
     assert_eq!(view.update(cx, |view, cx| view.header(cx)), ["Running…"]);
-    assert_eq!(view.read_with(cx, |view, cx| view.header_icon(cx)), "test-pending");
+    assert_eq!(view.read_with(cx, |view, _| view.header_icon()), "test-pending");
 }

@@ -137,6 +137,7 @@ use crate::project_tree::{OpenFile, ProjectTree};
 use crate::run::driver::{RunDriver, RunDriverEvent, SaveAll};
 use crate::run::sessions::{StopTarget, rerun_target, stop_target};
 use crate::run::store::RunStore;
+use crate::run::test_tree::{TestTreeEvent, rerun_failed_target};
 use crate::run::view::{RunView, RunViewEvent};
 use crate::theme;
 use crate::ui::popup_menu::{Choice, PopupMenu, PopupMenuEvent};
@@ -906,6 +907,29 @@ pub fn register_actions(cx: &mut App) {
             }
         })
     });
+    registry.handle("run.rerunFailed", |_, window, cx| {
+        on_run(window, cx, |driver, cx| {
+            let target = rerun_failed_target(driver.store().read(cx), driver.tests().read(cx));
+            if !target.is_some_and(|session| driver.rerun_failed(&session, cx)) {
+                let request = NotificationRequest {
+                    group: Some("run".to_owned()),
+                    key: Some("run-rerun-failed".to_owned()),
+                    ..NotificationRequest::new(NotificationLevel::Info, "No failed tests to rerun")
+                };
+                cx.emit(RunDriverEvent::Notify(request));
+            }
+        })
+    });
+    for (id, expand) in [("run.expandAllTests", true), ("run.collapseAllTests", false)] {
+        registry.handle(id, move |_, window, cx| {
+            let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+            let tree = workbench.read(cx).run_test_tree(cx);
+            if let Some(tree) = tree {
+                tree.update(cx, |tree, cx| if expand { tree.expand_all(cx) } else { tree.collapse_all(cx) });
+            }
+            Ok(())
+        });
+    }
     registry.handle("run.stop", |call, window, cx| {
         let focused = call.ctx.is_truthy("toolWindowFocus")
             && matches!(
@@ -2563,8 +2587,9 @@ impl Workbench {
                 }
                 RUN_TOOL_WINDOW => {
                     let Content::Project { run, .. } = &self.content else { continue };
-                    let (store, types) = (run.read(cx).store().clone(), run.read(cx).types());
-                    let view = cx.new(|cx| RunView::new(store, types, cx));
+                    let driver = run.read(cx);
+                    let (store, types, tests) = (driver.store().clone(), driver.types(), driver.tests().clone());
+                    let view = cx.new(|cx| RunView::new(store, types, tests, cx));
                     let events = cx.subscribe_in(&view, window, Self::run_view_event);
                     Panel::new(view, Some(events))
                 }
@@ -2680,6 +2705,16 @@ impl Workbench {
         (count > 0).then_some(count)
     }
 
+    /// The Run tool window's view, while it is mounted.
+    pub fn run_view(&self) -> Option<Entity<RunView>> {
+        self.tool_window_view(RUN_TOOL_WINDOW).and_then(|view| view.downcast::<RunView>().ok())
+    }
+
+    /// The test tree the Run tool window shows beside the console of a test run.
+    pub fn run_test_tree(&self, cx: &App) -> Option<Entity<crate::run::test_tree::TestTreeView>> {
+        self.run_view().and_then(|view| view.read(cx).test_tree().cloned())
+    }
+
     /// The run driver of the window's project, which starts and stops its processes.
     pub fn run_driver(&self) -> Option<&Entity<RunDriver>> {
         match &self.content {
@@ -2705,8 +2740,11 @@ impl Workbench {
             .map(|declared| (declared.id.clone(), declared.title.clone()))
             .collect();
         let (label, handle) = (self.label.clone(), window.window_handle());
-        let driver = cx.new(|_| {
-            RunDriver::new(&label, store).with_window(handle).with_save_all(save_all).with_tool_windows(tool_windows)
+        let driver = cx.new(|cx| {
+            RunDriver::new(&label, store, cx)
+                .with_window(handle)
+                .with_save_all(save_all)
+                .with_tool_windows(tool_windows)
         });
         driver.update(cx, |driver, cx| driver.load(root, cx));
         self.mount_run_widget(&driver, window, cx);
@@ -2762,7 +2800,13 @@ impl Workbench {
             }
             RunDriverEvent::Notify(request) => self.notify(request, cx),
             RunDriverEvent::ShowToolWindow(id) => self.with_layout(window, cx, |layout| layout.focus(&id)),
-            RunDriverEvent::OpenFile { path, line, col } => self.open_project_file_at(path, line, col, window, cx),
+            RunDriverEvent::OpenFile { path, line, col, focus } => {
+                let keep = if focus { None } else { window.focused(cx) };
+                self.open_project_file_at(path, line, col, window, cx);
+                if let Some(keep) = keep {
+                    window.focus(&keep, cx);
+                }
+            }
             RunDriverEvent::RunAction { id, arg } => window.defer(cx, move |window, cx| {
                 if !execute_action_from(ActionSource::Other, id, arg.as_ref(), window, cx) {
                     tracing::info!("{id} is not available in this window");
@@ -2817,6 +2861,53 @@ impl Workbench {
                 };
                 self.show_menu(&items, position, run, window, cx);
             }
+            RunViewEvent::RerunFailed(session) => {
+                driver.update(cx, |driver, cx| driver.rerun_failed(&session, cx));
+            }
+            RunViewEvent::Tree(event) => self.test_tree_event(view, event, &driver, window, cx),
+        }
+    }
+
+    /// Carries out what the Run tool window's test tree asks for. Actions run once the event is
+    /// handled: their handlers update the tree.
+    fn test_tree_event(
+        &mut self,
+        view: &Entity<RunView>,
+        event: TestTreeEvent,
+        driver: &Entity<RunDriver>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            TestTreeEvent::Selected { .. } => {}
+            TestTreeEvent::OpenLocation { target, cwd, focus } => {
+                driver.update(cx, |driver, cx| driver.open_location_focusing(target, cwd, focus, cx));
+            }
+            TestTreeEvent::RunTests { session, ids, debug } => {
+                let debugged = driver.update(cx, |driver, cx| driver.run_selected_tests(&session, &ids, debug, cx));
+                for config in debugged {
+                    match serde_json::to_value(&config) {
+                        Ok(arg) => window.defer(cx, move |window, cx| {
+                            execute_action_from(ActionSource::Toolbar, "run.debugConfig", Some(&arg), window, cx);
+                        }),
+                        Err(error) => tracing::error!("cannot pass the configuration to the debugger: {error}"),
+                    }
+                }
+            }
+            TestTreeEvent::ShowDiff(arg) => window.defer(cx, move |window, cx| {
+                execute_action_from(ActionSource::Toolbar, "diff.compareTexts", Some(&arg), window, cx);
+            }),
+            TestTreeEvent::ShowMenu(position) => {
+                let Some(tree) = view.read(cx).test_tree().cloned() else { return };
+                let items = tree.update(cx, |tree, cx| tree.context_menu(cx));
+                let run = move |_: &mut Self, command, _: &mut Window, cx: &mut Context<Self>| {
+                    tree.update(cx, |tree, cx| tree.run_command(command, cx));
+                };
+                self.show_menu(&items, position, run, window, cx);
+            }
+            TestTreeEvent::RunAction(id) => window.defer(cx, move |window, cx| {
+                execute_action_from(ActionSource::Toolbar, id, None, window, cx);
+            }),
         }
     }
 
@@ -4689,6 +4780,7 @@ mod tests {
     mod proofs43_database_results;
     mod proofs44_attach_trust;
     mod proofs44_editor_tabs;
+    mod proofs45_test_tree;
     mod proofs47_services_folders;
     mod proofs47_stripe_clicks;
     mod proofs4_run;

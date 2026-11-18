@@ -1123,6 +1123,17 @@ impl RunStore {
         None
     }
 
+    /// Shows what is still queued for the session and ends its open line: the process output lines
+    /// this completes. Called on exit, so that the test tree has every line before the exit is told.
+    pub fn take_final_lines(&mut self, session_id: &str, now_ms: f64) -> Vec<CompletedLine> {
+        let mut lines = self.flush(session_id, now_ms).lines;
+        if let Some(runtime) = self.runtimes.get_mut(session_id) {
+            runtime.console.flush();
+        }
+        lines.extend(self.completed_lines(session_id));
+        lines
+    }
+
     /// Applies the exit of a session's process. `generation`: the start that exited (see
     /// [`Self::generation`]); a tab restarted since is left alone.
     pub fn finish_session(
@@ -1145,11 +1156,7 @@ impl RunStore {
         if generation.is_some() && self.generation(session_id) != generation {
             return Finished::default();
         }
-        let mut lines = self.flush(session_id, now_ms).lines;
-        if let Some(runtime) = self.runtimes.get_mut(session_id) {
-            runtime.console.flush();
-        }
-        lines.extend(self.completed_lines(session_id));
+        let lines = self.take_final_lines(session_id, now_ms);
         self.end_session(session_id, SessionStatus::Finished, code, now_ms);
         self.bump(session_id);
         let stopped = self.session(session_id).is_some_and(|session| session.stopped);
