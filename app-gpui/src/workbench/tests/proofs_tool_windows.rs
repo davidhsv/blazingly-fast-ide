@@ -37,3 +37,39 @@ async fn resize_up_and_down_move_a_bottom_tool_windows_edge(cx: &mut TestAppCont
     assert_eq!(height(cx), before);
     cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
 }
+
+/// Hide Active Tool Window on a side maximized for a window that has gone (its plugin was
+/// disabled) gives the editor and the other tool windows back, instead of hiding nothing.
+#[gpui_kit::test]
+async fn hide_active_tool_window_clears_a_maximized_side_whose_window_went(cx: &mut TestAppContext) {
+    use crate::workbench::tool_windows::{Anchor, ToolWindow};
+    let _home = start(cx);
+    let (_folder, _root, workbench, cx) = trusted_project(cx, &[("main.zig", "const a = 1;\n")]);
+    cx.update(|window, _| window.activate_window());
+    let id = "plugin.k8s.view:kubernetes";
+    let registration = workbench.update_in(cx, |w, window, cx| {
+        let mut registration = None;
+        w.with_layout(window, cx, |layout| {
+            let kubernetes = ToolWindow::new(id, "Kubernetes", "cloud", Anchor::Right);
+            registration = Some(layout.register(ToolWindow { secondary: true, ..kubernetes }).0);
+            let _ = layout.show(id, true);
+            layout.set_focused(Some(id));
+            layout.toggle_maximize(id)
+        });
+        registration.expect("the window registers")
+    });
+    cx.run_until_parked();
+    let layout = |cx: &mut VisualTestContext| {
+        workbench.read_with(cx, |w, _| {
+            let layout = w.tool_windows().expect("a layout");
+            (layout.maximized(), layout.is_visible("project"))
+        })
+    };
+    assert_eq!(layout(cx), (Some(Anchor::Right), false));
+    workbench.update_in(cx, |w, window, cx| w.with_layout(window, cx, |layout| layout.unregister(registration)));
+    cx.run_until_parked();
+
+    run_action(cx, "toolwindow.hideActive", None);
+    assert_eq!(layout(cx), (None, true), "nothing is maximized and the Project view shows again");
+    cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+}

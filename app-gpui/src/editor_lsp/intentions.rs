@@ -11,7 +11,7 @@ use crate::platform_more::inspection_controls::{ControlItem, InspectionCommand, 
 use crate::platform_more::inspections::InspectionRef;
 use crate::settings_model::inspections_model::SPELLING_INSPECTION;
 use ide_core::ipc_path::to_ipc;
-use ide_core::{FileEdit, IdeError, Severity, TextChange};
+use ide_core::{Diagnostic, FileEdit, IdeError, Severity, TextChange};
 use ide_lsp::types::CodeAction;
 use regex::Regex;
 use ropey::Rope;
@@ -33,6 +33,28 @@ pub fn sort_code_actions(actions: &[CodeAction]) -> Vec<CodeAction> {
     let mut sorted = actions.to_vec();
     sorted.sort_by_key(rank);
     sorted
+}
+
+/// The actions that fix `problem`. When no action names the diagnostics it fixes (servers that omit
+/// them), every action of the range stays; otherwise only those naming `problem`, so a fix of
+/// another diagnostic over the same text is never taken for its own.
+pub fn actions_for_diagnostic(actions: &[CodeAction], problem: &Diagnostic) -> Vec<CodeAction> {
+    if actions.iter().all(|action| action.diagnostics.is_empty()) {
+        return actions.to_vec();
+    }
+    let loose = |own: &Option<String>, theirs: &Option<String>| own.is_none() || theirs.is_none() || own == theirs;
+    actions
+        .iter()
+        .filter(|action| {
+            action.diagnostics.iter().any(|named| {
+                named.message == problem.message
+                    && named.range == problem.range
+                    && loose(&named.code, &problem.code)
+                    && loose(&named.source, &problem.source)
+            })
+        })
+        .cloned()
+        .collect()
 }
 
 /// Sorted, one action per title: a server may report the same action under two kinds.
@@ -339,14 +361,13 @@ pub fn silent_action<'a>(actions: &'a [CodeAction], kind: &str) -> Option<&'a Co
 
 /// The problems ⌥⇧↵ tries, in order: worst first, those at the caret before others on its line;
 /// hints never.
-pub fn quick_fix_order(lint: &[LintDiagnostic], caret: u32, line_from: u32, line_to: u32) -> Vec<PlacedProblem> {
-    let mut problems: Vec<(u8, PlacedProblem)> = lint
+pub fn quick_fix_order(lint: &[LintDiagnostic], caret: u32, line_from: u32, line_to: u32) -> Vec<&LintDiagnostic> {
+    let mut problems: Vec<(u8, &LintDiagnostic)> = lint
         .iter()
         .filter(|d| d.severity != Severity::Hint && d.to >= line_from && d.from <= line_to)
         .map(|d| {
             let at_caret = d.from <= caret && caret <= d.to;
-            let rank = severity_rank(d.severity).min(2) + if at_caret { 0 } else { 3 };
-            (rank, PlacedProblem { from: d.from, to: d.to, severity: d.severity })
+            (severity_rank(d.severity).min(2) + if at_caret { 0 } else { 3 }, d)
         })
         .collect();
     problems.sort_by_key(|(rank, _)| *rank);
@@ -620,6 +641,72 @@ mod tests {
     fn offers_nothing_extra_when_an_error_touches_the_caret() {
         let problems = [problem(0, 3, Severity::Error), problem(12, 15, Severity::Error)];
         assert!(line_errors_away_from_caret(&problems, 0, 40, 3).is_empty());
+    }
+
+    // Quick fixes of overlapping diagnostics: a go.mod line both unused and upgradable.
+
+    fn not_used() -> Diagnostic {
+        Diagnostic {
+            range: Range::new(Pos::new(0, 1), Pos::new(0, 37)),
+            severity: Severity::Warning,
+            message: "github.com/sergi/go-diff is not used in this module".into(),
+            source: Some("go mod tidy".into()),
+            code: None,
+            unnecessary: false,
+            deprecated: false,
+            server: None,
+        }
+    }
+
+    fn upgradable() -> Diagnostic {
+        Diagnostic {
+            severity: Severity::Info,
+            message: "github.com/sergi/go-diff can be upgraded".into(),
+            source: Some("upgrade available".into()),
+            ..not_used()
+        }
+    }
+
+    fn fixing(title: &str, preferred: bool, diagnostics: Vec<Diagnostic>) -> CodeAction {
+        CodeAction { diagnostics, ..action(title, Some("quickfix"), preferred, None) }
+    }
+
+    #[test]
+    fn keeps_only_actions_for_each_problem_even_when_another_problems_fix_is_preferred() {
+        let remove = fixing("Remove dependency: github.com/sergi/go-diff", true, vec![not_used()]);
+        let update = fixing("Upgrade to v1.4.0", false, vec![upgradable()]);
+        let both = [remove.clone(), update.clone()];
+        assert_eq!(titles(&actions_for_diagnostic(&both, &not_used())), [remove.title.as_str()]);
+        assert_eq!(titles(&actions_for_diagnostic(&both, &upgradable())), [update.title.as_str()]);
+        assert!(actions_for_diagnostic(std::slice::from_ref(&remove), &upgradable()).is_empty());
+        let untagged = CodeAction { diagnostics: Vec::new(), ..update };
+        assert!(actions_for_diagnostic(&[remove.clone(), untagged], &upgradable()).is_empty());
+        let tagged_twice = CodeAction { diagnostics: vec![not_used(), upgradable()], ..remove };
+        assert_eq!(actions_for_diagnostic(&[tagged_twice], &upgradable()).len(), 1);
+    }
+
+    #[test]
+    fn retains_the_range_fallback_only_when_every_action_omits_diagnostics() {
+        let actions = [fixing("Remove dependency", true, Vec::new()), fixing("Upgrade to v1.4.0", false, Vec::new())];
+        assert_eq!(titles(&actions_for_diagnostic(&actions, &not_used())), titles(&actions));
+        assert_eq!(titles(&actions_for_diagnostic(&actions, &upgradable())), titles(&actions));
+    }
+
+    #[test]
+    fn checks_diagnostic_identity() {
+        let problem = Diagnostic { code: Some("unused".into()), ..not_used() };
+        let others = [
+            Diagnostic { message: "another problem".into(), ..problem.clone() },
+            Diagnostic { range: Range::new(Pos::new(0, 1), Pos::new(0, 38)), ..problem.clone() },
+            Diagnostic { code: Some("other".into()), ..problem.clone() },
+            Diagnostic { source: Some("other".into()), ..problem.clone() },
+        ];
+        for other in others {
+            let action = fixing("Remove dependency", true, vec![other.clone()]);
+            assert!(actions_for_diagnostic(&[action], &problem).is_empty(), "{other:?}");
+        }
+        let unnamed_code = fixing("Remove dependency", true, vec![not_used()]);
+        assert_eq!(actions_for_diagnostic(&[unnamed_code], &problem).len(), 1, "a missing code matches any");
     }
 
     // Inspection controls in ⌥↵.

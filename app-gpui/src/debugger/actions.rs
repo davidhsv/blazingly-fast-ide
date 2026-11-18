@@ -28,7 +28,7 @@ use crate::debugger::effects::{
 use crate::debugger::focused_view::FocusedView;
 use crate::debugger::hotswap::{self, HotSwap, HotSwapStep};
 use crate::debugger::java::{self, JavaAttachTarget, JavaFlow, JavaStep, is_java_debuggable};
-use crate::debugger::launch::{LaunchEnv, debug_unsupported_reason, launch_config_for};
+use crate::debugger::launch::{LaunchEnv, debug_unsupported_reason, join, launch_config_for};
 use crate::debugger::overlays::{AttachPopup, BreakpointSelection, Overlays};
 use crate::debugger::remote::{
     JdwpMode, PythonAttachTarget, REMOTE_JVM, is_remote_config, python_attach_config, remote_attach_config,
@@ -49,7 +49,7 @@ use ide_run::RunConfig;
 use ide_vfs::FileEntry;
 use ropey::Rope;
 use serde_json::{Value, json};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ops::Range;
 
 /// Tickets of this model's own asks start here; the sessions' are below.
@@ -149,6 +149,8 @@ enum Stage {
     DotnetResolved { config: Box<RunConfig> },
     /// The PHP chosen in the settings is looked up.
     Php { config: Box<RunConfig>, prepared: Box<RunConfig> },
+    /// The `.env` files the configuration names are read.
+    EnvFiles { config: Box<RunConfig>, prepared: Box<RunConfig>, php: Option<String> },
     /// The open documents are saved before the launch.
     Saving { config: Box<RunConfig>, launch: Box<LaunchConfig> },
     /// The IDE listens for the remote JVM of `config` to connect.
@@ -926,7 +928,54 @@ impl Debugger {
         }
     }
 
+    /// Reads the configuration's `.env` files first, as a run does: their variables reach the
+    /// debuggee under the configuration's own, which win.
     fn launch(&mut self, flow: StartFlow, config: RunConfig, prepared: RunConfig, php: Option<&str>, host: &mut Host) {
+        let files: Vec<String> = prepared
+            .extras
+            .env_files
+            .iter()
+            .filter(|file| !file.trim().is_empty())
+            .map(|file| join(&flow.root, file))
+            .collect();
+        if files.is_empty() {
+            return self.launch_with_env(flow, config, prepared, php, host);
+        }
+        let stage =
+            Stage::EnvFiles { config: Box::new(config), prepared: Box::new(prepared), php: php.map(str::to_owned) };
+        self.ask(BackendCall::RunEnvFiles(files), Waiting::Start(Box::new(flow), stage));
+    }
+
+    /// The variables of the configuration's `.env` files were read, or reading one failed (the
+    /// launch stops: the debuggee would miss what the configuration means it to have).
+    pub fn env_files_loaded(
+        &mut self,
+        ticket: u64,
+        loaded: Result<BTreeMap<String, String>, IdeError>,
+        host: &mut Host,
+    ) {
+        let Some(Waiting::Start(flow, Stage::EnvFiles { config, mut prepared, php })) = self.waiting.remove(&ticket)
+        else {
+            return;
+        };
+        match loaded {
+            Ok(mut env) => {
+                env.extend(std::mem::take(&mut prepared.env));
+                prepared.env = env;
+                self.launch_with_env(*flow, *config, *prepared, php.as_deref(), host);
+            }
+            Err(error) => self.fail_start(error_text(&error), host),
+        }
+    }
+
+    fn launch_with_env(
+        &mut self,
+        flow: StartFlow,
+        config: RunConfig,
+        prepared: RunConfig,
+        php: Option<&str>,
+        host: &mut Host,
+    ) {
         let env = LaunchEnv { debugger: host.env.debugger, windows: host.windows };
         let Some(launch) = launch_config_for(&prepared, &flow.root, php, &env) else {
             let title = format!("“{}” can't be debugged", config.name);
@@ -1456,6 +1505,8 @@ mod tests {
         /// A PHP's version and whether it loads Xdebug; `None`: the probe failed.
         Probe(Option<(&'static str, bool)>),
         Launch(Box<JavaLaunchInfo>),
+        /// The variables `.env` files hold.
+        Env(BTreeMap<String, String>),
     }
 
     /// A debugger with its surroundings and a scripted backend.
@@ -1566,6 +1617,10 @@ mod tests {
                 }
                 BackendCall::PluginPrepareDebugRun(config) | BackendCall::RunDotnetResolve(config) => {
                     debugger.config_prepared(ticket, Ok(*config), &mut host);
+                }
+                BackendCall::RunEnvFiles(_) => {
+                    let env = if let Answer::Env(env) = answer { env } else { BTreeMap::new() };
+                    debugger.env_files_loaded(ticket, failed.map_or(Ok(env), Err), &mut host);
                 }
                 BackendCall::SdkPhpEffective => {
                     let php = if let Answer::Php(php) = answer { php } else { Some("/opt/php81/bin/php") };
@@ -1990,6 +2045,64 @@ mod tests {
         let end = text.find("\n  pass").expect("the last line") as u32;
         bench.run("debug.evaluate", None, Some(&selecting(text, 0, end)));
         assert_eq!(bench.debugger.overlays.evaluate.as_deref(), Some("total = order.items\nfor i in x:"));
+    }
+
+    // --- .env files ------------------------------------------------------------------------
+
+    /// The `.env` files of `bench`'s backend calls, one list per call.
+    fn env_file_calls(bench: &Bench) -> Vec<Vec<String>> {
+        let calls = bench.calls.iter().filter_map(|call| match call {
+            BackendCall::RunEnvFiles(files) => Some(files.clone()),
+            _ => None,
+        });
+        calls.collect()
+    }
+
+    #[test]
+    fn a_debug_launch_loads_the_configurations_env_files_under_its_own_variables() {
+        let mut bench = Bench::default();
+        let mut config = server();
+        config.extras.env_files = vec![".env".into(), " ".into(), "/etc/app/local.env".into()];
+        config.env = BTreeMap::from([("PORT".to_owned(), "9000".to_owned())]);
+        bench.run("debug.startConfig", Some(as_arg(&config)), None);
+        bench.pump(&mut |call| match call {
+            BackendCall::RunEnvFiles(_) => Answer::Env(BTreeMap::from([
+                ("PORT".to_owned(), "3000".to_owned()),
+                ("TOKEN".to_owned(), "from-file".to_owned()),
+            ])),
+            _ => Answer::Done,
+        });
+        // The files below the project root, in the configuration's order; blank entries are none.
+        assert_eq!(env_file_calls(&bench), [vec!["/p/.env".to_owned(), "/etc/app/local.env".to_owned()]]);
+        let env = bench.calls.iter().find_map(|call| match call {
+            BackendCall::DebugStart(launch) => Some(launch.env.clone()),
+            _ => None,
+        });
+        let env = env.expect("the session starts");
+        assert_eq!(env.get("TOKEN").map(String::as_str), Some("from-file"));
+        assert_eq!(env.get("PORT").map(String::as_str), Some("9000"), "the configuration's own variable wins");
+    }
+
+    #[test]
+    fn a_debug_launch_without_env_files_reads_none_and_one_whose_file_is_unreadable_does_not_start() {
+        let mut bench = Bench::default();
+        bench.run("debug.startConfig", Some(as_arg(&server())), None);
+        bench.settle();
+        assert!(env_file_calls(&bench).is_empty());
+        assert_eq!(bench.count(is_start), 1);
+
+        let mut bench = Bench::default();
+        let mut config = server();
+        config.extras.env_files = vec![".env".into()];
+        bench.run("debug.startConfig", Some(as_arg(&config)), None);
+        bench.pump(&mut |call| match call {
+            BackendCall::RunEnvFiles(_) => Answer::Fail(IdeError::not_found("cannot read .env file: /p/.env")),
+            _ => Answer::Done,
+        });
+        assert_eq!(bench.count(is_start), 0);
+        let notices = bench.notifications();
+        assert_eq!(notices.len(), 1);
+        assert_eq!(notices[0].title, "Cannot start debugging");
     }
 
     // --- PHP debugging without Xdebug -------------------------------------------------------

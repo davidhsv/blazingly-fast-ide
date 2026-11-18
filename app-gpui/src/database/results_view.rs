@@ -13,17 +13,19 @@
 use super::grid::{CellEdit, GridColumn, RowState};
 use super::grid_view::{GridData, GridEvent, GridSelection, GridView};
 use super::model::Cell;
+use super::nodes::filter_columns;
 use super::result_session::{
     DetailsRequest, DetailsState, Editing, OutputLine, ResultContext, ResultEdits, SubmitRequest,
 };
 use super::result_view::{PageState, ResultSearch, SearchOptions, aggregates, format_number, page_window};
 use crate::platform::i18n::Localization;
+use crate::platform::input;
 use crate::theme;
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use crate::vcs_ops::menu::MenuItem;
 use gpui_kit::{
-    App, ClickEvent, Context, Div, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, KeyDownEvent, Pixels,
-    Point, Render, SharedString, Stateful, Subscription, Window, div, prelude::*, px,
+    App, ClickEvent, Context, Div, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, KeyDownEvent,
+    MouseButton, Pixels, Point, Render, SharedString, Stateful, Subscription, Window, deferred, div, prelude::*, px,
 };
 use ide_db::{CompletionModel, DbDriver, QueryResult, TableDetails};
 
@@ -154,6 +156,14 @@ fn tx(cx: &mut App, text: &str) -> String {
     cx.default_global::<Localization>().0.tx(text)
 }
 
+/// The Go to Column list.
+struct ColumnsPopup {
+    query: Entity<TextField>,
+    active: usize,
+    claim: u64,
+    _events: Subscription,
+}
+
 /// The result pane of the Database Console.
 pub struct ResultsView {
     focus: FocusHandle,
@@ -167,6 +177,9 @@ pub struct ResultsView {
     match_count: usize,
     selection: Option<GridSelection>,
     search_field: Entity<TextField>,
+    columns: Option<ColumnsPopup>,
+    /// The column Go to Column revealed last.
+    revealed: Option<usize>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -196,6 +209,12 @@ impl ResultsView {
                 }
             }),
         ];
+        cx.on_release(|view: &mut Self, cx| {
+            if let Some(popup) = view.columns.take() {
+                input::release_keys(popup.claim, cx);
+            }
+        })
+        .detach();
         Self {
             focus: cx.focus_handle(),
             tabs: Vec::new(),
@@ -206,6 +225,8 @@ impl ResultsView {
             match_count: 0,
             selection: None,
             search_field,
+            columns: None,
+            revealed: None,
             _subscriptions: subscriptions,
         }
     }
@@ -469,6 +490,167 @@ impl ResultsView {
             tab.edits.revert();
             self.refresh(cx);
         }
+    }
+
+    /// Go to Column (`db.goToColumn`): the active result's columns, filtered as typed.
+    pub fn show_columns(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(tab) = self.active_tab().filter(|_| self.columns.is_none()) else { return };
+        // The table the result edits, else the tab's title.
+        let table = match tab.origin.editing().target {
+            Some(target) => match target.schema {
+                Some(schema) => format!("{schema}.{}", target.table),
+                None => target.table,
+            },
+            None => tab.title.clone(),
+        };
+        let placeholder = cx.default_global::<Localization>().0.tx_template(&format!("Columns of {table}"));
+        let query = cx.new(|cx| TextField::new(cx).with_placeholder(placeholder));
+        let events =
+            cx.subscribe_in(&query, window, |view: &mut Self, _, event: &TextFieldEvent, window, cx| match event {
+                TextFieldEvent::Changed => {
+                    if let Some(popup) = &mut view.columns {
+                        popup.active = 0;
+                    }
+                    cx.notify();
+                }
+                TextFieldEvent::Submitted => view.pick_column(None, window, cx),
+                TextFieldEvent::Cancelled => view.close_columns(cx),
+            });
+        let claimant = cx.weak_entity();
+        let claim = input::claim_keys(
+            query.focus_handle(cx),
+            move |keystroke, _, cx| {
+                let down = match keystroke.key.as_str() {
+                    "down" => true,
+                    "up" => false,
+                    _ => return false,
+                };
+                claimant
+                    .update(cx, |view, cx| {
+                        let n = view.shown_columns(cx).len();
+                        if let Some(popup) = &mut view.columns
+                            && n > 0
+                        {
+                            popup.active = if down { (popup.active + 1) % n } else { (popup.active + n - 1) % n };
+                        }
+                        cx.notify();
+                    })
+                    .is_ok()
+            },
+            cx,
+        );
+        let focus = query.focus_handle(cx);
+        self.columns = Some(ColumnsPopup { query, active: 0, claim, _events: events });
+        window.focus(&focus, cx);
+        cx.notify();
+    }
+
+    fn column_names(&self) -> Vec<String> {
+        self.active_tab()
+            .map(|tab| tab.origin.result.columns.iter().map(|c| c.name.clone()).collect())
+            .unwrap_or_default()
+    }
+
+    /// The columns Go to Column lists for its search: indexes of the grid's columns.
+    pub fn shown_columns(&self, cx: &App) -> Vec<usize> {
+        let Some(popup) = &self.columns else { return Vec::new() };
+        let names = self.column_names();
+        let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+        filter_columns(&refs, popup.query.read(cx).text())
+    }
+
+    pub fn columns_query(&self) -> Option<&Entity<TextField>> {
+        self.columns.as_ref().map(|c| &c.query)
+    }
+
+    /// The column Go to Column revealed last.
+    pub fn revealed_column(&self) -> Option<usize> {
+        self.revealed
+    }
+
+    /// Picks the listed column at `index` (the active one for `None`) and selects its cell.
+    pub fn pick_column(&mut self, index: Option<usize>, window: &mut Window, cx: &mut Context<Self>) {
+        let shown = self.shown_columns(cx);
+        let Some(active) = self.columns.as_ref().map(|c| c.active) else { return };
+        let Some(&col) = shown.get(index.unwrap_or(active).min(shown.len().saturating_sub(1))) else { return };
+        self.close_columns(cx);
+        self.revealed = Some(col);
+        self.grid.update(cx, |grid, cx| grid.reveal_column(col, window, cx));
+    }
+
+    fn close_columns(&mut self, cx: &mut Context<Self>) {
+        if let Some(popup) = self.columns.take() {
+            input::release_keys(popup.claim, cx);
+        }
+        cx.notify();
+    }
+
+    fn columns_popup(&self, cx: &mut Context<Self>) -> Option<impl IntoElement + use<>> {
+        let popup = self.columns.as_ref()?;
+        let tab = self.active_tab()?;
+        let shown = self.shown_columns(cx);
+        let active = popup.active.min(shown.len().saturating_sub(1));
+        let rows: Vec<_> = shown
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &col)| {
+                let column = tab.origin.result.columns.get(col)?;
+                Some(
+                    div()
+                        .id(SharedString::from(format!("db-results-column-{i}")))
+                        .debug_selector(move || format!("db-results-column-{i}"))
+                        .h(px(22.0))
+                        .px(px(8.0))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .rounded(px(4.0))
+                        .when(i == active, |el| el.bg(theme::color(cx, "bg-tree-selected")))
+                        .child(SharedString::from(column.name.clone()))
+                        .child(
+                            div()
+                                .text_color(theme::color(cx, "fg-muted"))
+                                .child(SharedString::from(column.type_name.clone())),
+                        )
+                        .on_click(
+                            cx.listener(move |view, _: &ClickEvent, window, cx| view.pick_column(Some(i), window, cx)),
+                        ),
+                )
+            })
+            .collect();
+        Some(
+            deferred(
+                div()
+                    .absolute()
+                    .top(px(48.0))
+                    .left(px(120.0))
+                    .w(px(300.0))
+                    .max_h(px(360.0))
+                    .p(px(6.0))
+                    .flex()
+                    .flex_col()
+                    .gap(px(4.0))
+                    .bg(theme::color(cx, "bg-popup"))
+                    .border_1()
+                    .border_color(theme::color(cx, "border-popup"))
+                    .rounded(theme::length(cx, "radius-popup"))
+                    .occlude()
+                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                    .child(
+                        div()
+                            .h(px(26.0))
+                            .px(px(6.0))
+                            .flex()
+                            .items_center()
+                            .rounded(px(4.0))
+                            .border_1()
+                            .border_color(theme::color(cx, "border"))
+                            .child(popup.query.clone()),
+                    )
+                    .children(rows),
+            )
+            .with_priority(2),
+        )
     }
 
     pub fn is_editable(&self) -> bool {
@@ -1095,7 +1277,8 @@ impl Render for ResultsView {
             Some(tab) => self.render_result(tab, cx),
             None => self.render_output(cx),
         };
-        root.child(self.render_tabs(cx)).child(body)
+        let columns = self.columns_popup(cx);
+        root.child(self.render_tabs(cx)).child(body).children(columns)
     }
 }
 

@@ -19,6 +19,9 @@ pub struct ReplyTarget {
     pub turn: usize,
 }
 
+/// The title of a failed fork, of a task or of a conversation from a reply.
+pub const FORK_FAILED: &str = "Couldn't fork the task";
+
 fn error(title: &str, body: &str, i18n: &I18n) -> AgentEffect {
     let mut request = NotificationRequest::new(NotificationLevel::Error, i18n.tx(title));
     request.body = Some(body.to_owned());
@@ -127,7 +130,7 @@ impl ReplyActions {
             return Vec::new();
         }
         let (ticket, effect) = store.fork_task(&target.task, Some(turn_u32(target.turn + 1)));
-        self.start(ticket, &target.task, "Couldn't copy the task");
+        self.start(ticket, &target.task, FORK_FAILED);
         vec![effect]
     }
 
@@ -346,6 +349,25 @@ mod tests {
         let mut store = store_with(task(), conversation());
         let effects = ReplyActions::default().fork(&mut store, &target(0));
         assert_eq!(calls(&effects)[0].1, AgentCall::Fork { task: "t1".into(), turns: Some(1) });
+    }
+
+    #[test]
+    fn reports_a_failed_fork_as_a_failed_fork() {
+        let i18n = I18n::default();
+        let mut store = store_with(task(), conversation());
+        let mut actions = ReplyActions::default();
+        let effects = actions.fork(&mut store, &target(0));
+        let ticket = calls(&effects)[0].0.expect("a ticket");
+        let effects = store.call_answered(ticket, Err("Unavailable".into()));
+        let finished = effects.iter().find_map(|e| match e {
+            AgentEffect::Finished { ticket, outcome } => Some((*ticket, outcome.clone())),
+            _ => None,
+        });
+        let (ticket, outcome) = finished.expect("the fork ended");
+        let Some(AgentEffect::Notify(request)) = actions.finished(ticket, &outcome, &i18n) else {
+            panic!("an error notification")
+        };
+        assert_eq!((request.level, request.title.as_str()), (NotificationLevel::Error, "Couldn't fork the task"));
     }
 
     #[test]

@@ -772,18 +772,22 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
     }
     registry.handle("db.submitChanges", |_, window, cx| {
         on_workbench(window, cx, |workbench, window, cx| {
-            if let Some(editor) = workbench.database_table_editor(cx) {
-                editor.update(cx, |editor, cx| editor.submit(cx));
-            }
-            workbench.sync_database_context(window, cx);
+            workbench.on_database_grid(
+                window,
+                cx,
+                |editor, _, cx| editor.submit(cx),
+                |results, _, cx| results.submit(cx),
+            );
         })
     });
     registry.handle("db.revertChanges", |_, window, cx| {
         on_workbench(window, cx, |workbench, window, cx| {
-            if let Some(editor) = workbench.database_table_editor(cx) {
-                editor.update(cx, |editor, cx| editor.revert(cx));
-            }
-            workbench.sync_database_context(window, cx);
+            workbench.on_database_grid(
+                window,
+                cx,
+                |editor, _, cx| editor.revert(cx),
+                |results, _, cx| results.revert(cx),
+            );
         })
     });
     registry.handle("db.execute", |_, window, cx| {
@@ -816,11 +820,17 @@ impl Workbench {
             cx.new(|_| DatabasePanel::new(tree, results))
         };
         let grid = results.read(cx).grid().clone();
+        let results_focus = results.focus_handle(cx);
         let subscriptions = vec![
             cx.subscribe_in(&tree, window, Self::database_tree_event),
             cx.subscribe_in(&results, window, Self::database_results_event),
             cx.subscribe_in(&grid, window, Self::database_grid_event),
             cx.subscribe_in(&panel, window, Self::database_panel_event),
+            cx.observe_in(&results, window, |workbench, _, window, cx| workbench.sync_database_context(window, cx)),
+            cx.on_focus_in(&results_focus, window, |workbench, window, cx| workbench.sync_database_context(window, cx)),
+            cx.on_focus_out(&results_focus, window, |workbench, _, window, cx| {
+                workbench.sync_database_context(window, cx)
+            }),
         ];
         let handle = window.window_handle();
         let tick = cx.spawn(async move |this, cx| {
@@ -1954,12 +1964,56 @@ impl Workbench {
         self.sync_database_context(window, cx);
     }
 
-    /// `dbTableEditorFocus` and `dbTableEditorChanges`: the shown table editor has the keyboard,
-    /// and has edits to submit.
+    /// Runs `table` on the shown table editor, else `results` on the console's result pane that has
+    /// the keyboard, once the cell being edited in its grid is confirmed: the typed value counts
+    /// as an edit. The confirmed edit reaches the editor when this update is over, so the command
+    /// runs after it.
+    pub(super) fn on_database_grid(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        table: impl FnOnce(&mut TableEditorView, &mut Window, &mut Context<TableEditorView>) + 'static,
+        results: impl FnOnce(&mut ResultsView, &mut Window, &mut Context<ResultsView>) + 'static,
+    ) {
+        let grid = match self.database_table_editor(cx) {
+            Some(editor) => Some(editor.read(cx).grid().clone()),
+            None => self.focused_database_results(window, cx).map(|results| results.read(cx).grid().clone()),
+        };
+        if let Some(grid) = grid.filter(|grid| grid.read(cx).has_inline_editor()) {
+            grid.update(cx, |grid, cx| grid.commit_edit(window, cx));
+        }
+        cx.defer_in(window, move |workbench, window, cx| {
+            if let Some(editor) = workbench.database_table_editor(cx) {
+                editor.update(cx, |editor, cx| table(editor, window, cx));
+            } else if let Some(shown) = workbench.focused_database_results(window, cx) {
+                shown.update(cx, |shown, cx| results(shown, window, cx));
+            }
+            workbench.sync_database_context(window, cx);
+        });
+    }
+
+    /// The console's result pane when it shows a result and has the keyboard outside its search
+    /// field: Submit, Revert and Go to Column act on it as on a table editor.
+    pub(super) fn focused_database_results(&self, window: &Window, cx: &App) -> Option<Entity<ResultsView>> {
+        let slot = self.database.as_ref()?;
+        if slot.panel.read(cx).lower != Lower::Results {
+            return None;
+        }
+        let results = slot.results.read(cx);
+        let focused = results.focus_handle(cx).contains_focused(window, cx)
+            && !results.search_field().focus_handle(cx).is_focused(window);
+        (focused && results.active().is_some()).then(|| slot.results.clone())
+    }
+
+    /// `dbTableEditorFocus` and `dbTableEditorChanges`: the shown table editor, or the console's
+    /// result grid, has the keyboard, and has edits to submit.
     pub(super) fn sync_database_context(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let (focused, dirty) = match self.database_table_editor(cx) {
             Some(editor) => (editor.focus_handle(cx).contains_focused(window, cx), editor.read(cx).is_dirty()),
-            None => (false, false),
+            None => match self.focused_database_results(window, cx) {
+                Some(results) => (true, results.read(cx).can_submit()),
+                None => (false, false),
+            },
         };
         set_context(window, cx, TABLE_EDITOR_FOCUS, focused);
         set_context(window, cx, TABLE_EDITOR_CHANGES, focused && dirty);

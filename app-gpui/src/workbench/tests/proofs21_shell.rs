@@ -16,7 +16,7 @@ async fn the_welcome_screen_shows_the_builds_version_and_about_offers_the_config
     wait_long(cx, "the Welcome screen", |cx| workbench.read_with(cx, |w, _| w.welcome().is_some()));
     let version =
         workbench.read_with(cx, |w, cx| w.welcome().and_then(|welcome| welcome.read(cx).version().map(str::to_owned)));
-    assert_eq!(version.as_deref(), Some(env!("CARGO_PKG_VERSION")));
+    assert_eq!(version.as_deref(), Some(env!("OPENIDEA_VERSION")));
 
     run_action(cx, "app.about", None);
     let about = workbench.read_with(cx, |w, _| w.about_dialog()).expect("About is open");

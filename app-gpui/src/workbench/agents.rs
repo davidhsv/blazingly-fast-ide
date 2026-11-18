@@ -1048,7 +1048,7 @@ impl Workbench {
         });
         let Some((ticket, effect)) = forked.flatten() else { return };
         if let Some(slot) = self.agents.as_mut() {
-            slot.purposes.insert(ticket, Purpose::Failure("Couldn't copy the task"));
+            slot.purposes.insert(ticket, Purpose::Failure(crate::agents::reply_actions::FORK_FAILED));
         }
         self.carry_out_agents(vec![effect], cx);
     }
@@ -1142,7 +1142,7 @@ impl Workbench {
             }
             MessageAction::Fork(target) => {
                 let (ticket, effect) = store.fork_task(&target.task, Some(turn_number(target.turn + 1)));
-                (vec![effect], Some((ticket, Purpose::Failure("Couldn't copy the task"))))
+                (vec![effect], Some((ticket, Purpose::Failure(crate::agents::reply_actions::FORK_FAILED))))
             }
             MessageAction::EditSend { target, text, images } => {
                 let (ticket, effects) =
@@ -1179,7 +1179,8 @@ impl Workbench {
     pub(super) fn mount_agents_panel(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Option<Panel> {
         let store = self.agents.as_ref()?.store.clone();
         let active = self.editor().map(|_| AgentTab::Other);
-        let view = cx.new(|cx| TaskListView::new(store, active.as_ref(), cx));
+        let root = self.project_root(cx).map(|root| ide_core::ipc_path::to_ipc(&root));
+        let view = cx.new(|cx| TaskListView::new(store, active.as_ref(), cx).with_project_root(root));
         let events = cx.subscribe_in(&view, window, Self::agents_list_event);
         if let Some(slot) = self.agents.as_mut() {
             slot.list = Some(view.clone());

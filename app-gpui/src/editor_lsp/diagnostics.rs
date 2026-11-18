@@ -149,6 +149,8 @@ pub struct LintDiagnostic {
     pub source: Option<String>,
     /// `cm-lsp-unnecessary`, `cm-lsp-deprecated`, `cm-lsp-typo`, space-separated.
     pub mark_class: Option<String>,
+    /// The diagnostic as the server reported it, which the code actions fixing it name.
+    pub problem: Option<Diagnostic>,
 }
 
 /// Problem ids that mean nothing to a reader (`67109264`); short ones (`2322`) stay.
@@ -189,6 +191,7 @@ pub fn to_lint_diagnostics(doc: &Rope, items: &[StyledDiagnostic]) -> Vec<LintDi
                 message: item.message.clone(),
                 source: (!source.is_empty()).then(|| source.join(" ")),
                 mark_class: (!classes.is_empty()).then(|| classes.join(" ")),
+                problem: Some(item.clone()),
             }
         })
         .collect();
@@ -373,7 +376,7 @@ mod tests {
         };
         let deprecated = Diagnostic { deprecated: true, ..d(0, 3, 7, Severity::Error) };
         assert_eq!(
-            to_lint_diagnostics(&lint_doc(), &styled(vec![unused, deprecated])),
+            to_lint_diagnostics(&lint_doc(), &styled(vec![unused.clone(), deprecated.clone()])),
             [
                 LintDiagnostic {
                     from: 3,
@@ -382,6 +385,7 @@ mod tests {
                     message: "m0:3".into(),
                     source: None,
                     mark_class: Some("cm-lsp-deprecated".into()),
+                    problem: Some(deprecated),
                 },
                 LintDiagnostic {
                     from: 18,
@@ -390,6 +394,7 @@ mod tests {
                     message: "m1:6".into(),
                     source: Some("rustc unused".into()),
                     mark_class: Some("cm-lsp-unnecessary".into()),
+                    problem: Some(unused),
                 },
             ]
         );

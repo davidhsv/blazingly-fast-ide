@@ -895,6 +895,7 @@ mod tests {
             message: message.into(),
             source: Some("ts(2322)".into()),
             mark_class: None,
+            problem: None,
         }
     }
 

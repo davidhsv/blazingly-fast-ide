@@ -381,23 +381,29 @@ pub struct WelcomeAction {
     pub icon: &'static str,
 }
 
-const ACTIONS: [WelcomeAction; 3] = [
+/// Open File: a file opened without a project.
+pub const OPEN_FILE: &str = "file.openFile";
+
+const ACTIONS: [WelcomeAction; 5] = [
+    WelcomeAction { id: "file.newProject", label: "New Project", icon: "plus" },
     WelcomeAction { id: OPEN_PROJECT, label: "Open", icon: "folder-open" },
+    WelcomeAction { id: OPEN_FILE, label: "Open File", icon: "file" },
     WelcomeAction { id: "vcs.clone", label: "Clone Repository", icon: "branch" },
     WelcomeAction { id: "remote.connect", label: "Remote Development", icon: "terminal" },
 ];
 
-/// The buttons shown: Open always, the others when their action is registered.
+/// The buttons shown: Open and Open File always, the others when their action is registered.
 pub fn welcome_actions(is_registered: impl Fn(&str) -> bool) -> Vec<WelcomeAction> {
-    ACTIONS.into_iter().filter(|action| action.id == OPEN_PROJECT || is_registered(action.id)).collect()
+    let always = |id: &str| id == OPEN_PROJECT || id == OPEN_FILE;
+    ACTIONS.into_iter().filter(|action| always(action.id) || is_registered(action.id)).collect()
 }
 
 /// What the page without recent projects says can be done.
-pub fn landing_text(can_clone: bool) -> &'static str {
-    if can_clone {
-        "Open a folder from disk or clone a repository from version control."
-    } else {
-        "Open a folder from disk."
+pub fn landing_text(can_create: bool, can_clone: bool) -> &'static str {
+    match (can_create, can_clone) {
+        (true, true) => "Create a project, open a folder from disk or clone a repository from version control.",
+        (false, true) => "Open a folder from disk or clone a repository from version control.",
+        _ => "Open a folder from disk.",
     }
 }
 
@@ -1083,15 +1089,25 @@ mod tests {
     }
 
     #[test]
-    fn open_is_always_offered_and_the_other_buttons_when_their_action_is_registered() {
+    fn open_and_open_file_are_always_offered_and_the_other_buttons_when_their_action_is_registered() {
         let ids = |registered: &[&str]| -> Vec<&'static str> {
             welcome_actions(|id| registered.contains(&id)).into_iter().map(|action| action.id).collect()
         };
-        assert_eq!(ids(&[]), ["file.openProject"]);
-        assert_eq!(ids(&["remote.connect"]), ["file.openProject", "remote.connect"]);
-        assert_eq!(ids(&["vcs.clone", "remote.connect"]), ["file.openProject", "vcs.clone", "remote.connect"]);
-        assert_eq!(landing_text(false), "Open a folder from disk.");
-        assert_eq!(landing_text(true), "Open a folder from disk or clone a repository from version control.");
+        // src/features/welcome/ProjectsPage.tsx:29-63: New Project, Open, Open File, Clone Repository,
+        // Remote Development; Open and Open File always.
+        assert_eq!(ids(&[]), ["file.openProject", "file.openFile"]);
+        assert_eq!(ids(&["remote.connect"]), ["file.openProject", "file.openFile", "remote.connect"]);
+        assert_eq!(
+            ids(&["file.newProject", "vcs.clone", "remote.connect"]),
+            ["file.newProject", "file.openProject", "file.openFile", "vcs.clone", "remote.connect"]
+        );
+        assert_eq!(landing_text(false, false), "Open a folder from disk.");
+        assert_eq!(landing_text(false, true), "Open a folder from disk or clone a repository from version control.");
+        assert_eq!(
+            landing_text(true, true),
+            "Create a project, open a folder from disk or clone a repository from version control."
+        );
+        assert_eq!(landing_text(true, false), "Open a folder from disk.");
     }
 
     #[test]

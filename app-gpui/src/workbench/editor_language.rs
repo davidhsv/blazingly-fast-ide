@@ -33,8 +33,8 @@ use crate::editor_lsp::format_guard::{FormatGuardOptions, format_excluded};
 use crate::editor_lsp::generate::{is_generate_action, is_implement_title, is_override_title};
 use crate::editor_lsp::hint::Tone;
 use crate::editor_lsp::intentions::{
-    IntentionItem, IntentionRun, KindOutcome, action_items, changed_lines, indent_under_brace, is_quick_fix,
-    kind_outcome, quick_fix_icon, quick_fix_order, silent_action, sort_code_actions,
+    IntentionItem, IntentionRun, KindOutcome, action_items, actions_for_diagnostic, changed_lines, indent_under_brace,
+    is_quick_fix, kind_outcome, quick_fix_icon, quick_fix_order, silent_action, sort_code_actions,
 };
 use crate::editor_lsp::intentions_view::{ListOptions, ListPopup, ListPopupEvent, ListRow, intention_rows};
 use crate::editor_lsp::lsp::{error_hint, incomplete_note, is_cancelled, is_no_server};
@@ -917,10 +917,16 @@ async fn quick_definition(
     kind: GotoKind,
     cx: &mut AsyncWindowContext,
 ) -> anyhow::Result<()> {
-    let (doc, pos) = this.update(cx, |_, cx| {
+    let (doc, version, pos) = this.update(cx, |_, cx| {
         let e = editor.read(cx);
-        (e.doc(), offset_to_pos(e.rope(), e.caret()))
+        (e.doc(), e.version(), offset_to_pos(e.rope(), e.caret()))
     })?;
+    // An answer for text that changed, or for an editor that is gone, would show lines the user no
+    // longer looks at: it is dropped.
+    let stale = |workbench: &Workbench, cx: &App| {
+        let e = editor.read(cx);
+        e.version() != version || e.doc() != doc || !workbench.window_editors().contains(editor)
+    };
     let answer =
         call(
             this,
@@ -928,6 +934,9 @@ async fn quick_definition(
             move |host, label| async move { ide_host::ops::lsp::lsp_goto(&host, &label, doc, pos, kind).await },
         )
         .await?;
+    if this.update(cx, |workbench, cx| stale(workbench, cx))? {
+        return Ok(());
+    }
     let found = match answer {
         Ok(found) => found,
         Err(error) => return this.update(cx, |_, cx| report(editor, &error, cx)),
@@ -949,6 +958,9 @@ async fn quick_definition(
         crate::editor_lsp::definition_source::read_definitions(&host, &label, locations).await
     })
     .await?;
+    if this.update(cx, |workbench, cx| stale(workbench, cx))? {
+        return Ok(());
+    }
     match read {
         Ok(targets) if !targets.is_empty() => {
             this.update_in(cx, |workbench, window, cx| workbench.show_definition(targets, window, cx))
@@ -1041,18 +1053,21 @@ async fn goto_method(
 // Apply Quick Fix
 
 /// ⌥⇧↵: the first quick fix (preferred first) of the worst problem at the caret, else of one
-/// elsewhere on its line.
+/// elsewhere on its line; of the range's fixes, only those naming that problem when the server
+/// names the problems its fixes are for.
 async fn apply_quick_fix(this: &This, editor: &Entity<Editor>, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
     let (doc, version, ranges) = this.update(cx, |_, cx| {
         let lint = problems(editor, cx);
         let e = editor.read(cx);
         let line = buffer::line_range(e.rope(), buffer::line_col(e.rope(), e.caret()).0);
         let order = quick_fix_order(&lint, e.caret(), line.start, line.end);
-        let ranges: Vec<ide_core::Range> =
-            order.iter().map(|problem| offsets_to_range(e.rope(), problem.from, problem.to)).collect();
+        let ranges: Vec<(ide_core::Range, Option<ide_core::Diagnostic>)> = order
+            .into_iter()
+            .map(|problem| (offsets_to_range(e.rope(), problem.from, problem.to), problem.problem.clone()))
+            .collect();
         (e.doc(), e.version(), ranges)
     })?;
-    for range in ranges {
+    for (range, problem) in ranges {
         let answer = call(this, cx, move |host, label| async move {
             ide_host::ops::lsp::lsp_code_actions(&host, &label, doc, range, vec!["quickfix".to_owned()]).await
         })
@@ -1064,8 +1079,12 @@ async fn apply_quick_fix(this: &This, editor: &Entity<Editor>, cx: &mut AsyncWin
         if this.update(cx, |_, cx| editor.read(cx).version() != version)? {
             return Ok(());
         }
+        let matching = match &problem {
+            Some(problem) => actions_for_diagnostic(&actions, problem),
+            None => actions,
+        };
         let fixes: Vec<CodeAction> =
-            actions.into_iter().filter(|action| is_quick_fix(action) && action.disabled_reason.is_none()).collect();
+            matching.into_iter().filter(|action| is_quick_fix(action) && action.disabled_reason.is_none()).collect();
         if let Some(fix) = sort_code_actions(&fixes).into_iter().next() {
             return apply_action(this, editor, doc, fix, cx).await;
         }
@@ -1713,6 +1732,7 @@ mod tests {
     mod proofs20_mcp_problems;
     mod proofs25_quick_definition;
     mod proofs3_editor_keys;
+    mod proofs41_stale_and_matching;
     mod proofs5_editor;
     mod proofs7_hint;
 

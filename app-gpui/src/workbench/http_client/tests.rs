@@ -411,7 +411,8 @@ async fn new_http_request_without_a_folder_names_the_scratch_requests_then_reque
 }
 
 /// Open in HTTP Client appends the endpoint's request to the generated-requests scratch: named by
-/// its handler (else its method and URL), any method as GET, path variables as variables.
+/// its handler (else its method and URL), any method as GET, path variables as variables, on the
+/// default local server when its module configures none.
 #[gpui_kit::test]
 async fn open_in_http_client_appends_the_endpoint_to_the_generated_requests_scratch(cx: &mut TestAppContext) {
     let (f, cx) = open_project(cx, &[("a.txt", String::new())], None);
@@ -425,6 +426,22 @@ async fn open_in_http_client_appends_the_endpoint_to_the_generated_requests_scra
     run_action(cx, OPEN_ENDPOINT, Some(any));
     let both = format!("{first}\n### * /health\nGET http://localhost:8080/health\n");
     wait_long(cx, "the appended request", |cx| f.text_of(&scratch, cx) == Some(both.clone()));
+}
+
+/// Open in HTTP Client puts the endpoint's request on the server address its module configures
+/// (`server.port`, the servlet context path), as a Spring mapping's generated request has it.
+#[gpui_kit::test]
+async fn open_in_http_client_takes_the_server_address_of_the_endpoints_module(cx: &mut TestAppContext) {
+    let config = "server.port=9090\nserver.servlet.context-path=/shop\n".to_owned();
+    let files = [("shop/src/main/resources/application.properties", config), (USERS_PATH, USERS.to_owned())];
+    let (f, cx) = open_project(cx, &files, None);
+    let source = f.root.join("shop/src/main/java/demo/Users.java").to_string_lossy().into_owned();
+    let endpoint = json!({ "method": "GET", "url": "/users/{id}", "handler": "Users.show", "controller": "Users",
+        "methodName": "show", "path": source, "rel": "", "line": 0, "col": 0 });
+    run_action(cx, OPEN_ENDPOINT, Some(endpoint));
+    let scratch = f.scratch();
+    let expected = "### Users.show\nGET http://localhost:9090/shop/users/{{id}}\n";
+    wait_long(cx, "the request on the module's server", |cx| f.text_of(&scratch, cx).as_deref() == Some(expected));
 }
 
 /// Generate Request in HTTP Client renders the mapping at the caret with the module's server port,

@@ -923,8 +923,24 @@ impl ToolWindowLayout {
         Effects { persist: true, focus_editor }
     }
 
+    /// Hide Active Tool Window. A maximized side left with no registered window to show (its
+    /// window unregistered) covers the editor with nothing: the first press gives the editor back.
     pub fn hide_active(&mut self) -> Effects {
+        if let Some(anchor) = self.maximized
+            && !self.shows_registered_window_on(anchor)
+        {
+            self.maximized = None;
+            return Effects::NONE;
+        }
         self.active().map(str::to_owned).map_or(Effects::NONE, |id| self.hide(&id))
+    }
+
+    /// Whether an area of side `anchor` shows a registered window docked there.
+    fn shows_registered_window_on(&self, anchor: Anchor) -> bool {
+        SLOTS
+            .into_iter()
+            .filter(|slot| slot.anchor() == anchor)
+            .any(|slot| self.visible.get(slot).is_some_and(|id| self.slot_of(id) == Some(slot)))
     }
 
     /// Sets the size of a side in pixels. Ignored while the side is maximized and below the
@@ -1316,6 +1332,32 @@ mod tests {
         assert_eq!(h.layout.focused(), Some("problems"));
         h.run(|l| l.activate("problems"));
         assert!(!h.layout.is_visible("problems"));
+    }
+
+    /// A maximized side whose window unregistered (its plugin went) shows nothing: Hide Active Tool
+    /// Window gives the editor and the other sides back.
+    #[test]
+    fn hide_active_clears_a_maximized_side_whose_window_unregistered() {
+        let mut h = Harness::new();
+        let kubernetes = ToolWindow::new("plugin.k8s.view:kubernetes", "Kubernetes", "cloud", Anchor::Right);
+        let registration = h.register(ToolWindow { secondary: true, ..kubernetes });
+        h.run(|l| l.show("plugin.k8s.view:kubernetes", true));
+        h.layout.set_focused(Some("plugin.k8s.view:kubernetes"));
+        h.run(|l| l.toggle_maximize("plugin.k8s.view:kubernetes"));
+        assert_eq!(h.layout.maximized(), Some(Anchor::Right));
+        assert!(!h.layout.is_visible("project"));
+        h.run(|l| l.unregister(registration));
+
+        h.run(ToolWindowLayout::hide_active);
+        assert_eq!(h.layout.maximized(), None);
+        assert!(h.layout.is_visible("project"), "the other sides show again");
+
+        // With a registered window on the maximized side, Hide Active hides that window as before.
+        h.run(|l| l.show("terminal", true));
+        h.layout.set_focused(Some("terminal"));
+        h.run(|l| l.toggle_maximize("terminal"));
+        h.run(ToolWindowLayout::hide_active);
+        assert!(!h.layout.is_visible("terminal"));
     }
 
     // src/workbench/toolwindows/store.test.ts › hide all stashes and restores; hide active hides the focused window

@@ -46,7 +46,7 @@ async fn lists_version_build_and_platform(cx: &mut TestAppContext) {
     let profile = if cfg!(debug_assertions) { "debug" } else { "release" };
     let expected = [
         "About OpenIDEA".to_owned(),
-        format!("Version: {}", env!("CARGO_PKG_VERSION")),
+        format!("Version: {}", env!("OPENIDEA_VERSION")),
         format!("Build: {build} ({profile})"),
         format!("Platform: {os} {}", std::env::consts::ARCH),
         "Runtime: GPUI".to_owned(),

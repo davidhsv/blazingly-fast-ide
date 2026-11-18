@@ -100,6 +100,8 @@ enum TrustAnswer {
     Flow(oneshot::Sender<bool>),
     /// Opens this project in the asking window on Trust Project or Preview in Restricted Mode.
     Open(PathBuf),
+    /// Opens this project in a window of its own on Trust Project or Preview in Restricted Mode.
+    NewWindow(PathBuf),
 }
 
 /// The trust questions waiting for an answer, by the window that asks.
@@ -395,7 +397,13 @@ impl Workbench {
                 let _ = sender.send(open);
             }
             Some(TrustAnswer::Open(root)) if open => self.open_project(root, window, cx),
-            Some(TrustAnswer::Open(_)) | None => {}
+            // Once this window's update is over: the new window is built outside it.
+            Some(TrustAnswer::NewWindow(root)) if open => cx.defer(move |cx| {
+                if let Err(error) = super::windows::open_window(super::windows::Target::Project(root), cx) {
+                    tracing::error!("the project window did not open: {error:#}");
+                }
+            }),
+            Some(TrustAnswer::Open(_) | TrustAnswer::NewWindow(_)) | None => {}
         }
     }
 
@@ -1048,30 +1056,55 @@ impl Workbench {
     /// Opens the project at `root` in this window once its trust is decided: a decided folder
     /// opens at once; otherwise "Trust and Open Project?" is shown at once and the project opens on
     /// Trust Project or Preview in Restricted Mode, while Don't Open leaves the window as it is. A
-    /// window opened for a project (a new window chosen for it, File › Open in New Window, the
-    /// folder given on the command line) asks here, in the window the project opens in. The trust
+    /// window opened for a folder nobody was asked about (the folder given on the command line, which
+    /// has no window to ask from) asks here, in the window the project opens in. The trust
     /// is read here, on the main thread, as the open flow reads it before attaching: the store is
     /// in memory and the read resolves the folder's links only. Deciding synchronously keeps a
     /// caller that waits for the opening (files to open once it is done) waiting for the answer.
     pub(super) fn open_project_asking(&mut self, root: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
+        match self.trust_question(&root, cx) {
+            Some(None) => self.open_project(root, window, cx),
+            Some(Some(asked)) => self.show_trust_prompt(asked, TrustAnswer::Open(root), window, cx),
+            None => {}
+        }
+    }
+
+    /// Before the project at `root` opens in a window of its own: whether its trust is decided, so
+    /// that the caller opens that window now. An undecided folder is asked about here, in this
+    /// window, before the new one exists (the question would otherwise cover that window's empty
+    /// frame); its window opens on Trust Project or Preview in Restricted Mode, while Don't Open
+    /// creates none and decides nothing.
+    pub(super) fn ask_before_new_window(&mut self, root: PathBuf, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        match self.trust_question(&root, cx) {
+            Some(None) => true,
+            Some(Some(asked)) => {
+                self.show_trust_prompt(asked, TrustAnswer::NewWindow(root), window, cx);
+                false
+            }
+            None => false,
+        }
+    }
+
+    /// What the trust question about `root` asks about: `Some(None)` when its trust is decided,
+    /// `Some(Some(folder))` when it is to be asked, `None` when the trust cannot be read (the
+    /// failure is shown).
+    fn trust_question(&mut self, root: &Path, cx: &mut Context<Self>) -> Option<Option<String>> {
         let status = match cx.try_global::<Backend>() {
-            Some(backend) => backend.host.trust.status(&root),
+            Some(backend) => backend.host.trust.status(root),
             None => Err(IdeError::internal("The backend is not running")),
         };
-        let status = match status {
-            Ok(status) if status.decided => return self.open_project(root, window, cx),
-            Ok(status) => status,
+        match status {
+            Ok(status) if status.decided => Some(None),
+            Ok(status) => Some(Some(status.root.into_path_buf().to_string_lossy().into_owned())),
             Err(error) => {
                 let shown = root.to_string_lossy();
                 let notice = open_failed_notice(&shown, &error, &cx.default_global::<Localization>().0);
                 if let Some(notice) = notice {
                     self.notify(notice, cx);
                 }
-                return;
+                None
             }
-        };
-        let asked = status.root.into_path_buf().to_string_lossy().into_owned();
-        self.show_trust_prompt(asked, TrustAnswer::Open(root), window, cx);
+        }
     }
 }
 
@@ -1389,10 +1422,11 @@ mod tests {
         close(cx);
     }
 
-    /// A project that opens in a window of its own (New Window, Open in New Window) is asked about
-    /// in that window; the window it was asked from shows nothing new.
+    /// A project that opens in a window of its own (a plugin's new-window request, Open in New
+    /// Window) is asked about in this window first, and its window is created only once the
+    /// question is answered with Trust Project; this window shows nothing new.
     #[gpui_kit::test]
-    async fn a_project_opening_in_a_new_window_is_asked_about_in_that_window(cx: &mut TestAppContext) {
+    async fn a_project_opening_in_a_new_window_is_asked_about_in_this_window_first(cx: &mut TestAppContext) {
         let _home = start(cx);
         // Windows opened through `windows::open_window`, as the app does.
         cx.update(gpui_kit::init);
@@ -1405,31 +1439,52 @@ mod tests {
         main.update(cx, |_, window, cx| execute_action_or_throw("file.openProjectPath", Some(&request), window, cx))
             .expect("the window is open")
             .expect("the action runs");
-        let mut visual = VisualTestContext::from_window(main, cx);
-        wait_long(&mut visual, "the second window asks", |cx| {
-            cx.update(|_, cx| {
-                windows::windows(cx)
-                    .into_iter()
-                    .any(|(_, handle)| workbench_of(handle, cx).is_some_and(|w| w.read(cx).trust_dialog().is_some()))
-            })
-        });
+        let mut here = VisualTestContext::from_window(main, cx);
+        let first = cx.update(|cx| workbench_of(main, cx)).expect("the first window's workbench");
+        wait_long(&mut here, "this window asks", |cx| first.read_with(cx, |w, _| w.trust_dialog().is_some()));
+        assert_eq!(cx.update(|cx| windows::windows(cx).len()), 1, "no window opens before the answer");
+        assert_eq!(trust_of(&root, &mut here), (false, false), "nothing is decided yet");
+
+        click_on(&mut here, "trust-button-project.trust");
+        wait_long(&mut here, "the second window", |cx| cx.update(|_, cx| windows::windows(cx).len() == 2));
         let (label, second) = cx
             .update(|cx| windows::windows(cx).into_iter().find(|(_, handle)| handle.window_id() != main.window_id()))
             .expect("a second window opened");
         assert_eq!(label, "project-1");
-        let first = cx.update(|cx| workbench_of(main, cx)).expect("the first window's workbench");
-        assert!(cx.update(|cx| first.read(cx).trust_dialog().is_none()), "the first window asks nothing");
-
         let mut there = VisualTestContext::from_window(second, cx);
-        click_on(&mut there, "trust-button-project.trust");
         let opened = cx.update(|cx| workbench_of(second, cx)).expect("the second window's workbench");
         wait_long(&mut there, "the project opens there", |cx| {
             opened.read_with(cx, |w, cx| w.project_root(cx)).as_deref() == Some(&*root)
         });
+        assert!(opened.read_with(&there, |w, _| w.trust_dialog().is_none()), "the new window asks nothing");
         assert!(!opened.read_with(&there, |w, cx| w.project_restricted(cx)));
         assert_eq!(trust_of(&root, &mut there), (true, true));
         assert!(cx.update(|cx| first.read(cx).project_root(cx).is_none()));
+        assert!(cx.update(|cx| first.read(cx).trust_dialog().is_none()));
         cx.update(|cx| cx.global::<Backend>().host.close_project(&label));
+    }
+
+    /// Open in New Window on a folder nobody decided about opens no window when the question asked
+    /// in this window is answered Don't Open, and decides nothing.
+    #[gpui_kit::test]
+    async fn open_in_new_window_opens_no_window_when_the_user_chooses_dont_open(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        cx.update(gpui_kit::init);
+        let (_folder, root) = undecided_folder();
+        let main = cx.update(|cx| windows::open_window(Target::Empty, cx)).expect("a window opens");
+        let path = serde_json::Value::from(root.to_string_lossy().into_owned());
+        main.update(cx, |_, window, cx| execute_action_or_throw("file.openInNewWindow", Some(&path), window, cx))
+            .expect("the window is open")
+            .expect("the action runs");
+        let mut here = VisualTestContext::from_window(main, cx);
+        let first = cx.update(|cx| cx.global::<Workbenches>().0.get(&main.window_id()).and_then(|w| w.upgrade()));
+        let first = first.expect("the first window's workbench");
+        wait_long(&mut here, "this window asks", |cx| first.read_with(cx, |w, _| w.trust_dialog().is_some()));
+        click_on(&mut here, "trust-button-project.dontOpen");
+        wait_long(&mut here, "the question goes", |cx| first.read_with(cx, |w, _| w.trust_dialog().is_none()));
+        assert_eq!(cx.update(|cx| windows::windows(cx).len()), 1, "no window opens");
+        assert_eq!(trust_of(&root, &mut here), (false, false), "nothing is decided");
+        assert!(cx.update(|cx| first.read(cx).project_root(cx).is_none()));
     }
 
     /// Revoke Trust puts the window's project back in Restricted Mode, and removing the trusted
@@ -1571,7 +1626,7 @@ mod tests {
         cx.update(|window, _| window.activate_window());
         run_action(cx, "app.about", None);
         let about = workbench.read_with(cx, |w, _| w.about_dialog()).expect("About is open");
-        assert_eq!(about.read_with(cx, |a, _| a.product()), format!("OpenIDEA {}", env!("CARGO_PKG_VERSION")));
+        assert_eq!(about.read_with(cx, |a, _| a.product()), format!("OpenIDEA {}", env!("OPENIDEA_VERSION")));
         let facts = about.update(cx, |a, cx| a.facts(cx));
         let home = cx.update(|_, cx| cx.global::<Backend>().dirs.config.to_string_lossy().into_owned());
         assert!(facts.contains(&("Configuration".to_owned(), home)), "{facts:?}");

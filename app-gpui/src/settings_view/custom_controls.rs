@@ -195,7 +195,7 @@ pub fn install(
     slots.put(pages::general_http_proxy::PAGE, pages::general_http_proxy::SLOT, &view, cx);
     let updates = binding(pages::general_updates::PAGE);
     let view = cx.new(|cx| {
-        let mut view = pages::general_updates::UpdateStatusView::new(updates, env!("CARGO_PKG_VERSION"), cx);
+        let mut view = pages::general_updates::UpdateStatusView::new(updates, env!("OPENIDEA_VERSION"), cx);
         view.follow_backend(cx);
         view
     });

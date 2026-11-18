@@ -36,8 +36,9 @@ use ide_syntax::NodeAt;
 use ide_workspace::settings::SettingsScope;
 use std::time::Duration;
 
-/// When the editor's text commands apply: the editor has the keyboard, or a popup is open over it.
-const TEXT_WHEN: &str = "editorTextFocus || textEditorActive && popupOpen";
+/// When the editor's text commands apply: the editor has the keyboard, or a popup is open over it
+/// while no tool window (its speed search) has the keyboard.
+const TEXT_WHEN: &str = "editorTextFocus || textEditorActive && popupOpen && !toolWindowFocus";
 /// The deepest level Expand to Level offers.
 const FOLD_LEVELS: u32 = 5;
 /// How long the status bar's message stays.
@@ -553,7 +554,8 @@ mod tests {
     use crate::editor::marks::MarkLayer;
     use crate::editor::view::EditorEvent;
     use crate::platform::actions::execute_action_or_throw;
-    use crate::platform::context::window_context;
+    use crate::platform::actions::manifest;
+    use crate::platform::context::{ContextKeys, evaluate_when, window_context};
     use crate::platform::input;
     use crate::platform::storage::UiStorage;
     use crate::theme;
@@ -1506,5 +1508,20 @@ mod tests {
             assert!(f.unavailable(cx, id), "{id} runs without an editor");
         }
         f.close(cx);
+    }
+
+    /// Expand to Level applies when the editor's other text commands do: not while a tool window's
+    /// speed search has the keyboard over an open popup.
+    #[test]
+    fn expand_to_level_is_off_while_a_tool_window_has_the_keyboard_over_a_popup() {
+        let fold = manifest().get("code.fold").and_then(|meta| meta.when.clone());
+        assert_eq!(fold.as_deref(), Some(TEXT_WHEN), "the folding actions share one condition");
+        let mut ctx = ContextKeys::new();
+        for key in ["textEditorActive", "popupOpen", "toolWindowFocus"] {
+            ctx.set(key, true);
+        }
+        assert_eq!(evaluate_when(Some(TEXT_WHEN), &ctx), Ok(false));
+        ctx.set("toolWindowFocus", false);
+        assert_eq!(evaluate_when(Some(TEXT_WHEN), &ctx), Ok(true));
     }
 }

@@ -32,7 +32,7 @@ use crate::editor::view::{Editor, EditorEvent};
 use crate::everywhere::routes::EndpointEntry;
 use crate::features_a::http_client::endpoints::render_endpoint;
 use crate::features_a::http_client::generate::{GenerateRequests, Target, scratch_file};
-use crate::features_a::http_client::request::append_requests;
+use crate::features_a::http_client::request::{append_requests, config_candidates, host_from_files};
 use crate::features_a::http_client::route_index::{RouteIndex, RouteLookup};
 use crate::http_client::marks::{
     RequestMark, SpringMark, SpringMarkKind, SpringRow, request_at_line, request_marks, spring_marks, spring_rows,
@@ -391,7 +391,7 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
         let endpoint = call.arg.and_then(endpoint_arg);
         on_workbench(window, cx, move |workbench, window, cx| {
             if let Some(endpoint) = endpoint {
-                workbench.append_generated(vec![render_endpoint(&endpoint)], window, cx);
+                workbench.open_endpoint(endpoint, window, cx);
             }
         })
     });
@@ -976,6 +976,31 @@ impl Workbench {
             let made = work.await;
             finished(this.update_in(cx, |workbench, window, cx| match made {
                 Ok(()) => workbench.open_and_edit(path, PendingEdit::Append(blocks), window, cx),
+                Err(error) => workbench.generate_failed(error, cx),
+            }));
+        })
+        .detach();
+    }
+
+    /// Open in HTTP Client: the endpoint's request, on the server address of its module
+    /// (`server.port`, the context path) as Spring mappings have it, appended to the generated
+    /// requests.
+    fn open_endpoint(&mut self, endpoint: EndpointEntry, window: &mut Window, cx: &mut Context<Self>) {
+        let root = self.project_root(cx).map(|root| root.to_string_lossy().into_owned());
+        let candidates = config_candidates(&endpoint.path, root.as_deref());
+        // The configuration files are read on the backend; a missing one counts as none.
+        let work = on_host(self.label.clone(), cx, move |host, label| async move {
+            let mut reads = Vec::with_capacity(candidates.len());
+            for file in candidates {
+                let text = ide_host::ops::fs::read_text(&host, &label, PathBuf::from(&file)).await.ok();
+                reads.push((file, text));
+            }
+            Ok(host_from_files(reads.iter().map(|(file, text)| (file.as_str(), text.as_deref()))))
+        });
+        cx.spawn_in(window, async move |this, cx| {
+            let host = work.await;
+            finished(this.update_in(cx, |workbench, window, cx| match host {
+                Ok(host) => workbench.append_generated(vec![render_endpoint(&endpoint, &host)], window, cx),
                 Err(error) => workbench.generate_failed(error, cx),
             }));
         })

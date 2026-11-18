@@ -50,9 +50,10 @@ use std::future::Future;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-/// When the editor actions apply: the active text editor, unless a tool window or popup has the
-/// keyboard. Refactor This checks it itself, since outside an editor it says "Nothing here".
-const EDITOR_WHEN: &str = "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)";
+/// When the editor actions apply: the active text editor, unless a tool window has the keyboard
+/// (an open popup over it, a tool window's speed search, does not count). Refactor This checks it
+/// itself, since outside an editor it says "Nothing here".
+const EDITOR_WHEN: &str = "textEditorActive && (editorFocus || !toolWindowFocus)";
 
 /// The Refactor menu actions that ask the server for code actions of their kind.
 const MENU_REFACTORINGS: [(&str, RefactoringId); 8] = [
@@ -1747,5 +1748,22 @@ mod tests {
         settle(cx, "the editor of b.mock", |cx| f.editing(cx, &b));
         settle(cx, "the caret on B.run", |cx| f.caret(cx) == B_RUN);
         f.close(cx);
+    }
+
+    /// Refactor This reaches the editor unless a tool window has the keyboard, even with a popup
+    /// open over it (that tool window's speed search).
+    #[test]
+    fn refactor_this_is_not_the_editors_while_a_tool_window_has_the_keyboard_over_a_popup() {
+        use crate::platform::context::ContextKeys;
+        let mut ctx = ContextKeys::new();
+        for key in ["textEditorActive", "popupOpen", "toolWindowFocus"] {
+            ctx.set(key, true);
+        }
+        assert_eq!(evaluate_when(Some(EDITOR_WHEN), &ctx), Ok(false));
+        ctx.set("editorFocus", true);
+        assert_eq!(evaluate_when(Some(EDITOR_WHEN), &ctx), Ok(true));
+        let mut plain = ContextKeys::new();
+        plain.set("textEditorActive", true);
+        assert_eq!(evaluate_when(Some(EDITOR_WHEN), &plain), Ok(true));
     }
 }

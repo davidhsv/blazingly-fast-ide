@@ -818,7 +818,8 @@ impl Welcome {
     fn landing(&self, cx: &mut Context<Self>) -> Div {
         let actions = shown_actions(cx);
         let can_clone = actions.iter().any(|action| action.id == "vcs.clone");
-        let (title, what) = (tx(cx, "Welcome to OpenIDEA"), tx(cx, landing_text(can_clone)));
+        let can_create = actions.iter().any(|action| action.id == "file.newProject");
+        let (title, what) = (tx(cx, "Welcome to OpenIDEA"), tx(cx, landing_text(can_create, can_clone)));
         let (dropping, hint) = (tx(cx, "You can also drop a folder onto this window."), tx(cx, "Open a folder"));
         let shortcut =
             cx.try_global::<Keymap>().and_then(|keymap| keymap.0.shortcut_label(OPEN_PROJECT, is_mac_host()));
@@ -1161,8 +1162,9 @@ mod tests {
             );
             assert_eq!((shown[2].path.as_str(), shown[2].branch.as_deref()), ("/tmp/py-demo", None));
             assert_eq!(view.empty_text(), None);
-            // Nothing clones or connects here: Open is the only button.
-            assert_eq!(view.actions(cx), ["file.openProject"]);
+            // Nothing creates, clones or connects here: Open and Open File are the buttons
+            // (src/features/welcome/ProjectsPage.tsx:44-53).
+            assert_eq!(view.actions(cx), ["file.openProject", "file.openFile"]);
         });
         assert!(search_has_the_keyboard(&view, cx));
         assert!(events.borrow().is_empty());
@@ -1249,6 +1251,8 @@ mod tests {
 
         click(cx, "welcome-landing-file.openProject");
         assert_eq!(last(&events), Some(WelcomeEvent::RunAction("file.openProject")));
+        click(cx, "welcome-landing-file.openFile");
+        assert_eq!(last(&events), Some(WelcomeEvent::RunAction("file.openFile")));
 
         // Once a project is recent, the list is shown and the keyboard is in its search field.
         view.update(cx, |view, cx| view.set_recent(&three(), &[], cx));
@@ -1263,15 +1267,23 @@ mod tests {
         init(cx);
         cx.update(|cx| {
             let registry = cx.default_global::<ActionRegistry>();
-            for (id, title) in [("vcs.clone", "Clone Repository…"), ("remote.connect", "Remote Development…")] {
+            for (id, title) in [
+                ("file.newProject", "New Project…"),
+                ("vcs.clone", "Clone Repository…"),
+                ("remote.connect", "Remote Development…"),
+            ] {
                 registry.register(Action::new(ActionMeta::new(id, title), |_, _, _| Ok(())));
             }
         });
         let (view, events, cx) = open(cx, three(), Vec::new());
         assert_eq!(
             view.read_with(cx, |view, cx| view.actions(cx)),
-            ["file.openProject", "vcs.clone", "remote.connect"]
+            ["file.newProject", "file.openProject", "file.openFile", "vcs.clone", "remote.connect"]
         );
+        click(cx, "welcome-action-file.newProject");
+        assert_eq!(last(&events), Some(WelcomeEvent::RunAction("file.newProject")));
+        click(cx, "welcome-action-file.openFile");
+        assert_eq!(last(&events), Some(WelcomeEvent::RunAction("file.openFile")));
         click(cx, "welcome-action-vcs.clone");
         assert_eq!(last(&events), Some(WelcomeEvent::RunAction("vcs.clone")));
         click(cx, "welcome-action-remote.connect");

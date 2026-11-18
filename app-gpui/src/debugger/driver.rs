@@ -887,6 +887,14 @@ impl DebugDriver {
                 move |host, label| async move { run::run_dotnet_resolve(&host, &label, *config, true).await },
                 Self::on_debugger(move |debugger, result, host| debugger.config_prepared(ticket, result, host)),
             ),
+            BackendCall::RunEnvFiles(files) => self.ask(
+                cx,
+                move |host, label| async move {
+                    let files = files.into_iter().map(std::path::PathBuf::from).collect();
+                    run::run_env_files(&host, &label, files)
+                },
+                Self::on_debugger(move |debugger, result, host| debugger.env_files_loaded(ticket, result, host)),
+            ),
             BackendCall::SdkPhpEffective => self.ask(
                 cx,
                 move |host, label| async move { sdk::sdk_php_effective(&host, &label) },

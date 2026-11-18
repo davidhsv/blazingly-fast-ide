@@ -121,13 +121,17 @@ pub fn open_project(path: &Path, new_window: bool, window: &mut Window, cx: &mut
         }
         return Ok(());
     }
-    let here = for_window(window, cx).filter(|workbench| !new_window && workbench.read(cx).is_empty());
-    match here {
-        Some(workbench) => {
-            workbench.update(cx, |workbench, cx| workbench.open_project_asking(path.to_path_buf(), window, cx))
-        }
-        None => {
-            open_window(Target::Project(path.to_path_buf()), cx)?;
+    let Some(workbench) = for_window(window, cx) else {
+        open_window(Target::Project(path.to_path_buf()), cx)?;
+        return Ok(());
+    };
+    let root = path.to_path_buf();
+    if !new_window && workbench.read(cx).is_empty() {
+        workbench.update(cx, |workbench, cx| workbench.open_project_asking(root, window, cx));
+    } else {
+        let decided = workbench.update(cx, |workbench, cx| workbench.ask_before_new_window(root.clone(), window, cx));
+        if decided {
+            open_window(Target::Project(root), cx)?;
         }
     }
     Ok(())

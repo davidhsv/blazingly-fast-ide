@@ -49,9 +49,19 @@ fn counted(i18n: &mut I18n, before: &str, after: &str, n: usize) -> String {
     i18n.tx_built(&[before, after], &[Param::Number(n as f64)])
 }
 
-/// The menu of `tasks` (the right-clicked task, or the selection it belongs to). Where a conversation is
-/// shown is the Agents-wide placement, not a choice of this menu.
-pub fn task_menu(tasks: &[&AgentTask], i18n: &mut I18n) -> Vec<MenuItem> {
+/// Whether `task` has a terminal of its own: its worktree, or a folder other than the project root
+/// (`project_root`: the task's own, else the window's). A task in the project's local checkout
+/// would only repeat the project's terminal.
+pub fn has_task_terminal(task: &AgentTask, project_root: Option<&str>) -> bool {
+    let root = task.project_root.as_ref().map(|root| root.0.to_string_lossy().into_owned());
+    let root = root.as_deref().or(project_root);
+    task.isolation == Isolation::Worktree || root.is_some_and(|root| task.cwd.0 != std::path::Path::new(root))
+}
+
+/// The menu of `tasks` (the right-clicked task, or the selection it belongs to) in a window whose
+/// project is `project_root`. Where a conversation is shown is the Agents-wide placement, not a
+/// choice of this menu.
+pub fn task_menu(tasks: &[&AgentTask], project_root: Option<&str>, i18n: &mut I18n) -> Vec<MenuItem> {
     let Some(task) = tasks.first() else { return Vec::new() };
     let ids: Vec<String> = tasks.iter().map(|t| t.id.clone()).collect();
     let multiple = tasks.len() > 1;
@@ -61,8 +71,10 @@ pub fn task_menu(tasks: &[&AgentTask], i18n: &mut I18n) -> Vec<MenuItem> {
     // A click opens the task: the menu does not repeat it.
     if !multiple {
         out.push(action(TaskCommand::Rename(task.id.clone()), i18n.tx("Rename…"), Some("edit"), false));
-        let cwd = task.cwd.0.to_string_lossy().into_owned();
-        out.push(action(TaskCommand::OpenInTerminal(cwd), i18n.tx("Open in Terminal"), Some("terminal"), false));
+        if has_task_terminal(task, project_root) {
+            let cwd = task.cwd.0.to_string_lossy().into_owned();
+            out.push(action(TaskCommand::OpenInTerminal(cwd), i18n.tx("Terminal"), Some("terminal"), false));
+        }
         if task.capabilities.fork && task.status != AgentStatus::Archived {
             let label = i18n.tx("Copy to a New Task");
             out.push(action(TaskCommand::Fork(task.id.clone()), label, Some("branch"), !can_fork(task)));

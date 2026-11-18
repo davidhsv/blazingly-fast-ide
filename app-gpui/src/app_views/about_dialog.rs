@@ -26,7 +26,7 @@ pub const SHOW_LOG: &str = "help.showLog";
 /// What this build says about itself.
 pub fn this_build() -> BuildInfo {
     BuildInfo {
-        version: env!("CARGO_PKG_VERSION").to_owned(),
+        version: env!("OPENIDEA_VERSION").to_owned(),
         build: option_env!("OPENIDEA_BUILD").unwrap_or("dev").to_owned(),
         profile: if cfg!(debug_assertions) { "debug" } else { "release" }.to_owned(),
         os: std::env::consts::OS.to_owned(),
@@ -282,7 +282,7 @@ mod tests {
     #[gpui_kit::test]
     async fn names_the_version_of_the_build_and_lists_its_facts(cx: &mut TestAppContext) {
         let (dialog, _events, cx) = open(cx, Vec::new());
-        let version = env!("CARGO_PKG_VERSION");
+        let version = env!("OPENIDEA_VERSION");
         assert_eq!(dialog.read_with(cx, |dialog, _| dialog.product()), format!("OpenIDEA {version}"));
         let facts = dialog.update(cx, |dialog, cx| dialog.facts(cx));
         let labels: Vec<&str> = facts.iter().map(|(label, _)| label.as_str()).collect();

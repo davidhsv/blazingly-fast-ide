@@ -3234,7 +3234,7 @@ impl Workbench {
         }
         let home = std::env::var_os("HOME").map(PathBuf::from);
         let welcome =
-            cx.new(|cx| Welcome::new(&list, &groups, home.as_deref(), cx).with_version(env!("CARGO_PKG_VERSION")));
+            cx.new(|cx| Welcome::new(&list, &groups, home.as_deref(), cx).with_version(env!("OPENIDEA_VERSION")));
         let events = cx.subscribe_in(&welcome, window, Self::welcome_event);
         // When it is what the window shows, it takes the keyboard: typing searches the recent
         // projects. Behind a failure's message it is not drawn and leaves the keys alone.
@@ -4616,6 +4616,7 @@ mod tests {
     mod proofs41_e2e_search_layout;
     mod proofs41_recent_edited;
     mod proofs42_gitlog_real_repo;
+    mod proofs43_database_results;
     mod proofs4_run;
     mod proofs4_shell;
     mod proofs4_vcs;
@@ -7914,11 +7915,21 @@ mod tests {
         cx.run_until_parked();
         let first = welcome(cx).expect("the Welcome screen shows");
         assert_eq!(first.read_with(cx, |view, _| view.empty_text()), Some("Welcome to OpenIDEA"));
+        // The version the Tauri app built from the same commit shows: the release's.
+        let declared = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../src-tauri/tauri.conf.json"))
+            .expect("the Tauri configuration is read");
+        let declared: serde_json::Value = serde_json::from_str(&declared).expect("the Tauri configuration is JSON");
         assert_eq!(
-            first.read_with(cx, |view, _| view.version().map(str::to_owned)),
-            Some(env!("CARGO_PKG_VERSION").into())
+            first.read_with(cx, |view, _| view.version().map(str::to_owned)).as_deref(),
+            declared["version"].as_str()
         );
         assert!(cx.debug_bounds("welcome-brand").is_some(), "the Welcome screen is drawn");
+        // The Welcome buttons of the window's own actions: New File, Clone Repository and Remote
+        // Development have none registered in this window.
+        assert_eq!(
+            first.read_with(cx, |view, cx| view.actions(cx)),
+            ["file.newProject", "file.openProject", "file.openFile"]
+        );
 
         workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
         opened(cx);

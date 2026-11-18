@@ -170,6 +170,8 @@ pub enum BackendCall {
     PluginPrepareDebugRun(Box<RunConfig>),
     /// The .NET configuration with its target evaluated for debugging.
     RunDotnetResolve(Box<RunConfig>),
+    /// The variables of these `.env` files, in order (later files win).
+    RunEnvFiles(Vec<String>),
     SdkPhpEffective,
     SdkLocateTools {
         names: Vec<String>,

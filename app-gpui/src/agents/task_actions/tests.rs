@@ -1,5 +1,5 @@
 use super::*;
-use crate::agents::fixtures::{connected_store, local_task, task};
+use crate::agents::fixtures::{connected_store, local_task, path, task};
 use crate::agents::task_list::{Click, RowKey, TaskList};
 
 fn with_status(id: &str, status: AgentStatus) -> AgentTask {
@@ -53,7 +53,7 @@ fn item<'a>(menu: &'a [MenuItem], label: &str) -> &'a TaskCommand {
 fn menu_of(store: &AgentsStore, list: &TaskList, row: &str, i18n: &mut I18n) -> Vec<MenuItem> {
     let selection = list.context_selection(&key(row));
     let tasks: Vec<&AgentTask> = selection.iter().filter_map(|id| store.task(id)).collect();
-    task_menu(&tasks, i18n)
+    task_menu(&tasks, None, i18n)
 }
 
 fn confirm_ticket(effect: Option<BatchEffect>) -> (Ticket, ConfirmChecked) {
@@ -189,7 +189,7 @@ fn keeps_placement_out_of_session_menus() {
         let (mut store, _) = connected_store(vec![local_task("one")]);
         store.docked = docked.map(str::to_owned);
         let one = store.task("one").expect("the task");
-        let menu = task_menu(&[one], &mut i18n);
+        let menu = task_menu(&[one], Some("/project"), &mut i18n);
         let commands: Vec<&TaskCommand> = menu
             .iter()
             .filter_map(|i| match i {
@@ -197,18 +197,45 @@ fn keeps_placement_out_of_session_menus() {
                 MenuItem::Separator => None,
             })
             .collect();
-        let cwd = "/project".to_owned();
         let id = || "one".to_owned();
         // A click opens the task: the menu does not repeat it, and Rename comes first
-        // (src/features/agents/AgentsView.test.tsx, "keeps placement out of session menus").
+        // (src/features/agents/AgentsView.test.tsx, "keeps placement out of session menus"). A task in
+        // the project's local checkout has no terminal of its own (src/features/agents/model.ts:113).
         assert_eq!(
             commands,
-            [
-                &TaskCommand::Rename(id()),
-                &TaskCommand::OpenInTerminal(cwd),
-                &TaskCommand::Archive(vec![id()]),
-                &TaskCommand::Delete(vec![id()]),
-            ]
+            [&TaskCommand::Rename(id()), &TaskCommand::Archive(vec![id()]), &TaskCommand::Delete(vec![id()])]
         );
     }
+}
+
+#[test]
+fn offers_terminal_for_worktree_or_off_root_tasks_and_hides_it_for_local_checkout_tasks_at_the_project_root() {
+    let mut i18n = I18n::default();
+    let terminal = |menu: &[MenuItem]| {
+        menu.iter().find_map(|i| match i {
+            MenuItem::Action { command: TaskCommand::OpenInTerminal(cwd), label, .. } => {
+                Some((label.clone(), cwd.clone()))
+            }
+            _ => None,
+        })
+    };
+    let mut local = local_task("one");
+    local.project_root = Some(path("/project"));
+    assert_eq!(terminal(&task_menu(&[&local], None, &mut i18n)), None);
+
+    let mut worktree = task("two", AgentStatus::Ready, 0.0);
+    worktree.cwd = path("/worktrees/two");
+    let expected = Some(("Terminal".to_owned(), "/worktrees/two".to_owned()));
+    assert_eq!(terminal(&task_menu(&[&worktree], None, &mut i18n)), expected);
+
+    let mut subfolder = local_task("three");
+    subfolder.project_root = Some(path("/project"));
+    subfolder.cwd = path("/project/packages/api");
+    let expected = Some(("Terminal".to_owned(), "/project/packages/api".to_owned()));
+    assert_eq!(terminal(&task_menu(&[&subfolder], None, &mut i18n)), expected);
+
+    // A task saved without a root of its own is measured against the window's project.
+    let mut unrooted = local_task("four");
+    unrooted.cwd = path("/project");
+    assert_eq!(terminal(&task_menu(&[&unrooted], Some("/project"), &mut i18n)), None);
 }

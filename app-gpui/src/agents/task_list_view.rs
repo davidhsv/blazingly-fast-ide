@@ -123,6 +123,7 @@ pub struct TaskListView {
     /// The docked conversation or the New Task page, while the tool window shows one.
     docked: Option<AnyView>,
     clock: fn() -> f64,
+    project_root: Option<String>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -138,8 +139,15 @@ impl TaskListView {
             focus: cx.focus_handle(),
             docked: None,
             clock: local_time::now_ms,
+            project_root: None,
             _subscriptions: subscriptions,
         }
+    }
+
+    /// The window's project, which a task that names none of its own belongs to.
+    pub fn with_project_root(mut self, project_root: Option<String>) -> Self {
+        self.project_root = project_root;
+        self
     }
 
     /// The clock the ages are measured against.
@@ -296,7 +304,7 @@ impl TaskListView {
         let store = self.store.read(cx);
         let tasks: Vec<AgentTask> = ids.iter().filter_map(|id| store.task(id).cloned()).collect();
         let refs: Vec<&AgentTask> = tasks.iter().collect();
-        let items = task_menu(&refs, &mut cx.default_global::<Localization>().0);
+        let items = task_menu(&refs, self.project_root.as_deref(), &mut cx.default_global::<Localization>().0);
         if !items.is_empty() {
             cx.emit(TaskListEvent::ShowMenu { items: menu_items(items), position });
         }

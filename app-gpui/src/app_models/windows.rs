@@ -347,6 +347,19 @@ impl OpenFlow {
         self.act(&chosen)
     }
 
+    /// The trust question asked before a new window opens for the project was answered: `None`
+    /// goes on to open it; Don't Open ends the opening with no window and nothing decided.
+    pub fn new_window_trust(&mut self, answer: Result<bool, IdeError>, i18n: &I18n) -> Option<OpenStep> {
+        match answer {
+            Ok(true) => None,
+            Ok(false) => Some(self.done()),
+            Err(error) => {
+                let notice = open_failed_notice(&self.path, &error, i18n);
+                Some(self.fail(false, notice))
+            }
+        }
+    }
+
     /// The backend answered where the project opens.
     pub fn window_answered(&mut self, answer: Result<OpenOutcome, IdeError>, i18n: &I18n) -> OpenStep {
         match answer {

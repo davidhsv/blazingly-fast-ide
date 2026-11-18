@@ -153,9 +153,12 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
     });
     registry.handle("db.goToColumn", |_, window, cx| {
         on_workbench(window, cx, |workbench, window, cx| {
-            if let Some(editor) = workbench.database_table_editor(cx) {
-                editor.update(cx, |editor, cx| editor.show_columns(window, cx));
-            }
+            workbench.on_database_grid(
+                window,
+                cx,
+                |editor, window, cx| editor.show_columns(window, cx),
+                |results, window, cx| results.show_columns(window, cx),
+            );
         })
     });
 }

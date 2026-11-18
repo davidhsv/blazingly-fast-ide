@@ -363,7 +363,7 @@ async fn updates_status_check_now_and_the_automatic_check_apply(cx: &mut TestApp
     let dialog = open_page(&workbench, general_updates::PAGE, cx);
     let view: Entity<general_updates::UpdateStatusView> =
         custom(&dialog, general_updates::PAGE, general_updates::SLOT, cx);
-    let version = format!("Current version: {}", env!("CARGO_PKG_VERSION"));
+    let version = format!("Current version: {}", env!("OPENIDEA_VERSION"));
     let lines = view.read_with(cx, |view, cx| view.lines(cx));
     assert_eq!(lines, [version.clone(), "Last checked: Loading… [Check Now] (disabled)".to_owned()]);
     let controls = dialog.read_with(cx, |view, cx| view.control_lines(cx));

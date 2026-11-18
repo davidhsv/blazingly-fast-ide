@@ -863,8 +863,22 @@ async fn carry_out_open(
                 flow.policy_written()
             }
             OpenStep::RequestWindow { path, new_window, files } => {
-                let outcome = cx.update(|window, cx| request_window(&path, new_window, files, window, cx))?;
-                cx.update(|_, cx| flow.window_answered(outcome, i18n(cx)))?
+                // A project that opens in a window of its own is asked about here, before that
+                // window exists: Don't Open then creates none.
+                let asks = new_window && cx.update(|_, cx| window_with_project(Path::new(&path), cx).is_none())?;
+                let declined = if asks {
+                    let answer = super::app_actions::confirm_project_trust(this, cx, Path::new(&path)).await?;
+                    cx.update(|_, cx| flow.new_window_trust(answer, i18n(cx)))?
+                } else {
+                    None
+                };
+                match declined {
+                    Some(step) => step,
+                    None => {
+                        let outcome = cx.update(|window, cx| request_window(&path, new_window, files, window, cx))?;
+                        cx.update(|_, cx| flow.window_answered(outcome, i18n(cx)))?
+                    }
+                }
             }
             OpenStep::ConfirmLeave => {
                 let confirmed = confirm_leave(this, cx).await?;

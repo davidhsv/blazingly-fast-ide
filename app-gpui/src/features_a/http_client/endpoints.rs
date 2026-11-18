@@ -36,11 +36,12 @@ pub fn endpoint_url(path: &str) -> String {
         .into_owned()
 }
 
-/// An endpoint as a request block on the default local server.
-pub fn render_endpoint(e: &EndpointEntry) -> String {
+/// An endpoint as a request block on the server at `host` (`http://localhost:8080` when its
+/// module configures none).
+pub fn render_endpoint(e: &EndpointEntry, host: &str) -> String {
     let title = e.handler.clone().unwrap_or_else(|| format!("{} {}", e.method, e.url));
     let method = if e.method == "*" { "GET" } else { e.method.as_str() };
-    format!("### {title}\n{method} http://localhost:8080{}\n", endpoint_url(&e.url))
+    format!("### {title}\n{method} {host}{}\n", endpoint_url(&e.url))
 }
 
 /// Where a request URL is being completed: UTF-16 offset of the completed part, the request's
@@ -169,9 +170,12 @@ mod tests {
 
     #[test]
     fn renders_optional_handlers_and_any_method_routes_into_http_blocks() {
-        assert_eq!(render_endpoint(&route()), "### users.show\nGET http://localhost:8080/users/{{id}}\n");
+        let host = "http://localhost:8080";
+        assert_eq!(render_endpoint(&route(), host), "### users.show\nGET http://localhost:8080/users/{{id}}\n");
         let any = EndpointEntry { method: "*".to_owned(), handler: None, ..route() };
-        assert_eq!(render_endpoint(&any), "### * /users/{id}\nGET http://localhost:8080/users/{{id}}\n");
+        assert_eq!(render_endpoint(&any, host), "### * /users/{id}\nGET http://localhost:8080/users/{{id}}\n");
+        let api = render_endpoint(&route(), "http://localhost:9090/api");
+        assert_eq!(api, "### users.show\nGET http://localhost:9090/api/users/{{id}}\n");
     }
 
     #[test]
