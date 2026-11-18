@@ -1,0 +1,882 @@
+{
+  "H1 tests only: database and backend calls already made": {
+    "keys": [
+      "action:db.explainPlan",
+      "action:db.goToColumn",
+      "action:db.queryHistory",
+      "action:db.revertChanges",
+      "point.registerEditorContribution:database.console",
+      "ipc:db_databases",
+      "ipc:db_schema_objects",
+      "ipc:db_set_ssh_secret",
+      "ipc:db_trust_ssh_host",
+      "ipc:debug_attachable_processes",
+      "ipc:docker_snapshot",
+      "ipc:doc_open_virtual",
+      "ipc:doc_snapshot",
+      "ipc:doc_ui_mode",
+      "ipc:lsp_goto_implementation",
+      "ipc:syntax_expression_at",
+      "ipc:vcs_log_details_batch",
+      "ipc:run_env_files"
+    ],
+    "raise_judged": 13,
+    "size": "one pass",
+    "takes": "tests only",
+    "start_from": "CENSUS.md IPC table (Native and Test columns); workbench::database_extras::tests",
+    "care": "db_set_ssh_secret and db_trust_ssh_host through the existing SSH stand-in only; docker_snapshot through the proofs11_docker stand-in",
+    "kind": "harvest",
+    "basis": "harvest: each row read",
+    "count": 18,
+    "status": {
+      " ": 13,
+      "~": 5,
+      "m": 0
+    },
+    "rows_per_pass": 13.0
+  },
+  "H2 tests only: VCS, agents, terminal, navigation": {
+    "keys": [
+      "action:agents.forkReply",
+      "action:agents.forkTask",
+      "action:terminal.openAt",
+      "action:terminal.splitAndMoveDown",
+      "action:vcs.log.branches.update",
+      "action:vcs.log.changes.jumpToSource",
+      "action:vcs.log.squashInto",
+      "action:vcs.showHistoryForSelection",
+      "ipc:vcs_commits_changes",
+      "unit:src/features/vcs/__tests__/deleteFiles.test.ts",
+      "unit:src/features/vcs/__tests__/logBranchMemory.test.ts",
+      "action:code.quickTypeDefinition",
+      "action:navigate.gotoTest",
+      "module:src/editor/navigation/gotoTest.ts",
+      "unit:src/features/terminal/paste.test.ts",
+      "unit:src/features/vcs/__tests__/selectionHistory.test.tsx",
+      "module:src/editor/core/copyReference.ts",
+      "module:src/editor/lsp/workspaceEdit.ts",
+      "ipc:fs_rename"
+    ],
+    "raise_judged": 19,
+    "size": "one pass",
+    "takes": "tests only",
+    "start_from": "the rows proofs (host modules in the table)",
+    "care": "none",
+    "kind": "harvest",
+    "basis": "harvest: each row read",
+    "count": 19,
+    "status": {
+      " ": 0,
+      "~": 19,
+      "m": 0
+    },
+    "rows_per_pass": 19.0
+  },
+  "H3 tests only: plugins, settings, UI primitives": {
+    "keys": [
+      "action:find.usages",
+      "action:http.newRequest",
+      "context:run.updatableRunning",
+      "ipc:plugin_run_command",
+      "module:src/platform/inspections.ts",
+      "module:src/ui/Input.tsx",
+      "module:src/workbench/toolwindows/ToolWindows.tsx",
+      "point.registerMenuGroup:build.module",
+      "point.registerStatusItem:code-insight.servers",
+      "unit:src/features/project-tree/unityRefresh.test.ts",
+      "unit:src/features/settings/__tests__/fontSync.test.ts",
+      "unit:src/features/templates/__tests__/templateCreate.test.ts",
+      "unit:src/platform/i18n.test.ts",
+      "wit:wit/host.wit#storage",
+      "wit:wit/language-features.wit#language-features",
+      "wit:wit/workspace.wit#editor",
+      "wit:wit/workspace.wit#workspace"
+    ],
+    "raise_judged": 17,
+    "size": "one pass (the wit language-features row is about ten tests)",
+    "takes": "tests only",
+    "start_from": "workbench::plugin_runtime::tests, workbench::plugin_contributions::tests",
+    "care": "none",
+    "kind": "harvest",
+    "basis": "harvest: each row read",
+    "count": 17,
+    "status": {
+      " ": 0,
+      "~": 17,
+      "m": 0
+    },
+    "rows_per_pass": 17.0
+  },
+  "Services: actions on a configuration folder node": {
+    "keys": [
+      "action:open-browser",
+      "action:restart-all",
+      "action:run-all",
+      "action:run.services.openBrowser",
+      "action:run.services.restartAll",
+      "action:run.services.runAll",
+      "action:run.services.stopAll",
+      "action:stop-all"
+    ],
+    "raise_judged": 8,
+    "size": "one pass",
+    "takes": "a fix in one native handler path plus tests",
+    "start_from": "the eight rows share one Missing clause (src/features/run/services.tsx:657)",
+    "care": "runs processes: stand-in configurations only",
+    "kind": "slice",
+    "basis": "clause read (shared Missing text)",
+    "count": 8,
+    "status": {
+      " ": 0,
+      "~": 8,
+      "m": 0
+    },
+    "rows_per_pass": 8.0
+  },
+  "Untitled buffers and file.newUntitled": {
+    "keys": [
+      "action:file.newUntitled",
+      "ipc:doc_open_untitled",
+      "ipc:light_edit_open_untitled",
+      "unit:src/editor/core/untitled.test.ts",
+      "keymap:vscode-macos",
+      "keymap:vscode-windows",
+      "module:src/platform/keymaps/vscode-macos.ts",
+      "module:src/platform/keymaps/vscode-windows.ts"
+    ],
+    "raise_judged": 7,
+    "size": "two passes",
+    "takes": "a feature (design ready)",
+    "start_from": "notes/designs/I-UNTITLED.md",
+    "care": "Save As of an untitled buffer; autosave must skip it (design (h))",
+    "kind": "slice",
+    "basis": "design note",
+    "count": 8,
+    "status": {
+      " ": 4,
+      "~": 4,
+      "m": 0
+    },
+    "rows_per_pass": 3.5
+  },
+  "Run window test tree": {
+    "keys": [
+      "unit:src/features/run/testing/comparison.test.ts",
+      "unit:src/features/run/testing/unittest.test.ts",
+      "action:run.rerunFailed",
+      "action:run.expandAllTests",
+      "action:run.collapseAllTests",
+      "context:run.canRerunFailed",
+      "unit:src/features/run/TestTreeView.test.tsx",
+      "unit:src/features/run/testing/dotnet.test.ts",
+      "unit:src/features/run/testing/go.test.ts",
+      "unit:src/features/run/testing/phpunit.test.ts",
+      "unit:src/features/run/testing/plugin.test.ts",
+      "unit:src/features/run/testing/ruby.test.ts",
+      "unit:src/features/run/testing/rerun.test.ts",
+      "unit:src/features/run/testing/states.test.ts",
+      "point.registerToolWindow:run",
+      "feature:run",
+      "e2e:e2e/run.spec.ts",
+      "action:navigate.nextOccurrence",
+      "action:navigate.prevOccurrence"
+    ],
+    "raise_judged": 6,
+    "size": "one pass (draft committed undeclared)",
+    "takes": "wiring plus a view that exists as a draft",
+    "start_from": "notes/designs/test_tree_integration.md, app-gpui/src/run/test_tree_pending*",
+    "care": "the draft says no rows exist for run.rerunFailed, run.expandAllTests, run.collapseAllTests and run.canRerunFailed: they exist and are empty",
+    "kind": "slice",
+    "basis": "draft notes read clause by clause",
+    "count": 19,
+    "status": {
+      " ": 5,
+      "~": 14,
+      "m": 0
+    },
+    "rows_per_pass": 6.0
+  },
+  "Tool window content tabs and View Mode": {
+    "keys": [
+      "action:toolwindow.closeContent",
+      "action:toolwindow.viewMode.dockPinned",
+      "action:toolwindow.viewMode.dockUnpinned",
+      "action:toolwindow.viewMode.undock",
+      "module:src/workbench/toolwindows/content.ts",
+      "unit:src/workbench/toolwindows/badges.test.tsx",
+      "unit:src/workbench/toolwindows/content.test.ts",
+      "unit:src/workbench/toolwindows/header.test.tsx",
+      "e2e:e2e/toolWindowViewMode.spec.ts"
+    ],
+    "raise_judged": 7,
+    "size": "two passes",
+    "takes": "a view (design ready)",
+    "start_from": "notes/designs/I-TW-CONTENT-TABS.md",
+    "care": "the design says the slice is twice the plan size",
+    "kind": "slice",
+    "basis": "design note",
+    "count": 9,
+    "status": {
+      " ": 7,
+      "~": 2,
+      "m": 0
+    },
+    "rows_per_pass": 3.5
+  },
+  "Macros": {
+    "keys": [
+      "action:(dynamic) src/features/macros/index.ts:101",
+      "action:macro.edit",
+      "action:macro.playBack",
+      "action:macro.playSaved",
+      "action:macro.startRecording",
+      "action:macro.stopRecording",
+      "context:macroLastAvailable",
+      "context:macroRecording",
+      "context:macrosSaved",
+      "point.registerEditorContribution:macros.recorder",
+      "point.registerOverlay:macros.dialogs",
+      "point.registerStatusItem:macros.recording",
+      "feature:macros",
+      "unit:src/features/macros/model.test.ts"
+    ],
+    "raise_judged": 10,
+    "size": "two passes",
+    "takes": "wiring of a built model plus dialogs",
+    "start_from": "wiring_work.md (features_b/macros.rs, missing call workbench/chrome.rs:48)",
+    "care": "playback replays actions: none that writes outside the test folder",
+    "kind": "slice",
+    "basis": "estimate over empty rows (no clause bounds it)",
+    "count": 14,
+    "status": {
+      " ": 13,
+      "~": 1,
+      "m": 0
+    },
+    "rows_per_pass": 5.0
+  },
+  "Agents conversation as an editor tab": {
+    "keys": [
+      "action:agents.dockTask",
+      "action:agents.openTask",
+      "action:agents.openTaskInEditor",
+      "action:agents.undockTask",
+      "action:agents.useEditor",
+      "action:agents.useToolWindow",
+      "point.registerEditorKind:agent-session",
+      "point.registerEditorKind:agent-home"
+    ],
+    "raise_judged": 7,
+    "size": "two passes",
+    "takes": "a view (an editor kind)",
+    "start_from": "the six action rows share one clause; agents model.rs names both kinds",
+    "care": "none",
+    "kind": "slice",
+    "basis": "clause read (shared Missing text)",
+    "count": 8,
+    "status": {
+      " ": 2,
+      "~": 6,
+      "m": 0
+    },
+    "rows_per_pass": 3.5
+  },
+  "Database actions: password retry and type suggestions": {
+    "keys": [
+      "action:db.ddlToClipboard",
+      "action:db.ddlToConsole",
+      "action:db.importData",
+      "action:db.newColumn",
+      "action:db.newTable"
+    ],
+    "raise_judged": 5,
+    "size": "one pass",
+    "takes": "a fix in the request path plus a completion list",
+    "start_from": "the three password rows share one clause",
+    "care": "secret handling: the password never in Debug output or logs",
+    "kind": "slice",
+    "basis": "clause read (shared Missing text)",
+    "count": 5,
+    "status": {
+      " ": 0,
+      "~": 5,
+      "m": 0
+    },
+    "rows_per_pass": 5.0
+  },
+  "Build actions a caller can wait for": {
+    "keys": [
+      "action:build.buildArtifacts",
+      "action:build.buildModule",
+      "action:build.buildProject",
+      "action:build.rebuildProject"
+    ],
+    "raise_judged": 4,
+    "size": "one pass",
+    "takes": "a small change to the action result plus tests",
+    "start_from": "the four rows share one clause",
+    "care": "none",
+    "kind": "slice",
+    "basis": "clause read (shared Missing text)",
+    "count": 4,
+    "status": {
+      " ": 0,
+      "~": 4,
+      "m": 0
+    },
+    "rows_per_pass": 4.0
+  },
+  "Settings language pages: Browse prompt": {
+    "keys": [
+      "settings:languages.go",
+      "settings:languages.ruby",
+      "settings:languages.rust",
+      "settings:languages.typescript",
+      "settings:python.ruff",
+      "point.registerOverlay:app.newProject"
+    ],
+    "raise_judged": 5,
+    "size": "one pass",
+    "takes": "a fix in one prompt helper plus tests",
+    "start_from": "the five settings rows share one clause",
+    "care": "hypothesis: GPUI path prompts may not take a start folder; check first (git grep PathPromptOptions in the gpui dependency)",
+    "kind": "slice",
+    "basis": "clause read (shared Missing text)",
+    "count": 6,
+    "status": {
+      " ": 0,
+      "~": 6,
+      "m": 0
+    },
+    "rows_per_pass": 5.0
+  },
+  "Run Anything": {
+    "keys": [
+      "action:runAnything.show",
+      "point.registerOverlay:runAnything.popup",
+      "point.registerRunAnythingProvider:build-tools",
+      "point.registerRunAnythingProvider:run.configs",
+      "feature:run-anything",
+      "unit:src/features/run-anything/model.test.ts"
+    ],
+    "raise_judged": 4,
+    "size": "one pass",
+    "takes": "wiring of a built model",
+    "start_from": "wiring_work.md (features_b/run_anything.rs, missing call title_bar.rs:109)",
+    "care": "runs a typed command line: stand-in only",
+    "kind": "slice",
+    "basis": "estimate over empty rows (no clause bounds it)",
+    "count": 6,
+    "status": {
+      " ": 5,
+      "~": 1,
+      "m": 0
+    },
+    "rows_per_pass": 4.0
+  },
+  "Scratch files": {
+    "keys": [
+      "action:file.newScratchFile",
+      "action:project.viewMode.scratches",
+      "point.registerMenuGroup:scratch.new",
+      "point.registerOverlay:scratch.chooser",
+      "point.registerProjectViewRoot:scratches",
+      "feature:scratch",
+      "unit:src/features/scratch/__tests__/scratch.test.tsx"
+    ],
+    "raise_judged": 5,
+    "size": "one to two passes",
+    "takes": "a chooser view plus wiring",
+    "start_from": "native project_view store.rs names the scratches root",
+    "care": "writes under the user config folder: the test home only",
+    "kind": "slice",
+    "basis": "estimate over empty rows (no clause bounds it)",
+    "count": 7,
+    "status": {
+      " ": 7,
+      "~": 0,
+      "m": 0
+    },
+    "rows_per_pass": 3.3
+  },
+  "Font zoom surfaces": {
+    "keys": [
+      "action:editor.decreaseFontSize",
+      "action:editor.increaseFontSize",
+      "action:editor.resetFontSize",
+      "point.registerFontZoomSurface:(at) src/features/agents/fontZoom.ts:83",
+      "point.registerFontZoomSurface:(at) src/features/terminal/session.ts:382",
+      "point.registerFontZoomSurface:(at) src/features/viewers/markdown/MarkdownEditor.tsx:390",
+      "point.registerFontZoomSurface:(at) src/features/plugins/views/WebView.tsx:233",
+      "unit:src/features/agents/fontZoom.test.tsx",
+      "unit:src/features/viewers/markdown/zoom.test.tsx",
+      "unit:src/editor/core/fontZoom.test.ts"
+    ],
+    "raise_judged": 5,
+    "size": "two passes",
+    "takes": "wiring (terminal per-tab zoom exists unreached) plus a surface registry",
+    "start_from": "wiring_work.md features_b/terminal.rs; the three editor actions share one clause",
+    "care": "the plugin web view surface needs web views, which are not built: that row stays",
+    "kind": "slice",
+    "basis": "estimate over empty rows (no clause bounds it)",
+    "count": 10,
+    "status": {
+      " ": 6,
+      "~": 4,
+      "m": 0
+    },
+    "rows_per_pass": 2.5
+  },
+  "Memory indicator and Clear Caches": {
+    "keys": [
+      "action:perf.clearCaches",
+      "action:perf.showMemory",
+      "action:perf.toggleMemoryIndicator",
+      "action:perf.toggleOverlay",
+      "point.registerOverlay:perf.overlay",
+      "point.registerStatusItem:(at) src/features/perf/index.ts:12",
+      "feature:perf",
+      "ipc:app_metrics",
+      "ipc:clear_caches",
+      "ipc:end_process",
+      "unit:src/features/perf/__tests__/perf.test.ts",
+      "unit:src/features/perf/__tests__/views.test.tsx"
+    ],
+    "raise_judged": 7,
+    "size": "two passes",
+    "takes": "wiring of a built model plus a popup",
+    "start_from": "wiring_work.md (features_b/perf.rs)",
+    "care": "Clear Caches deletes and End Process kills: test home and a stand-in process only",
+    "kind": "slice",
+    "basis": "estimate over empty rows (no clause bounds it)",
+    "count": 12,
+    "status": {
+      " ": 11,
+      "~": 1,
+      "m": 0
+    },
+    "rows_per_pass": 3.5
+  },
+  "Inspect Code": {
+    "keys": [
+      "action:analyze.inspectCode",
+      "action:analyze.inspectFile",
+      "point.registerToolWindow:inspection",
+      "point.registerOverlay:analysis.dialogs",
+      "ipc:inspect_code",
+      "unit:src/features/analysis/analysis.test.ts",
+      "unit:src/features/analysis/inspect.test.ts"
+    ],
+    "raise_judged": 5,
+    "size": "two passes",
+    "takes": "wiring of a built model plus a tool window",
+    "start_from": "wiring_work.md (features_b/analysis/inspect.rs; menu_spec.rs:502 lists the action with no handler)",
+    "care": "none",
+    "kind": "slice",
+    "basis": "estimate over empty rows (no clause bounds it)",
+    "count": 7,
+    "status": {
+      " ": 5,
+      "~": 2,
+      "m": 0
+    },
+    "rows_per_pass": 2.5
+  },
+  "Diff targets: editor tab, Changes between, apply sides": {
+    "keys": [
+      "action:diff.applyLeftSide",
+      "action:diff.applyRightSide",
+      "action:vcs.log.changes.compareBeforeWithLocal",
+      "action:vcs.log.changes.compareWithLocal",
+      "action:vcs.shelf.showDiffNewTab",
+      "action:vcs.log.compareVersions",
+      "action:vcs.log.compareWithLocal"
+    ],
+    "raise_judged": 5,
+    "size": "two passes",
+    "takes": "a view (diff as an editor tab) plus a list",
+    "start_from": "three rows share \"opens the diff window, not an editor tab\"",
+    "care": "none",
+    "kind": "slice",
+    "basis": "clause read (shared Missing text)",
+    "count": 7,
+    "status": {
+      " ": 0,
+      "~": 7,
+      "m": 0
+    },
+    "rows_per_pass": 2.5
+  },
+  "Hierarchy window tabs": {
+    "keys": [
+      "action:navigate.callHierarchy",
+      "action:navigate.typeHierarchy",
+      "unit:src/features/code-insight/hierarchy.test.ts",
+      "point.registerToolWindow:hierarchy"
+    ],
+    "raise_judged": 3,
+    "size": "one pass after content tabs",
+    "takes": "a view",
+    "start_from": "I-TW-CONTENT-TABS.md (the shared header)",
+    "care": "none",
+    "kind": "slice",
+    "basis": "clause read (shared Missing text)",
+    "count": 4,
+    "status": {
+      " ": 0,
+      "~": 4,
+      "m": 0
+    },
+    "rows_per_pass": 3.0
+  },
+  "Build tools Execute popup project chooser": {
+    "keys": ["action:gradle.executeTask", "action:maven.executeGoal", "point.registerOverlay:build-tools.execute"],
+    "raise_judged": 3,
+    "size": "one pass",
+    "takes": "a view (a select)",
+    "start_from": "the three rows share one clause",
+    "care": "none",
+    "kind": "slice",
+    "basis": "clause read (shared Missing text)",
+    "count": 3,
+    "status": {
+      " ": 0,
+      "~": 3,
+      "m": 0
+    },
+    "rows_per_pass": 3.0
+  },
+  "Git log selection and paging": {
+    "keys": ["action:vcs.log.goToRef", "action:vcs.showCommit", "action:vcs.log.squashCommits"],
+    "raise_judged": 3,
+    "size": "one to two passes",
+    "takes": "a feature (multi-selection, paging)",
+    "start_from": "notes/designs/gitlog_real_repo.md",
+    "care": "history rewriting: protected-branch refusal stays",
+    "kind": "slice",
+    "basis": "estimate over empty rows (no clause bounds it)",
+    "count": 3,
+    "status": {
+      " ": 0,
+      "~": 3,
+      "m": 0
+    },
+    "rows_per_pass": 2.0
+  },
+  "Action enabled predicate": {
+    "keys": [
+      "module:src/platform/actions.ts",
+      "unit:src/platform/actions.test.ts",
+      "point.registerMenuGroup:search.bookmarks",
+      "point.registerMenuGroup:search.bookmarks.files"
+    ],
+    "raise_judged": 2,
+    "size": "one to two passes",
+    "takes": "infrastructure",
+    "start_from": "notes/designs/I-ACTIONS-ENABLED.md",
+    "care": "none",
+    "kind": "slice",
+    "basis": "design note",
+    "count": 4,
+    "status": {
+      " ": 0,
+      "~": 4,
+      "m": 0
+    },
+    "rows_per_pass": 1.3
+  },
+  "Project view clipboard after wiring batch 1": {
+    "keys": ["action:project.copy", "action:project.cut", "action:project.paste"],
+    "raise_judged": 3,
+    "size": "tests only once batch 1 lands",
+    "takes": "tests only (after E79 of batch 1)",
+    "start_from": "wiring_few_lines_batches.md E79 refresh_os_clipboard",
+    "care": "in flight: depends on wiring batch 1",
+    "kind": "slice",
+    "basis": "clause read (shared Missing text)",
+    "count": 3,
+    "status": {
+      " ": 0,
+      "~": 3,
+      "m": 0
+    },
+    "rows_per_pass": 2.0
+  },
+  "Editor intelligence wiring": {
+    "keys": [
+      "unit:src/editor/lsp/fileReferences.test.ts",
+      "unit:src/editor/lsp/importsOnPaste.test.ts",
+      "unit:src/editor/lsp/inlineCompletion.test.ts",
+      "unit:src/editor/lsp/signature.test.ts"
+    ],
+    "raise_judged": 2,
+    "size": "two passes",
+    "takes": "wiring (sized \"larger\" by the wiring reader)",
+    "start_from": "wiring_work.md; native cause editor/intelligence.rs",
+    "care": "none",
+    "kind": "slice",
+    "basis": "estimate over empty rows (no clause bounds it)",
+    "count": 4,
+    "status": {
+      " ": 0,
+      "~": 4,
+      "m": 0
+    },
+    "rows_per_pass": 1.0
+  },
+  "Debugger editor wiring": {
+    "keys": [
+      "unit:src/features/debugger/__tests__/editor.test.ts",
+      "unit:src/features/debugger/editor/runToCursor.test.ts"
+    ],
+    "raise_judged": 1,
+    "size": "one pass",
+    "takes": "wiring plus an inlay view",
+    "start_from": "wiring_few_lines_batches.md E84 (needs a view)",
+    "care": "breakpoints.test and hotswap.test are in batch 1 (in flight)",
+    "kind": "slice",
+    "basis": "estimate over empty rows (no clause bounds it)",
+    "count": 2,
+    "status": {
+      " ": 0,
+      "~": 2,
+      "m": 0
+    },
+    "rows_per_pass": 1.0
+  },
+  "Search Everywhere popup gaps": {
+    "keys": [
+      "point.registerOverlay:search.everywhere",
+      "action:navigate.gotoFile",
+      "action:navigate.gotoSymbol",
+      "action:navigate.searchEverywhere",
+      "action:navigate.searchText"
+    ],
+    "raise_judged": 5,
+    "size": "three passes",
+    "takes": "views (preview pane, funnel filters, file-set scope)",
+    "start_from": "the four actions inherit the overlay",
+    "care": "none",
+    "kind": "slice",
+    "basis": "estimate over empty rows (no clause bounds it)",
+    "count": 5,
+    "status": {
+      " ": 0,
+      "~": 5,
+      "m": 0
+    },
+    "rows_per_pass": 1.7
+  },
+  "Find in Files gaps": {
+    "keys": ["action:find.inPath", "action:find.replaceInPath", "point.registerOverlay:search.findInFiles"],
+    "raise_judged": 3,
+    "size": "two to three passes",
+    "takes": "views and the editor history shared with the preview",
+    "start_from": "the three rows share one clause",
+    "care": "none",
+    "kind": "slice",
+    "basis": "clause read (shared Missing text)",
+    "count": 3,
+    "status": {
+      " ": 0,
+      "~": 3,
+      "m": 0
+    },
+    "rows_per_pass": 1.2
+  },
+  "Coverage (stand-in runner)": {
+    "keys": [
+      "action:coverage.hide",
+      "action:coverage.importReport",
+      "action:coverage.manageReports",
+      "action:coverage.show",
+      "action:run.coverage",
+      "action:run.coverageContext",
+      "context:coverageSuites",
+      "context:coverageVisible",
+      "point.registerEditorContribution:coverage.gutter",
+      "point.registerOverlay:coverage.manageReports",
+      "point.registerRunExecutor:coverage",
+      "point.registerToolWindow:coverage",
+      "feature:coverage",
+      "ipc:coverage_collect",
+      "ipc:coverage_import",
+      "ipc:coverage_prepare",
+      "unit:src/features/coverage/coverage.test.ts"
+    ],
+    "raise_judged": 6,
+    "size": "three passes",
+    "takes": "wiring of a built model, views, a stand-in runner",
+    "start_from": "wiring_work.md (features_b/coverage.rs)",
+    "care": "needs a real coverage toolchain for the real run; a stand-in proves requests only (D150)",
+    "kind": "slice",
+    "basis": "estimate over empty rows (no clause bounds it)",
+    "count": 17,
+    "status": {
+      " ": 16,
+      "~": 1,
+      "m": 0
+    },
+    "rows_per_pass": 2.0
+  },
+  "Remote development dialogs (stand-in)": {
+    "keys": [
+      "action:remote.connect",
+      "action:remote.disconnect",
+      "action:remote.reloadEnvironment",
+      "action:remote.reopenInContainer",
+      "point.registerOverlay:remote.connect",
+      "point.registerStatusItem:remote.location",
+      "point.registerToolWindow:remote.ports",
+      "unit:src/features/remote-dev/ConnectDialog.test.tsx",
+      "unit:src/features/remote-dev/container.test.ts",
+      "unit:src/features/remote-dev/environment.test.ts",
+      "unit:src/features/remote-dev/remoteDev.test.ts"
+    ],
+    "raise_judged": 3,
+    "size": "three passes",
+    "takes": "wiring of built models plus views",
+    "start_from": "wiring_work.md (features_b/remote_dev/*)",
+    "care": "network, SSH, containers: the wiring reader marked every entry \"needs care\"",
+    "kind": "slice",
+    "basis": "estimate over empty rows (no clause bounds it)",
+    "count": 11,
+    "status": {
+      " ": 7,
+      "~": 4,
+      "m": 0
+    },
+    "rows_per_pass": 1.0
+  },
+  "Wiring of tested models: editor and tabs": {
+    "keys": [
+      "unit:src/editor/lsp/spelling.test.ts",
+      "unit:src/editor/navigationProviders.test.ts",
+      "unit:src/editor/lsp/semantic/php/constructs.test.ts",
+      "unit:src/editor/core/cm/prefs.test.ts",
+      "unit:src/workbench/fileEditors.test.ts",
+      "unit:src/workbench/providerAcquisition.test.ts",
+      "unit:src/features/vcs/__tests__/conflictMarkerEdits.test.ts",
+      "unit:src/features/project-tree/roots.test.ts"
+    ],
+    "raise_judged": 4,
+    "size": "two passes",
+    "takes": "wiring plus one window test per row",
+    "start_from": "$S/rank/w95.json (single clause \"nothing in the app reaches it\", every spec case has a same-named native test); wiring_work.md for each missing call",
+    "care": "read each row against wiring_few_lines_batches.md first: several entries there are \"larger\" or \"needs a view\"",
+    "kind": "slice",
+    "basis": "spec cases matched by name; wiring verdicts read",
+    "count": 8,
+    "status": {
+      " ": 0,
+      "~": 8,
+      "m": 0
+    },
+    "rows_per_pass": 2.0
+  },
+  "Wiring of tested models: run, welcome and Git log": {
+    "keys": [
+      "unit:src/features/run/rubyTests.test.ts",
+      "unit:src/features/run/workflow.test.ts",
+      "unit:src/features/terminal/embeddedFit.test.ts",
+      "unit:src/features/run/updatePolicies.test.ts",
+      "unit:src/features/app/__tests__/projectName.test.ts",
+      "unit:src/features/welcome/openRecent.test.ts",
+      "unit:src/features/welcome/recent.test.ts",
+      "unit:src/features/welcome/session.test.ts",
+      "unit:src/features/vcs/__tests__/logSearch.test.ts",
+      "unit:src/features/plugins/markerStore.test.ts",
+      "unit:src/features/agents/markdownImages.test.ts"
+    ],
+    "raise_judged": 4,
+    "size": "two passes",
+    "takes": "wiring, two of them a view",
+    "start_from": "$S/rank/w95.json; wiring_few_lines_batches.md E36 (log search needs a view), E58 (Ruby tests needs a view), E101 (startup reopen needs care: trust)",
+    "care": "startup reopen of projects asks trust first (E101)",
+    "kind": "slice",
+    "basis": "spec cases matched by name; wiring verdicts read",
+    "count": 11,
+    "status": {
+      " ": 0,
+      "~": 11,
+      "m": 0
+    },
+    "rows_per_pass": 2.0
+  },
+  "Claim by reading: empty rows whose native module and tests exist": {
+    "keys": [
+      "unit:src/features/vcs/__tests__/localHistory.test.tsx",
+      "point.registerEditorKind:localHistory",
+      "module:src/editor/lsp/hover.ts",
+      "module:src/editor/lsp/completion.ts",
+      "module:src/editor/lsp/signature.ts",
+      "unit:src/editor/refactor/signature.test.ts",
+      "module:src/workbench/Notifications.tsx",
+      "unit:src/editor/core/view/statusItems.test.tsx",
+      "unit:src/features/plugins/runtimeUi.test.tsx",
+      "unit:src/features/run/javaDebug.test.ts",
+      "module:src/ui/projectType.ts",
+      "unit:src/features/project-tree/projectType.test.ts",
+      "unit:src/workbench/decorations.test.ts",
+      "unit:src/editor/navigation/lineMarkers.test.ts",
+      "unit:src/workbench/buildToolRecovery.test.ts"
+    ],
+    "raise_judged": 5,
+    "size": "one pass of reading, then tests where cases lack one",
+    "takes": "reading (cases against native tests), then tests",
+    "start_from": "$S/rank/stems_exact.json (same-named native module, its tests, uncited and window-like counts)",
+    "care": "hypothesis by file name only: runtimeUi, javaDebug, decorations, lineMarkers and buildToolRecovery have model tests only, which may give [m] rather than parity (D160)",
+    "kind": "slice",
+    "basis": "hypothesis: native file name match",
+    "count": 15,
+    "status": {
+      " ": 15,
+      "~": 0,
+      "m": 0
+    },
+    "rows_per_pass": 5.0
+  },
+  "Settings editor pages (the sibling reader triages)": {
+    "keys": [
+      "settings:editor.codeEditing",
+      "settings:editor.codeStyle",
+      "settings:editor.codeStyle.other",
+      "settings:editor.colorScheme",
+      "settings:editor.colorScheme.debugger",
+      "settings:editor.colorScheme.general",
+      "settings:editor.colorScheme.git",
+      "settings:editor.fileEncodings",
+      "settings:editor.font",
+      "settings:editor.general",
+      "settings:editor.general.appearance",
+      "settings:editor.general.autoImport",
+      "settings:editor.general.breadcrumbs",
+      "settings:editor.general.codeCompletion",
+      "settings:editor.general.codeFolding",
+      "settings:editor.general.editorTabs",
+      "settings:editor.general.gutterIcons",
+      "settings:editor.general.inlineCompletion",
+      "settings:editor.general.richTextCopy",
+      "settings:editor.general.smartKeys",
+      "settings:editor.general.stickyLines",
+      "settings:editor.inlayHints",
+      "settings:editor.inspections",
+      "settings:editor.naturalLanguages",
+      "settings:editor.naturalLanguages.spelling"
+    ],
+    "raise_judged": 0,
+    "size": "unknown until the sibling report",
+    "takes": "unknown",
+    "start_from": "$S/drafts/rows_settings_and_pending.md (sibling)",
+    "care": "not ranked here",
+    "kind": "placeholder",
+    "basis": "not ranked",
+    "count": 25,
+    "status": {
+      " ": 25,
+      "~": 0,
+      "m": 0
+    },
+    "rows_per_pass": 0.0
+  }
+}
