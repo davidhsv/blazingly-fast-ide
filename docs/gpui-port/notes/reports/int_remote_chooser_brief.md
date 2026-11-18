@@ -1,6 +1,6 @@
 # Integrator brief: the remote folder chooser of the Deployment servers page, shared with Run Targets (drafts written without a compiler)
 
-Read first: `$S/int_rules.md` (hard rules and report format), `$S/tests_brief.md`, `$S/view_rules.md`, `$S/wiring_brief.md`. Your own scratch subfolder: `$S/drfci/`.
+Read first: `$S/int_rules.md` (hard rules and report format; the two other briefs it names no longer exist: skip them) and `$S/view_rules.md`. Your own scratch subfolder: `$S/drfci/`.
 
 Format only files you edited, taken from `git diff --name-only` plus the draft files this brief hands you by name. Never build a file list from `git status`. Never restore a file from a backup copy or with `git checkout`: undo your own edit by editing. Leave no polling loop behind (a loop on `pgrep -f "cargo test"` matches its own command line and never ends).
 
@@ -36,15 +36,17 @@ The webview's chooser: `src/features/settings/pages/deployment.tsx:40-237` (and 
 
 ## Changed since the notes were written
 
-BEFORE LAUNCH (for the manager; delete this paragraph then): the notes were written on the tree at 927cef99 while the live templates integration was in flight; say here which of the existing files the hunks anchor on changed (`settings_view/pages/mod.rs`, `build_deployment.rs`, `build_deployment/connection.rs`, `build_deployment/paths.rs`, `build_run_targets.rs`, `build_run_targets/folder.rs`, `build_run_targets/proofs30_run_targets_view.rs`, `workbench/mod.rs`).
+HEAD is `c3d522d56`. The notes were written on the tree at `927cef99`. Of the existing files the hunks anchor on, measured with `git diff --shortstat 927cef99 HEAD`: unchanged are `settings_view/pages/mod.rs`, `build_deployment/paths.rs`, `build_run_targets.rs`, `build_run_targets/folder.rs` and `build_run_targets/proofs30_run_targets_view.rs`; changed are `settings_view/pages/build_deployment.rs` (two commits, 12 lines in, 9 out), `build_deployment/connection.rs` (one commit, 2 in, 1 out) and `workbench/mod.rs` (fifteen commits, 477 in, 175 out: the test module list and the tab strip moved, so re-anchor every hunk on it by name or quoted text). Read `git diff 927cef99 HEAD -- <file>` for the three changed files before applying a hunk on them.
+
+The other agents' undeclared drafts now in the tree are listed in `$S/undeclared_now.txt`: leave alone every file named there that this brief does not hand you. Eight tests that wait for a run or debug process to stop timed out once under a machine load of 80 to 130 (`workbench::debug::tests::proofs40_debug_guards::*`, `workbench::tests::proofs18_e2e_run::cmd_f2_stops_a_running_process`, `workbench::tests::proofs40_run_start::*`) and passed in clean runs: if they fail in your whole-suite runs, quote them and go on. The repository this is pushed to is public: your report and files hold no name, path, branch, author or content of any project of the owner other than this repository.
 
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 
-The whole suite twice to files, nothing else running beside the first (write `uptime` before and after each run into the same file); during the second, every test you added, declared or changed twenty times by filter (report passes of twenty and every test that failed at least once, with its failure); `cargo test --test web_view` once; clippy `--all-targets -- -D warnings`; `cargo build` with 0 warnings. Never pipe a test run into `head`. Start no test run with `&` inside a script. If any test fails in a whole-suite run, keep that run's log and quote the failure whole.
+The whole suite twice to files, nothing else running beside either (write `uptime` before and after each run into the same file); after the second, every test you added, declared or changed twenty times by filter (report passes of twenty and every test that failed at least once, with its failure); `cargo test --test web_view` once; clippy `--all-targets -- -D warnings`; `cargo build` with 0 warnings. Never pipe a test run into `head`. Start no test run with `&` inside a script. If any test fails in a whole-suite run, keep that run's log and quote the failure whole.
 
 ## Report
 
-Besides the format of `$S/int_rules.md`: the safety points one by one with their tests; whether B landed; the measurements; the rows; which way each hypothesis went; the shots' absolute paths and what you saw in each.
+Your final message must be the full report (no short closing line after it). Besides the format of `$S/int_rules.md`: the safety points one by one with their tests; whether B landed; the measurements; the rows; which way each hypothesis went; the shots' absolute paths and what you saw in each.
 
 ## Do not touch
 
