@@ -8954,5 +8954,25 @@
   "ipc:window_group_cancel_close": {
     "status": "partial",
     "proof": "`workbench::tests::proofs13_close_guard::keeps_the_window_when_saving_fails_or_the_user_cancels`, `workbench::tests::proofs13_close_guard::asks_before_terminating_a_running_process`; a close the user cancels, or whose save fails, keeps the window with its project, and closing the last project window goes back to Welcome; the native window refuses the close itself, there being no window groups to call off (src/features/app/closeGuard.ts:239, :256, :265). Missing: a detached document window refusing to close (closeGuard.ts:222): detached editor windows are not built"
+  },
+  "ipc:gh_pr_comment": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:gh_pr_list": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:gh_pr_review": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:gh_pr_review_comments": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:gh_pr_view": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
   }
 }

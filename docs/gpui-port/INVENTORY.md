@@ -5,7 +5,7 @@ A row is `[x]` only when `parity.json` names a Rust test (Proof) that demonstrat
 A row is `[m]` (model only) when its tests pass but are tests of code that nothing reachable from the application uses yet: the logic exists, the app does not do it. `[m]` rows do not count as at parity.
 A row is `[–]` (nothing to port) when it is a backend command that no file of the webview calls; this script checks that claim on every run. Those rows do not count as at parity either.
 
-**Overall: 1268/3905 rows at parity, 9 model only, 948 partial, 14 with nothing to port.**
+**Overall: 1268/3905 rows at parity, 9 model only, 948 partial, 19 with nothing to port.**
 
 | Section | At parity | Model only | Partial | Nothing to port | Total |
 |---|---|---|---|---|---|
@@ -71,7 +71,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Editor, platform, workbench and design-system modules | 26 | 0 | 73 | 0 | 291 |
 | Design tokens, icons and locales | 11 | 0 | 6 | 0 | 17 |
 | Native shell modules (src-tauri) | 0 | 0 | 2 | 0 | 25 |
-| IPC commands | 315 | 0 | 63 | 14 | 715 |
+| IPC commands | 315 | 0 | 63 | 19 | 715 |
 | Backend events (IdeEvent) | 11 | 0 | 9 | 0 | 31 |
 | Plugin API interfaces (wit/) | 10 | 0 | 10 | 0 | 53 |
 | Behaviour specification: unit tests (vitest) | 205 | 9 | 400 | 0 | 976 |
@@ -2412,7 +2412,7 @@ Desktop-shell behaviour implemented in Rust next to the webview (menus, title ba
 | [~] | `src-tauri/src/windows.rs` | 2438 | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; labels, opening a window for nothing, a project or a file, focusing the window that has a project, cycling. Not yet: restoring the windows of the last run, native window tabs and groups, auxiliary windows (settings, diff), LightEdit routing of loose files between windows, detaching a tab, the close and quit sequence, window state |
 | [ ] | `src-tauri/src/windows_error_mode.rs` | 51 |  |
 
-## IPC commands (315/715 at parity, 63 partial, 14 with nothing to port)
+## IPC commands (315/715 at parity, 63 partial, 19 with nothing to port)
 
 The GPUI app calls the implementation directly; a row is at parity when the UI behaviour that used the command is.
 
@@ -2667,13 +2667,13 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `gh_api` | src-tauri/src/commands/github.rs | desktop shell | yes | `workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::a_search_term_filters_the_list_through_a_new_request`, `workbench::github::tests::view_pull_request_opens_its_tab_with_its_title_branches_checks_and_changed_files`; the rows, labels, the search's result and the pull request's details, checks and files come from the GraphQL and REST answers of gh api; the window calls GhCli::api with the repository's folder and a GhApiRequest, the function ide_github::api delegates to |
 | [x] | `gh_availability` | src-tauri/src/commands/github.rs | desktop shell | yes | `workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::with_gh_not_signed_in_the_window_shows_the_sign_in_state_and_offers_gh_auth_login`, `workbench::github::tests::without_gh_installed_the_window_offers_to_install_it`, `workbench::github::tests::without_a_github_remote_the_window_shows_that_state`; the window shows Connected, Not logged in to GitHub, GitHub CLI is not installed or No GitHub repository from what GhCli::availability makes of gh repo view and gh api user; the window calls GhCli::availability with the repository's folder, the function ide_github::availability delegates to |
 | [x] | `gh_pr_checkout` | src-tauri/src/commands/github.rs | desktop shell | yes | `workbench::github::tests::checkout_branch_checks_out_the_pull_requests_branch_and_the_branch_widget_follows`, `workbench::github::tests::checkout_pull_request_checks_out_the_number_it_is_given`; HEAD moves to the pull request's branch only through gh pr checkout, and gh's failure is reported; the window calls GhCli::checkout with the repository's folder, the number, a cancellation token and an output callback, the function ide_github::checkout delegates to, then reads the repository again as VcsChanged makes the webview do |
-| [ ] | `gh_pr_comment` | src-tauri/src/commands/github.rs | desktop shell | yes |  |
+| [–] | `gh_pr_comment` | src-tauri/src/commands/github.rs | desktop shell | yes | no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it |
 | [–] | `gh_pr_create` | src-tauri/src/commands/github.rs | desktop shell | yes | no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it |
-| [ ] | `gh_pr_list` | src-tauri/src/commands/github.rs | desktop shell | yes |  |
+| [–] | `gh_pr_list` | src-tauri/src/commands/github.rs | desktop shell | yes | no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it |
 | [x] | `gh_pr_prepare_diff` | src-tauri/src/commands/github.rs | desktop shell | yes | `workbench::github::tests::proofs9_github` |
-| [ ] | `gh_pr_review` | src-tauri/src/commands/github.rs | desktop shell | yes |  |
-| [ ] | `gh_pr_review_comments` | src-tauri/src/commands/github.rs | desktop shell | yes |  |
-| [ ] | `gh_pr_view` | src-tauri/src/commands/github.rs | desktop shell | yes |  |
+| [–] | `gh_pr_review` | src-tauri/src/commands/github.rs | desktop shell | yes | no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it |
+| [–] | `gh_pr_review_comments` | src-tauri/src/commands/github.rs | desktop shell | yes | no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it |
+| [–] | `gh_pr_view` | src-tauri/src/commands/github.rs | desktop shell | yes | no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it |
 | [x] | `git_credential_forget` | src-tauri/src/commands/ssh.rs | desktop shell | yes | `settings_view::custom_controls::tests::passwords_lists_a_saved_credential_and_forget_removes_it`; Forget on the Git page calls GitCredentials::forget on the git_creds store and the store no longer holds the credential |
 | [x] | `git_credentials` | src-tauri/src/commands/ssh.rs | desktop shell | yes | `settings_view::custom_controls::tests::passwords_lists_a_saved_credential_and_forget_removes_it`; the Git page Passwords list shows the host GitCredentials::list returns from the git_creds store |
 | [ ] | `gradle_dependencies` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes |  |
