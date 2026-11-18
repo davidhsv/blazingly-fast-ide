@@ -827,6 +827,8 @@ impl Workbench {
             cx.subscribe_in(&grid, window, Self::database_grid_event),
             cx.subscribe_in(&panel, window, Self::database_panel_event),
             cx.observe_in(&results, window, |workbench, _, window, cx| workbench.sync_database_context(window, cx)),
+            // A cell's field opening or closing counts as a change (`sync_database_context`).
+            cx.observe_in(&grid, window, |workbench, _, window, cx| workbench.sync_database_context(window, cx)),
             cx.on_focus_in(&results_focus, window, |workbench, window, cx| workbench.sync_database_context(window, cx)),
             cx.on_focus_out(&results_focus, window, |workbench, _, window, cx| {
                 workbench.sync_database_context(window, cx)
@@ -1884,9 +1886,13 @@ impl Workbench {
                 };
                 let editor = cx.new(|cx| TableEditorView::new(id, table, caps, window, cx));
                 let focus = editor.focus_handle(cx);
+                let grid = editor.read(cx).grid().clone();
                 let events = vec![
                     cx.subscribe_in(&editor, window, Self::table_editor_event),
                     cx.observe_in(&editor, window, |workbench, _, window, cx| {
+                        workbench.sync_database_context(window, cx)
+                    }),
+                    cx.observe_in(&grid, window, |workbench, _, window, cx| {
                         workbench.sync_database_context(window, cx)
                     }),
                     cx.on_focus_in(&focus, window, |workbench, window, cx| workbench.sync_database_context(window, cx)),
@@ -2000,24 +2006,40 @@ impl Workbench {
             return None;
         }
         let results = slot.results.read(cx);
-        let focused = results.focus_handle(cx).contains_focused(window, cx)
-            && !results.search_field().focus_handle(cx).is_focused(window);
+        let focused = (results.focus_handle(cx).contains_focused(window, cx)
+            && !results.search_field().focus_handle(cx).is_focused(window))
+            || cell_field_focused(results.grid(), window, cx);
         (focused && results.active().is_some()).then(|| slot.results.clone())
     }
 
     /// `dbTableEditorFocus` and `dbTableEditorChanges`: the shown table editor, or the console's
-    /// result grid, has the keyboard, and has edits to submit.
+    /// result grid, has the keyboard, and has edits to submit or a cell being edited (Submit and
+    /// Revert confirm that cell first, so its value counts as a change).
     pub(super) fn sync_database_context(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let (focused, dirty) = match self.database_table_editor(cx) {
-            Some(editor) => (editor.focus_handle(cx).contains_focused(window, cx), editor.read(cx).is_dirty()),
+            Some(editor) => {
+                let focused = editor.focus_handle(cx).contains_focused(window, cx)
+                    || cell_field_focused(editor.read(cx).grid(), window, cx);
+                let editor = editor.read(cx);
+                (focused, editor.is_dirty() || editor.grid().read(cx).has_inline_editor())
+            }
             None => match self.focused_database_results(window, cx) {
-                Some(results) => (true, results.read(cx).can_submit()),
+                Some(results) => {
+                    let results = results.read(cx);
+                    (true, results.can_submit() || results.grid().read(cx).has_inline_editor())
+                }
                 None => (false, false),
             },
         };
         set_context(window, cx, TABLE_EDITOR_FOCUS, focused);
         set_context(window, cx, TABLE_EDITOR_CHANGES, focused && dirty);
     }
+}
+
+/// Whether the field of the cell `grid` edits has the keyboard: a field just opened is not drawn
+/// yet, so the focus is not known to be inside the grid until the next frame.
+fn cell_field_focused(grid: &Entity<GridView>, window: &Window, cx: &App) -> bool {
+    grid.read(cx).editor_field().is_some_and(|field| field.focus_handle(cx).is_focused(window))
 }
 
 /// The store's answer to a password or SSH secret question.

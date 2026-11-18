@@ -550,3 +550,51 @@ async fn a_dotnet_debug_start_debugs_the_build_output_the_project_names(cx: &mut
     stop_session(&fixture, cx);
     close_project(&fixture, cx);
 }
+
+/// Starts debugging `config` as Debug does from a configuration.
+fn start_config(config: &ide_run::RunConfig, cx: &mut VisualTestContext) {
+    let arg = serde_json::json!({ "config": serde_json::to_value(config).expect("the configuration as JSON") });
+    let ran = cx.update(|window, cx| execute_action_or_throw("debug.startConfig", Some(&arg), window, cx));
+    ran.expect("debug.startConfig runs");
+}
+
+// Not from a spec: a debug start whose configuration names `.env` files reads them from the project
+// first: their variables reach the debuggee's launch, under the configuration's own; a file that
+// cannot be read stops the start with a notice naming it, and no session begins.
+#[gpui_kit::test]
+async fn a_debug_start_reads_the_configurations_env_files_and_one_that_cannot_be_read_stops_it(
+    cx: &mut TestAppContext,
+) {
+    let (fixture, cx) = open(cx, PROGRAM);
+    let launch = "    elif command == 'launch':\n        launch = request\n";
+    let echoed = "        env = arguments.get('env') or {}\n        event('output', {'category': 'stdout', 'output': \
+                  'GREETING=%s SHARED=%s\\n' % (env.get('GREETING'), env.get('SHARED'))})\n";
+    let script = FAKE_ADAPTER.replace(launch, &format!("{launch}{echoed}"));
+    assert!(script.contains("'GREETING=%s"), "{script}");
+    use_adapter(&fixture, &script);
+    std::fs::write(fixture.root.join(".env"), "GREETING=hello\nSHARED=from-file\n").expect("the .env file");
+    let mut config = ide_run::RunConfig {
+        command: "main.fake".to_owned(),
+        debug_adapter: Some("fake-dap".to_owned()),
+        ..blank_config("envs", "envs", "program")
+    };
+    config.env.insert("SHARED".to_owned(), "own".to_owned());
+    config.extras.env_files = vec![".env".to_owned()];
+    start_config(&config, cx);
+    long(cx, "the variables in the debug console", &|cx| fixture.console(cx).contains("GREETING=hello SHARED=own"));
+    long(cx, "the end of the session", &|cx| fixture.status(cx) == Some(SessionStatus::Terminated));
+    let started = active_session(&fixture, cx);
+
+    config.extras.env_files = vec!["missing.env".to_owned()];
+    start_config(&config, cx);
+    let notice = |cx: &mut VisualTestContext| {
+        fixture.workbench.read_with(cx, |w, _| {
+            w.notifications().items().iter().find(|n| n.title == "Cannot start debugging").map(|n| n.body.clone())
+        })
+    };
+    long(cx, "the notice", &|cx| notice(cx).is_some());
+    let body = notice(cx).flatten().unwrap_or_default();
+    assert!(body.starts_with("cannot read .env file") && body.contains("missing.env"), "{body}");
+    assert_eq!(active_session(&fixture, cx), started, "no session begins");
+    close_project(&fixture, cx);
+}

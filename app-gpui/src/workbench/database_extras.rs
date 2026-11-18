@@ -1716,4 +1716,134 @@ mod tests {
         assert!(editor.read_with(cx, |e, _| e.columns_query().is_some()));
         cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
     }
+
+    const SSH_SECRET: &str = "dbTunnelS3cret-7c1a";
+
+    /// The backend under a temporary home whose saved passwords are files there: the system's
+    /// credential store is never set up and no SSH file of the user is read.
+    fn start_isolated(cx: &mut TestAppContext) -> tempfile::TempDir {
+        let home = start(cx);
+        crate::backend::assert_ssh_files_under(home.path(), cx);
+        assert!(ide_ssh::secrets::secrets_in_files(), "saved passwords go to files under the temporary home");
+        assert!(!ide_ssh::secrets::default_store_installed(), "the system's credential store is never set up");
+        home
+    }
+
+    /// Every file under `dir`.
+    fn files_under(dir: &Path) -> Vec<PathBuf> {
+        let mut files = Vec::new();
+        for entry in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                files.extend(files_under(&path));
+            } else {
+                files.push(path);
+            }
+        }
+        files
+    }
+
+    /// New Data Source opened from the Database window, a PostgreSQL source on the loopback address.
+    fn new_postgres_source(
+        workbench: &Entity<Workbench>,
+        cx: &mut VisualTestContext,
+    ) -> Entity<crate::database::source_dialog::SourceDialog> {
+        use crate::database::source_dialog::Field;
+        run_action(cx, "db.newDataSource", None);
+        let dialog = workbench.read_with(cx, |w, _| w.database_source_dialog()).expect("the dialog is open");
+        // Nothing listens on this port: a connection to it is refused at once.
+        let closed = std::net::TcpListener::bind("127.0.0.1:0").and_then(|l| l.local_addr()).expect("a loopback port");
+        dialog.update_in(cx, |dialog, window, cx| {
+            dialog.edit(
+                |form| {
+                    form.set_type("postgres");
+                    form.set_field(Field::Host, "127.0.0.1");
+                    form.set_field(Field::Port, &closed.port().to_string());
+                    form.set_field(Field::User, "dev");
+                },
+                window,
+                cx,
+            );
+        });
+        cx.run_until_parked();
+        dialog
+    }
+
+    /// A data source saved with an SSH tunnel by password and Save password on hands the typed
+    /// password to the backend, which keeps it in its saved passwords (a vault file under the
+    /// temporary home in test builds) and nowhere else: not in the data sources file, not drawn.
+    #[gpui_kit::test]
+    async fn saving_a_data_source_with_an_ssh_password_keeps_it_in_the_saved_passwords(cx: &mut TestAppContext) {
+        use crate::database::source_dialog::{Field, SourceTab};
+        let home = start_isolated(cx);
+        let (_folder, _root, workbench, cx) = trusted_project(cx, &[("README.md", "notes\n")]);
+        cx.update(|window, _| window.activate_window());
+        let dialog = new_postgres_source(&workbench, cx);
+        dialog.update_in(cx, |dialog, window, cx| {
+            dialog.edit(
+                |form| {
+                    form.set_field(Field::SshHost, "127.0.0.1");
+                    form.set_field(Field::SshUser, "me");
+                },
+                window,
+                cx,
+            );
+            dialog.select_tab(SourceTab::Ssh, cx);
+        });
+        cx.run_until_parked();
+        click_on(cx, "source-ssh");
+        click_on(cx, "source-picker-SshAuth");
+        click_on(cx, "source-picker-SshAuth-1");
+        click_on(cx, "source-ssh-save");
+        let secret = dialog.read_with(cx, |dialog, _| dialog.ssh_secret_field().clone());
+        cx.update(|window, cx| window.focus(&secret.focus_handle(cx), cx));
+        cx.run_until_parked();
+        cx.simulate_input(SSH_SECRET);
+        cx.run_until_parked();
+        let ssh = dialog.read_with(cx, |dialog, _| dialog.form().ssh());
+        assert!(ssh.enabled && ssh.save_secret && ssh.auth == ide_db::DbSshAuth::Password, "{ssh:?}");
+
+        click_on(cx, "source-ok");
+        wait_long(cx, "the save", |cx| workbench.read_with(cx, |w, _| w.database_source_dialog().is_none()));
+        let saved = cx.update(|_, cx| ide_host::ops::db::sources(&cx.global::<Backend>().host, "w1"));
+        let saved = saved.expect("the sources are read");
+        assert!(saved.iter().any(|source| source.ssh.as_ref().is_some_and(|ssh| ssh.enabled)), "{saved:?}");
+        let holding = |home: &Path| -> Vec<PathBuf> {
+            files_under(home)
+                .into_iter()
+                .filter(|file| {
+                    std::fs::read(file).is_ok_and(|bytes| String::from_utf8_lossy(&bytes).contains(SSH_SECRET))
+                })
+                .collect()
+        };
+        wait_long(cx, "the saved password", |_| !holding(home.path()).is_empty());
+        let vault = |file: &PathBuf| file.extension().is_some_and(|extension| extension == "vault");
+        let files = holding(home.path());
+        assert!(files.iter().all(vault), "only the saved passwords' vault holds it: {files:?}");
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+    }
+
+    /// Test Connection in the data source dialog meeting an unknown SSH host key offers Trust Host
+    /// and Retry, which asks the backend to trust the key of that data source; with no key waiting
+    /// the backend says so, and the dialog shows it. The question comes from a stand-in, since a real
+    /// one is only met after an SSH handshake.
+    #[gpui_kit::test]
+    async fn trust_host_in_the_data_source_dialog_asks_the_backend_for_that_source(cx: &mut TestAppContext) {
+        let _home = start_isolated(cx);
+        let (_folder, _root, workbench, cx) = trusted_project(cx, &[("README.md", "notes\n")]);
+        cx.update(|window, _| window.activate_window());
+        let dialog = new_postgres_source(&workbench, cx);
+        let unknown = "Unknown SSH host key for 127.0.0.1:22 (ssh-ed25519 SHA256:abc)";
+        let question = IdeError::new(ide_core::error::ErrorKind::Protocol, unknown);
+        dialog.update(cx, |dialog, cx| dialog.test_finished(Err(question), cx));
+        cx.run_until_parked();
+        assert!(dialog.read_with(cx, |dialog, _| dialog.form().test.as_ref().is_some_and(|test| test.trust)));
+
+        click_on(cx, "source-trust");
+        let outcome = |cx: &mut VisualTestContext| dialog.read_with(cx, |dialog, _| dialog.form().test.clone());
+        wait_long(cx, "the backend's answer", |cx| outcome(cx).is_some_and(|test| test.text != unknown));
+        let test = outcome(cx).expect("an outcome");
+        assert_eq!((test.ok, test.text.as_str(), test.trust), (false, "no host key to trust", false));
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+    }
 }
