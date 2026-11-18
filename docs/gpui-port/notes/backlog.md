@@ -1059,3 +1059,10 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - 2026-11-17 ~23:10 GIT LOG fix VERIFIED and committed (code c107abed7, D172; 1,184/3,782). RUNNING next: cargo integrator FOLLOW UPSTREAM 4 items 4–7 (`$S/int_follow_upstream4_brief.md`, scratch `$S/dfol4b/`, report → `$S/reports/int_follow_upstream4b.md`, verify with `verify_dfol4b`). Queue after: settings wiring B → remote chooser → agents list → visual 2 → wiring. Draft queue: remote chooser, agents list (2): one feature writer may run. Throughput today after the measurement: settings A +0, upstream 4a +13, git log +0 (a defect).
 - 2026-11-18 ~01:05 FOLLOW UPSTREAM 4 items 4–7 VERIFIED and committed (code d3dbafa16, D173; 1,192/3,782, 9 model only, 915 partial). NEXT cargo: a TRUST DEFECT found (attach to workspace answers trust without asking) + settings wiring B (tabs: brief to write from UNWIRED.md's settings section) → remote chooser → agents list → visual 2 → wiring. Throughput after the measurement: settings A +0 (1h17), upstream 4a +13 (1h18), git log +0 (1h44, a defect), upstream 4b +8 (1h45): 21 rows in ~6h of integrator time.
 - 2026-11-18 ~01:20 RUNNING: cargo integrator TRUST ON ATTACH + SETTINGS WIRING B (editor tabs) (`$S/int_settings_wiring_b_brief.md`, scratch `$S/dswb/`, report → `$S/reports/int_settings_wiring_b.md`, verify with `verify_dswb`). Queue after: remote chooser → agents list → visual 2 → wiring of built features.
+
+## 2026-11-18 (after D174)
+
+- Landed and verified by me: code `638adf09e` (Editor Tabs settings; trust question on attach). D174 written. Inventory 1,192/3,782 (no row raised).
+- The integrator's run died on a connection error after its gates; resumed with SendMessage to its agent id: works, the agent keeps its context.
+- Cargo is free. Next cargo slice: remote chooser (`$S/int_remote_chooser_brief.md`, fill "Changed since" with HEAD), then agents list, then visual slice 2, then wiring work.
+- `$S/undeclared_now.txt` refreshed from `verify_dswb_reach.log`.
