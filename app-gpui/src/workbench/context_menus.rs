@@ -1971,6 +1971,55 @@ mod tests {
         assert_eq!(slot, Some(Slot::Right));
     }
 
+    /// Maximize in a tool window's Options menu draws its side across the window; the menu then offers
+    /// Restore Size, which gives the side its own width back.
+    #[gpui_kit::test]
+    async fn maximize_in_a_tool_windows_options_maximizes_its_side_and_restore_size_restores_it(
+        cx: &mut TestAppContext,
+    ) {
+        use crate::workbench::tool_windows::Anchor;
+        let (f, cx) = open(cx, &[("a.txt", "a\n")], Setup::default());
+        let maximized = |cx: &mut VisualTestContext| {
+            f.workbench.read_with(cx, |w, _| w.tool_windows().and_then(|layout| layout.maximized()))
+        };
+        assert_eq!(maximized(cx), None);
+        click(cx, "more:project".to_owned());
+        let menu = f.workbench.read_with(cx, |w, _| w.open_menu::<ToolWindowCommand>()).expect("the options are open");
+        choose(&menu, &["Maximize"], cx);
+        assert_eq!(maximized(cx), Some(Anchor::Left));
+        click(cx, "more:project".to_owned());
+        let menu = f.workbench.read_with(cx, |w, _| w.open_menu::<ToolWindowCommand>()).expect("the options are open");
+        choose(&menu, &["Restore Size"], cx);
+        assert_eq!(maximized(cx), None);
+    }
+
+    /// Show Tool Window Names in a stripe button's menu turns the global setting on, and the menu then shows the
+    /// row with a check mark; choosing it again turns the setting off.
+    #[gpui_kit::test]
+    async fn show_tool_window_names_in_a_stripe_buttons_menu_toggles_the_global_setting(cx: &mut TestAppContext) {
+        let (f, cx) = open(cx, &[("a.txt", "a\n")], Setup::default());
+        let names = |cx: &mut VisualTestContext| {
+            let settings = cx.update(|_, cx| crate::platform::settings::global(cx));
+            setting_on(&serde_json::to_value(settings).unwrap_or_default(), SHOW_NAMES_KEY)
+        };
+        assert!(!names(cx));
+        let open_menu = |cx: &mut VisualTestContext| {
+            let bounds = cx.debug_bounds("stripe:project").expect("the Project button is drawn");
+            right_click(cx, bounds.center());
+            f.workbench.read_with(cx, |w, _| w.open_menu::<ToolWindowCommand>()).expect("the menu is open")
+        };
+        let menu = open_menu(cx);
+        choose(&menu, &["Show Tool Window Names"], cx);
+        wait_long(cx, "the setting is on", |cx| names(cx));
+        let menu = open_menu(cx);
+        let icon = menu.read_with(cx, |menu, _| {
+            menu.rows().iter().find(|row| row.label == "Show Tool Window Names").map(|row| row.icon.clone())
+        });
+        assert_eq!(icon, Some(Some("check".to_owned())), "the row is checked");
+        choose(&menu, &["Show Tool Window Names"], cx);
+        wait_long(cx, "the setting is off", |cx| !names(cx));
+    }
+
     /// The rows whose action this window does not register are left out of the editor's menu; the
     /// list of those actions is what the window still lacks.
     #[gpui_kit::test]

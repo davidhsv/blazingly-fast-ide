@@ -1024,6 +1024,59 @@ mod tests {
             .collect()
     }
 
+    /// The catalogue files of `dir` below the webview's locales folder, by locale id.
+    fn catalog_files(dir: &str) -> Vec<String> {
+        let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/platform/locales").join(dir);
+        let mut ids: Vec<String> = std::fs::read_dir(&folder)
+            .expect("the locales folder is readable")
+            .flatten()
+            .filter_map(|entry| entry.file_name().to_str()?.strip_suffix(".json").map(str::to_owned))
+            .collect();
+        ids.sort();
+        ids
+    }
+
+    /// The top-level keys of a catalogue's text that appear more than once (parsing keeps only the last).
+    fn repeated_keys(text: &str) -> Vec<String> {
+        static KEY: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+            regex::Regex::new(r#"(?m)^ {2}("(?:[^"\\]|\\.)*"):"#).expect("the key pattern is valid")
+        });
+        let mut seen = std::collections::HashSet::new();
+        KEY.captures_iter(text)
+            .map(|found| serde_json::from_str::<String>(&found[1]).expect("a key is a string literal"))
+            .filter(|key| !seen.insert(key.clone()))
+            .collect()
+    }
+
+    // src/platform/i18n.test.ts › catalogs › exist for exactly the supported locales
+    #[test]
+    fn catalogs_exist_for_exactly_the_supported_locales() {
+        let mut supported: Vec<String> = LOCALES.iter().map(|locale| locale.id.to_owned()).collect();
+        supported.sort();
+        assert_eq!(catalog_files(""), supported);
+        assert_eq!(catalog_files("text"), supported);
+        let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/platform/locales");
+        for (sources, dir) in [(&MESSAGE_SOURCES, ""), (&TEXT_SOURCES, "text")] {
+            for (index, locale) in LOCALES.iter().enumerate() {
+                let (id, embedded) = sources[index];
+                let file = folder.join(dir).join(format!("{}.json", locale.id));
+                let on_disk = std::fs::read_to_string(&file).expect("the catalogue is readable");
+                assert_eq!((id, embedded), (locale.id, on_disk.as_str()), "{dir}/{}.json is embedded", locale.id);
+            }
+        }
+    }
+
+    // src/platform/i18n.test.ts › catalogs › list every key once
+    #[test]
+    fn catalogs_list_every_key_once() {
+        assert_eq!(repeated_keys("{\n  \"a\": 1,\n  \"b\": 2,\n  \"a\": 3\n}\n"), ["a"], "a repeat is found");
+        for (sources, dir) in [(&MESSAGE_SOURCES, ""), (&TEXT_SOURCES, "text")] {
+            for (id, text) in sources {
+                assert_eq!(repeated_keys(text), Vec::<String>::new(), "{dir}/{id}.json");
+            }
+        }
+    }
+
     // src/platform/i18n.test.ts › catalogs
     #[test]
     fn catalogs_are_complete_and_well_formed() {

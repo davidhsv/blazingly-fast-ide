@@ -150,3 +150,28 @@ async fn find_usages_on_a_redeclared_local_lists_its_occurrences_in_its_scope_wh
     assert_eq!(note.as_deref(), Some(TEXT_NOTE));
     f.close(cx);
 }
+
+/// Find Usages on a local declared once, whose references request the server fails, lists that local's
+/// references in its scope from the file's syntax tree, with the note saying they are based on syntax: the other
+/// file that mentions the same name is not searched.
+#[gpui_kit::test]
+async fn find_usages_on_a_certain_local_lists_its_references_based_on_syntax_when_the_server_fails(
+    cx: &mut TestAppContext,
+) {
+    let text = "function f() {\n  let x = 1;\n  return x + x;\n}\n";
+    let files = [("a.js", text), ("b.js", "x(1);\n")];
+    let (f, cx) = open_javascript(cx, &files, "a.js", failing_references());
+    let caret = text.find("return x").expect("the use is in the text") + "return ".len();
+    f.put_caret(cx, u32::try_from(caret).expect("a small offset"));
+    f.run(cx, "find.usages");
+
+    let (found, note) = listed_usages(&f, cx);
+    assert!(!f.requests("textDocument/references").is_empty(), "the server was asked first");
+    assert_eq!(
+        found,
+        [("a.js".to_owned(), 2, 9), ("a.js".to_owned(), 2, 13)],
+        "the local's references inside f, nothing of b.js"
+    );
+    assert_eq!(note.as_deref(), Some(crate::code_insight::syntax_usages::LOCAL_NOTE));
+    f.close(cx);
+}

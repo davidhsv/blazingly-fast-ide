@@ -12237,6 +12237,24 @@ for line in sys.stdin:
         assert!(workbench.read_with(cx, |w, _| w.usages_popup().is_none()));
     }
 
+    /// In Blaze mode the language servers' status item says so; its popup's Switch to Deep Mode closes the popup
+    /// and turns Deep mode on.
+    #[gpui_kit::test]
+    async fn the_server_status_popup_switches_blaze_mode_to_deep_mode(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, _root, workbench, cx) = trusted_project(cx, &[("a.txt", "a\n")]);
+        cx.update(|window, _| window.activate_window());
+        let full = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, cx| w.ide_mode(cx).is_full());
+        assert!(!full(cx), "a new project runs in Blaze mode");
+        let item = workbench.read_with(cx, |w, _| w.server_status_item().clone());
+        cx.run_until_parked();
+        click_on(cx, "server-status");
+        assert!(item.read_with(cx, |item, _| item.is_open()), "the popup is open");
+        click_on(cx, "server-deep-mode");
+        settle(cx, |cx| full(cx));
+        assert!(!item.read_with(cx, |item, _| item.is_open()), "the popup closed");
+    }
+
     /// Without a language server Type Hierarchy shows the Hierarchy tool window for the name at the
     /// caret and says that no language server is available.
     #[gpui_kit::test]

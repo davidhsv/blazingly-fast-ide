@@ -373,3 +373,35 @@ async fn a_quick_fixs_arrow_menu_opens_with_the_right_arrow_and_runs_its_control
     assert_eq!(f.text(cx), text, "the fix itself is not applied");
     f.close(cx);
 }
+
+// src/platform/inspections.test.ts › applyProfile
+/// The editor underlines a server's problems under the inspection profile in effect: a code the profile turns off is
+/// not shown, and a code it raises to Error is shown as an error.
+#[gpui_kit::test]
+async fn the_editor_hides_and_restyles_a_servers_problems_by_the_inspection_profile(cx: &mut TestAppContext) {
+    use ide_core::Severity;
+    let text = "let foo = bar\n";
+    let (f, cx) = open_with(cx, &[("a.mock", text)], "a.mock", json!({}));
+    let profile = json!({
+        "lsp:mock-ls:MOCK001": { "enabled": false },
+        "lsp:mock-ls:MOCK002": { "severity": "error" },
+    });
+    let global = ide_workspace::settings::SettingsScope::Global;
+    cx.update(|_, cx| crate::platform::settings::set("w1", global, "inspections.default", &profile, cx))
+        .expect("the profile is set");
+    let active = |cx: &mut VisualTestContext| {
+        cx.update(|_, cx| crate::platform::settings::effective("w1", cx).inspections.default.len())
+    };
+    assert_eq!(active(cx), 2, "the window reads the profile");
+    let problem = |from: u32, to: u32, code: &str| json!({ "range": range(0, from, to), "message": code, "severity": 2, "source": "mock", "code": code });
+    f.server.answer(json!({ "diagnostics": [problem(4, 7, "MOCK001"), problem(10, 13, "MOCK002")] }));
+    let editor = f.editor(cx).expect("the editor");
+    editor.update(cx, |editor, cx| editor.insert(Some(14..14), "\n", cx));
+    let intelligence = f.intelligence(cx);
+    settle(cx, "the problems", |cx| intelligence.read_with(cx, |this, _| !this.problems().is_empty()));
+    let shown = intelligence.read_with(cx, |this, _| {
+        this.problems().iter().map(|p| (p.from, p.to, p.severity, p.message.clone())).collect::<Vec<_>>()
+    });
+    assert_eq!(shown, [(10, 13, Severity::Error, "MOCK002".to_owned())]);
+    f.close(cx);
+}

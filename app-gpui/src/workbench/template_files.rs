@@ -38,8 +38,8 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 /// How often, and how long, the new file's editor is waited for before its content is given up.
-const OPEN_POLL: Duration = Duration::from_millis(30);
-const OPEN_POLLS: u32 = 134;
+pub(super) const OPEN_POLL: Duration = Duration::from_millis(30);
+pub(super) const OPEN_POLLS: u32 = 134;
 
 /// The file templates, includes and code templates in effect.
 #[derive(Debug, Clone, PartialEq)]

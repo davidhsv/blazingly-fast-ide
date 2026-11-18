@@ -109,6 +109,29 @@ async fn a_plugin_opens_a_file_and_selects_in_the_focused_editor(cx: &mut TestAp
     wait(cx, "the plugin's selection", |cx| editor.read_with(cx, |e, _| e.caret_position()) == (0, 0));
 }
 
+/// The plugin's code reveals a range in the focused editor: the editor scrolls so that the range's line is the first
+/// shown, and its caret stays where it was.
+#[gpui_kit::test]
+async fn a_plugin_reveals_a_range_in_the_focused_editor(cx: &mut TestAppContext) {
+    let home = start(cx);
+    let folder = plugin_copy(home.path(), "api14", str::to_owned);
+    let id = link(cx, &folder, &["project.read"], "reveal");
+    let text: String = (0..300).map(|n| format!("line {n}\n")).collect();
+    let (_folder, root, workbench, cx) = project(cx, &[("a.txt", text.as_str())]);
+    let editor = open(&workbench, &root.join("a.txt"), cx);
+    editor.update(cx, |editor, cx| {
+        let end = editor.offset_of(250, 0);
+        editor.set_selections(vec![(end, end)], 0, cx);
+        editor.scroll_to_line(240, cx);
+    });
+    let top = |cx: &mut VisualTestContext| cx.update(|_, cx| editor.read(cx).top_line(cx));
+    assert_eq!(top(cx), 240);
+    // The fixture reveals the document's start.
+    run_action(cx, &plugin_action_id(&id, "reveal"), None);
+    wait(cx, "the editor shows the revealed line", |cx| top(cx) == 0);
+    assert_eq!(editor.read_with(cx, |e, _| e.caret_position()), (250, 0), "the caret did not move");
+}
+
 /// The plugin's code searches the project's text: the answer names the file holding the text.
 #[gpui_kit::test]
 async fn a_plugin_searches_the_projects_text(cx: &mut TestAppContext) {

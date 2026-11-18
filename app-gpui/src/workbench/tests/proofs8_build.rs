@@ -47,3 +47,17 @@ async fn registers_the_build_menu_actions_shortcuts_and_an_on_use_bottom_tool_wi
     });
     assert_eq!(build_module, Some(Some(serde_json::json!(core))), "the Project view offers Build Module");
 }
+
+/// A right click on a folder in the Project view opens the window's menu with Build Module among its rows.
+#[gpui_kit::test]
+async fn the_project_views_menu_of_one_folder_offers_build_module(cx: &mut TestAppContext) {
+    use super::proofs18_e2e_fixtures::{menu_level, right_click_in_tree};
+    use crate::project_view::context_menu::ProjectCommand;
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) =
+        trusted_project(cx, &[("core/src/A.java", "class A {}\n"), ("core/notes.txt", "")]);
+    cx.update(|window, _| window.activate_window());
+    right_click_in_tree(&workbench, &root.join("core"), cx);
+    let rows = menu_level::<ProjectCommand>(&workbench, 0, cx);
+    assert!(rows.iter().any(|row| row == "Build Module"), "{rows:?}");
+}

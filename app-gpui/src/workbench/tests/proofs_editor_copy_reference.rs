@@ -88,6 +88,24 @@ async fn the_copy_reference_action_copies_the_qualified_name_without_a_popup(cx:
     close_backend_project(cx);
 }
 
+/// Copy Reference on a Scala member gives the package and the type with `#` before the member
+/// (`com.acme.Svc#get`), as for Kotlin.
+#[gpui_kit::test]
+async fn copy_reference_follows_the_scala_convention(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let files = [("src/Svc.scala", "package com.acme\n\nclass Svc {\n  def get(): Int = 1\n}\n")];
+    let (_folder, root, workbench, cx) = trusted_project(cx, &files);
+    cx.update(|window, _| window.activate_window());
+    let expected = "com.acme.Svc#get";
+    edit_at(&workbench, &root.join("src/Svc.scala"), "get", 1, cx);
+    let row = resolved_reference(&workbench, cx);
+    assert!(row.starts_with(&format!("Reference | {expected} | ")), "{row}");
+    choose_reference(&workbench, cx);
+    assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()).as_deref(), Some(expected));
+    assert_eq!(editor_hint(&workbench, cx), Some(format!("Copied reference: {expected}")));
+    close_backend_project(cx);
+}
+
 /// In a window, Copy Reference follows each language's convention: a dotted module path for a Python method
 /// (`pkg.orders.Orders.place`), the package name for a Go function (`server.Run`), and the package with `#` for a
 /// Kotlin member (`com.acme.Svc#get`).

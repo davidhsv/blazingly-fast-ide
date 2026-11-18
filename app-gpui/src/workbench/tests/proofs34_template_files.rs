@@ -528,3 +528,43 @@ async fn a_csharp_class_gets_the_namespace_of_its_csproj_in_a_block_before_cshar
         std::fs::read_to_string(&file).ok().as_deref() == Some(expected)
     });
 }
+
+// src/features/templates/__tests__/templateCreate.test.ts › creates an empty file when the template renders nothing
+/// A notebook template whose kind renders nothing creates an empty file, which opens in the notebook editor; no
+/// "could not insert" warning follows, even once the creation has waited as long as it waits for a text editor.
+#[gpui_kit::test]
+async fn creates_an_empty_file_when_the_template_renders_nothing(cx: &mut TestAppContext) {
+    use crate::workbench::template_files::{OPEN_POLL, OPEN_POLLS};
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("nb/.keep", "")]);
+    let blank = FileTemplate {
+        id: "blank-notebook".to_owned(),
+        name: "Blank Notebook".to_owned(),
+        icon: "file".to_owned(),
+        extension: "ipynb".to_owned(),
+        reformat: Some(false),
+        kinds: vec![FileTemplateKind {
+            id: "blank".to_owned(),
+            label: "Empty".to_owned(),
+            body: String::new(),
+            extension: None,
+        }],
+        ..FileTemplate::default()
+    };
+    let request = NewFileRequest {
+        directory: text_of(&root.join("nb")),
+        template: Some(blank),
+        kind_id: Some("blank".to_owned()),
+        ..NewFileRequest::default()
+    };
+    assert_eq!(submit_name(&workbench, request, "blank", cx), None);
+    wait_long(cx, "the notebook's tab", |cx| {
+        workbench.read_with(cx, |w, _| w.tab_titles().iter().any(|tab| tab.name == "blank.ipynb"))
+    });
+    assert_eq!(std::fs::read_to_string(root.join("nb/blank.ipynb")).expect("the file is on disk"), "");
+    // The longest the creation could still be waiting for a text editor before it warns.
+    cx.executor().advance_clock(OPEN_POLL * (OPEN_POLLS + 1));
+    cx.run_until_parked();
+    let titles = notification_titles(&workbench, cx);
+    assert!(!titles.iter().any(|title| title.starts_with("Created ")), "{titles:?}");
+}

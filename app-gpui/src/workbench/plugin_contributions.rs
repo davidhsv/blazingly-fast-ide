@@ -1846,6 +1846,33 @@ mod tests {
         });
     }
 
+    // wit/host.wit › storage
+    /// A plugin's stored keys are listed and deleted through the host's storage: Key Promoter's statistics list
+    /// the action it counted (its `count:` keys), Reset deletes every key, and the statistics are empty after.
+    #[gpui_kit::test]
+    async fn a_plugin_lists_and_deletes_its_stored_keys(cx: &mut TestAppContext) {
+        let home = start_with_plugins(cx);
+        let folder = plugin_copy(home.path(), "key-promoter", str::to_owned);
+        let id = link(cx, &folder, &[], "statistics");
+        let (_folder, root, workbench, cx) = trusted_project(cx, LABEL, &[("a.txt", "a\n")]);
+        const ACTION: &str = "navigate.gotoFile";
+        let title =
+            cx.update(|_, cx| cx.global::<ActionRegistry>().get(ACTION).expect("registered").meta.title.clone());
+        let statistics = |cx: &mut VisualTestContext| run_in_window(cx, &root, &id, "statistics", None);
+        // The action is run again until the plugin hears it: it counts each one it heard.
+        let counted = format!("× {title}");
+        wait_long(cx, "the plugin counted the action", |cx| {
+            cx.update(|window, cx| execute_action_from(ActionSource::Menu, ACTION, None, window, cx));
+            cx.run_until_parked();
+            workbench.update_in(cx, |w, window, cx| w.close_popup(window, cx));
+            statistics(cx).ok().flatten().is_some_and(|listed| listed.lines().any(|line| line.ends_with(&counted)))
+        });
+        let reset = run_in_window(cx, &root, &id, "reset", None).expect("the reset answers");
+        assert_eq!(reset.as_deref(), Some("Key Promoter statistics were reset."));
+        let after = statistics(cx).expect("the statistics answer");
+        assert_eq!(after.as_deref(), Some("No missed shortcuts yet."));
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Background Tasks
 

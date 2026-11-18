@@ -1004,12 +1004,21 @@ impl EditorIntelligence {
         if self.diagnostics.published(&self.path, source, items).is_none() {
             return;
         }
-        let profile = ProfileOverrides::default();
+        let profile = self.inspection_profile(cx);
         let styled = self.diagnostics.diagnostics_for(&self.path, &profile);
         self.lint = to_lint_diagnostics(editor.read(cx).rope(), &styled);
         let marks = self.lint.iter().filter_map(problem_mark).collect();
         editor.update(cx, |editor, cx| editor.set_marks(MarkLayer::Diagnostics, marks, cx));
         cx.notify();
+    }
+
+    /// The overrides of the inspection profile in effect in this editor's window: a project's own
+    /// profile counts only while the window has a project.
+    fn inspection_profile(&self, cx: &App) -> ProfileOverrides {
+        let has_project =
+            cx.try_global::<Backend>().is_some_and(|backend| backend.host.project(&self.window_label).is_ok());
+        let settings = crate::platform::settings::effective(&self.window_label, cx);
+        crate::platform_more::inspections::active_profile(&settings.inspections, has_project).1
     }
 
     /// The problems move with the text until the server publishes them again.
@@ -1365,7 +1374,7 @@ impl EditorIntelligence {
         let line = buffer::line_range(&rope, buffer::line_col(&rope, caret).0);
         let fix_icon = quick_fix_icon(&self.lint, line.start, line.end);
         let items = listed_intentions(action_items(&actions, fix_icon), fix_icon);
-        let inspections = self.diagnostics.inspections_at(&self.path, &rope, caret, &ProfileOverrides::default());
+        let inspections = self.diagnostics.inspections_at(&self.path, &rope, caret, &self.inspection_profile(cx));
         let items = with_inspection_controls(items, &inspections, &mut cx.default_global::<Localization>().0);
         if items.is_empty() {
             self.show_hint_text(NO_INTENTIONS, cx);
