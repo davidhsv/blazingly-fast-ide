@@ -5,18 +5,24 @@ A row is `[x]` only when `parity.json` names a Rust test (Proof) that demonstrat
 A row is `[m]` (model only) when its tests pass but are tests of code that nothing reachable from the application uses yet: the logic exists, the app does not do it. `[m]` rows do not count as at parity.
 A row is `[–]` (nothing to port) when it is a backend command that no file of the webview calls; this script checks that claim on every run. Those rows do not count as at parity either.
 
-**Overall: 1195/3807 rows at parity, 9 model only, 936 partial, 14 with nothing to port.**
+**Overall: 1195/3905 rows at parity, 9 model only, 936 partial, 14 with nothing to port.**
 
 | Section | At parity | Model only | Partial | Nothing to port | Total |
 |---|---|---|---|---|---|
 | Actions | 464 | 0 | 188 | 0 | 974 |
 | Keymap ids with no statically registered action | 43 | 0 | 0 | 0 | 45 |
 | Keymap presets | 4 | 0 | 2 | 0 | 6 |
-| Context keys | 49 | 0 | 6 | 0 | 98 |
+| Context keys | 49 | 0 | 6 | 0 | 147 |
 | Extension point `registerAgentContextSource` | 0 | 0 | 0 | 0 | 3 |
+| Extension point `registerCellGrid` | 0 | 0 | 0 | 0 | 1 |
+| Extension point `registerClientCommand` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerCloneSource` | 0 | 0 | 0 | 0 | 1 |
+| Extension point `registerCommitCheck` | 0 | 0 | 0 | 0 | 7 |
 | Extension point `registerCommitCheckProvider` | 0 | 0 | 0 | 0 | 1 |
+| Extension point `registerContentTabSender` | 0 | 0 | 0 | 0 | 1 |
+| Extension point `registerDiffViewerProvider` | 0 | 0 | 0 | 0 | 2 |
 | Extension point `registerDocumentIndexSync` | 0 | 0 | 0 | 0 | 1 |
+| Extension point `registerDropTarget` | 0 | 0 | 0 | 0 | 11 |
 | Extension point `registerEditorBanner` | 1 | 0 | 0 | 0 | 7 |
 | Extension point `registerEditorContribution` | 0 | 0 | 9 | 0 | 40 |
 | Extension point `registerEditorDropHandler` | 0 | 0 | 0 | 0 | 1 |
@@ -25,12 +31,14 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerEndpointProvider` | 1 | 0 | 0 | 0 | 2 |
 | Extension point `registerExtensionBindings` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerExternalFileOpenHandler` | 0 | 0 | 0 | 0 | 1 |
+| Extension point `registerExternalIcons` | 0 | 0 | 0 | 0 | 4 |
 | Extension point `registerFileDropHandler` | 0 | 0 | 0 | 0 | 2 |
 | File editor providers | 2 | 0 | 1 | 0 | 4 |
 | Extension point `registerFontZoomSurface` | 0 | 0 | 0 | 0 | 4 |
 | Extension point `registerGitLogChecks` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerKeyClaim` | 4 | 0 | 1 | 0 | 14 |
 | Extension point `registerLanguageMode` | 0 | 0 | 0 | 0 | 1 |
+| Extension point `registerLanguageSemantics` | 0 | 0 | 0 | 0 | 4 |
 | Extension point `registerMenuGroup` | 6 | 0 | 8 | 0 | 28 |
 | Extension point `registerMenuSlotItem` | 1 | 0 | 1 | 0 | 2 |
 | Extension point `registerNavigationProvider` | 0 | 0 | 0 | 0 | 6 |
@@ -38,6 +46,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Overlays | 8 | 0 | 26 | 0 | 60 |
 | Extension point `registerPendingEdits` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerProjectViewRoot` | 0 | 0 | 0 | 0 | 5 |
+| Extension point `registerRelatedProvider` | 0 | 0 | 0 | 0 | 2 |
 | Extension point `registerRunAnythingProvider` | 0 | 0 | 0 | 0 | 2 |
 | Extension point `registerRunConfigType` | 10 | 0 | 1 | 0 | 32 |
 | Extension point `registerRunExecutor` | 0 | 0 | 0 | 0 | 4 |
@@ -47,18 +56,20 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerServiceView` | 1 | 0 | 2 | 0 | 3 |
 | Extension point `registerSoftWrapSurface` | 0 | 0 | 0 | 0 | 1 |
 | Status bar items | 5 | 0 | 5 | 0 | 19 |
+| Extension point `registerTableEditor` | 0 | 0 | 0 | 0 | 2 |
 | Extension point `registerTextEditorWrapper` | 0 | 0 | 1 | 0 | 3 |
 | Title bar items | 3 | 0 | 2 | 0 | 5 |
 | Tool windows | 0 | 0 | 22 | 0 | 34 |
 | Extension point `registerUndoHandler` | 0 | 0 | 1 | 0 | 1 |
 | Extension point `registerUriOpener` | 0 | 0 | 0 | 0 | 1 |
+| Extension point `registerValueEditorActions` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerWorkbenchBanner` | 0 | 0 | 1 | 0 | 1 |
 | Extension point `registerShellActions` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerDevSamples` | 0 | 0 | 0 | 0 | 1 |
-| Settings pages | 22 | 0 | 62 | 0 | 101 |
+| Settings pages | 22 | 0 | 62 | 0 | 104 |
 | Features | 0 | 0 | 19 | 0 | 47 |
-| Editor, platform, workbench and design-system modules | 23 | 0 | 74 | 0 | 289 |
-| Design tokens, icons and locales | 9 | 0 | 0 | 0 | 9 |
+| Editor, platform, workbench and design-system modules | 23 | 0 | 74 | 0 | 291 |
+| Design tokens, icons and locales | 9 | 0 | 0 | 0 | 17 |
 | Native shell modules (src-tauri) | 0 | 0 | 2 | 0 | 25 |
 | IPC commands | 312 | 0 | 56 | 14 | 715 |
 | Backend events (IdeEvent) | 11 | 0 | 9 | 0 | 31 |
@@ -1110,10 +1121,16 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [~] | `vscode-macos` | 396 | 153 | `platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the preset's bindings load verbatim from the generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatch. Missing: the preset now binds Meta+N to file.newUntitled and leaves file.new unbound (src/platform/keymaps/vscode-macos.ts:198-199, 951e81e06 "untitled buffers and Save As with a file type"); the native app registers no file.newUntitled action (no "file.newUntitled" under app-gpui/src), so in this preset Meta+N does nothing natively where it ran file.new before the merge |
 | [~] | `vscode-windows` | 46 | 32 | `platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the preset's bindings load verbatim from the generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatch. Missing: the preset now binds Ctrl+N to file.newUntitled and leaves file.new unbound (src/platform/keymaps/vscode-macos.ts:198-199, 951e81e06 "untitled buffers and Save As with a file type"); the native app registers no file.newUntitled action (no "file.newUntitled" under app-gpui/src), so in this preset Ctrl+N does nothing natively where it ran file.new before the merge |
 
-## Context keys (49/98 at parity, 6 partial)
+## Context keys (49/147 at parity, 6 partial)
 
 | | Key | First source | Proof |
 |---|---|---|---|
+| [ ] | `(dynamic) src/features/plugins/points.tsx:210` | src/features/plugins/points.tsx:210 |  |
+| [ ] | `(dynamic) src/features/plugins/runtimeUi.tsx:222` | src/features/plugins/runtimeUi.tsx:222 |  |
+| [ ] | `(dynamic) src/features/plugins/uiPoints.tsx:190` | src/features/plugins/uiPoints.tsx:190 |  |
+| [ ] | `(dynamic) src/features/plugins/workspaceContains.ts:64` | src/features/plugins/workspaceContains.ts:64 |  |
+| [ ] | `(dynamic) src/features/settings/window/bridge.ts:48` | src/features/settings/window/bridge.ts:48 |  |
+| [ ] | `(dynamic) src/workbench/toolwindows/store.ts:455` | src/workbench/toolwindows/store.ts:455 |  |
 | [x] | `activeToolWindow` | src/workbench/toolwindows/store.ts | `workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository` |
 | [ ] | `agentEffortAvailable` | src/features/agents/effortFocus.ts |  |
 | [ ] | `agentInputAvailable` | src/features/agents/sessionFocus.ts |  |
@@ -1121,11 +1138,13 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [x] | `build.gradle` | src/features/build-tools/index.ts | `workbench::build_tools::tests::a_new_gradle_build_turns_on_only_the_gradle_conditions`, `workbench::build_tools::tests::the_build_conditions_are_off_without_a_build_and_a_new_pom_turns_on_only_maven`; off in a project with no Gradle build, on once one is written, while the Maven half stays off |
 | [x] | `build.lastStatus` | src/features/run/buildTask.ts | `workbench::tests::building_a_project_without_a_build_system_ends_in_a_failed_build` |
 | [x] | `build.maven` | src/features/build-tools/index.ts | `workbench::build_tools::tests::the_build_conditions_are_off_without_a_build_and_a_new_pom_turns_on_only_maven`; off in a trusted project with no pom.xml (every Maven action unavailable, the Maven tool window not offered), on once a pom.xml is written and the model read again, while the Gradle half stays off |
+| [ ] | `build.running` | src/features/build/store.ts |  |
 | [ ] | `build.sbt` | src/features/build-tools/index.ts |  |
 | [ ] | `command` | src/features/vcs/mergeActions.ts |  |
 | [ ] | `CONNECTED` | src/features/github/index.ts |  |
 | [ ] | `coverageSuites` | src/features/coverage/store.ts |  |
 | [ ] | `coverageVisible` | src/features/coverage/store.ts |  |
+| [ ] | `databaseViewFocus` | src/features/database/treeActions.ts |  |
 | [ ] | `dbCellGridFocus` | src/features/database/cellActions.ts |  |
 | [ ] | `dbJsonValueCanOpenWindow` | src/features/database/valueEditorActions.ts |  |
 | [ ] | `dbJsonValueEditable` | src/features/database/valueEditorActions.ts |  |
@@ -1147,6 +1166,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [x] | `debugSessionRunning` | src/features/debugger/state.ts | `workbench::debug::tests::proofs_debug::the_session_keys_follow_a_session_from_paused_to_running_to_ended`; off before any session and at the breakpoint, on while the program runs its loop, off after Stop |
 | [x] | `debugVariablesFocus` | src/features/debugger/ui/focusedView.ts | `workbench::debug::tests::the_debuggers_keys_act_only_where_their_conditions_hold` |
 | [x] | `diffEditorFocus` | src/features/vcs/DiffEditor.tsx | `workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`, `workbench::diff_tab::tests::compares_the_next_and_previous_file_in_a_diff_tab_from_the_keymap`; on while a diff viewer has the keyboard, in the window and in a tab, and off after it loses it |
+| [ ] | `distractionFree` | src/workbench/distractionFree.ts |  |
 | [ ] | `EDITOR_WHEN` | src/features/templates/index.ts |  |
 | [x] | `editorAreaFocus` | src/workbench/focus.ts | `workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository` |
 | [x] | `editorFocus` | src/platform/actions.ts | `workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository` |
@@ -1162,6 +1182,12 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [x] | `findBarOpen` | src/editor/core/view/FindBar.tsx | `workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes` |
 | [x] | `findPopupOpen` | src/features/search/find/FindInFiles.tsx | `workbench::tests::find_in_files_opens_a_popup_that_searches_opens_and_hands_over` |
 | [~] | `focusedDirectory` | src/ui/treeDirectoryContext.ts | `workbench::tests::proofs3_context::the_focused_directory_follows_the_project_views_keyboard`, `workbench::tests::proofs_editor_search_find::takes_the_focused_directory_of_the_project_view`; read ON for the folder selected while the Project view has the keyboard, OFF once the editor takes it, ON again for another folder. Missing: the other trees the webview publishes it from (Bookmarks, Commit) do not set it |
+| [ ] | `github.isReviewModeOn` | src/features/github/toolwindow/handlers.ts |  |
+| [ ] | `github.showCurrentBranchPullRequest` | src/features/github/toolwindow/handlers.ts |  |
+| [ ] | `github.submitReview` | src/features/github/toolwindow/handlers.ts |  |
+| [ ] | `github.toggleReviewMode` | src/features/github/toolwindow/handlers.ts |  |
+| [ ] | `github.toggleViewed` | src/features/github/toolwindow/handlers.ts |  |
+| [ ] | `github.updateReviewBranch` | src/features/github/toolwindow/handlers.ts |  |
 | [x] | `githubConnected` | src/features/github/reviewMode/index.ts | `workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::change_repository_disconnects_then_connects_again`, `workbench::github::tests::in_restricted_mode_the_window_runs_no_gh_until_the_project_is_trusted_again`; off before the window is shown, after Change Repository disconnects and in Restricted Mode; on once connected and after reconnecting |
 | [ ] | `githubCurrentBranchPullRequest` | src/features/github/reviewMode/index.ts |  |
 | [x] | `githubPrTab` | src/features/github/toolwindow/store.ts | `workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::view_pull_request_opens_its_tab_with_its_title_branches_checks_and_changed_files`, `workbench::github::tests::proofs14_github_window::opens_the_new_pull_request_tab_once_and_closes_back_to_the_previous_tab`, `workbench::github::part2::tests::create_pull_request_before_the_window_connects_opens_the_tab_once_connected`; read as list with the list tab active, pr with a #N tab active, create with the New Pull Request tab active, and list again on going back: the three values the webview publishes |
@@ -1172,12 +1198,43 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `handlerContextKey` | src/features/github/index.ts |  |
 | [x] | `imageViewerActive` | src/features/viewers/ImageViewer.tsx | `workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking` |
 | [x] | `imageViewerFocus` | src/features/viewers/ImageViewer.tsx | `workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking` |
+| [ ] | `inlineCompletionVisible` | src/editor/lsp/inlineCompletion.ts |  |
 | [x] | `lightEdit` | src/workbench/activate.ts | `workbench::tests::the_status_and_title_bars_name_the_viewers_file_and_leave_out_the_editors_items`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; on in a single-file window, off in a project window |
 | [ ] | `macroLastAvailable` | src/features/macros/index.ts |  |
 | [ ] | `macroRecording` | src/features/macros/index.ts |  |
 | [ ] | `macrosSaved` | src/features/macros/index.ts |  |
 | [ ] | `MAVEN_WHEN` | src/features/build-tools/index.ts |  |
 | [x] | `merge.` | src/features/vcs/mergeActions.ts | `workbench::tests::the_merge_actions_move_between_the_changes_and_apply_the_non_conflicting_ones`; the focused merge editor publishes merge.<command> keys: merge.applyAll is asserted on, then off once nothing non-conflicting is left (merge.annotate off) |
+| [ ] | `merge.accept` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.acceptTheirs` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.acceptYours` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.annotate` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.apply` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.applyAll` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.applyLeft` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.applyRight` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.autoApply` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.cancel` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.change` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.compare` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.compareBaseResult` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.compareBaseTheirs` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.compareBaseYours` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.compareResultTheirs` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.compareYoursResult` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.compareYoursTheirs` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.copy` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.cut` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.ignore` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.paste` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.reload` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.resolveAutomatically` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.resolveSimple` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.resolveUsingTheirs` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.resolveUsingYours` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.revert` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.selectAll` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `merge.settings` | src/features/vcs/mergeActions.ts |  |
 | [x] | `mergeEditorFocus` | src/features/vcs/mergeActions.ts | `workbench::tests::the_merge_actions_move_between_the_changes_and_apply_the_non_conflicting_ones` |
 | [~] | `pasteHistoryListFocus` | src/editor/core/view/PasteHistoryDialog.tsx | `workbench::editor_extras::tests::the_paste_history_keys_are_enabled_while_its_dialog_has_the_keyboard`, `workbench::editor_extras::tests::the_paste_history_keys_edit_the_filter_or_act_on_the_chosen_entry`; read off before Paste from History opens, on while its dialog has the keyboard and off after Escape. Missing: it is on while the filter field has the keyboard as well, where the webview sets it only while the list itself is focused |
 | [x] | `pasteHistoryOpen` | src/editor/core/view/PasteHistoryDialog.tsx | `workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; read on: editor.pasteHistory.paste and remove (when pasteHistoryOpen) run while the dialog is open; read off: before it opens they do not run |
@@ -1187,15 +1244,18 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [x] | `projectOpen` | src/editor/core/actions.ts | `workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository` |
 | [ ] | `projectOpenAsk` | src/workbench/activate.ts |  |
 | [x] | `projectOpening` | src/platform/project.ts | `workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository` |
+| [ ] | `projectViewFocus` | src/features/project-tree/ProjectView.tsx |  |
 | [ ] | `run.canRerunFailed` | src/features/run/index.ts |  |
 | [x] | `run.cmakeBuild` | src/features/run/index.ts | `workbench::tests::proofs3_context::the_cmake_build_key_follows_the_selected_configuration`; read OFF with a program configuration selected and ON (app:build) with the CMake configure step and with the build selected |
 | [x] | `run.selectedKind` | src/features/run/index.ts | `workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes` |
 | [~] | `run.updatableRunning` | src/features/run/index.ts | `workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`; published with the other run keys; no test sets a CMake build or an updatable session |
 | [ ] | `searchFieldHistory` | src/ui/Input.tsx |  |
 | [ ] | `searchFieldNewLine` | src/ui/Input.tsx |  |
+| [ ] | `servicesViewFocus` | src/features/services/ServicesTree.tsx |  |
 | [x] | `shelfFocus` | src/features/vcs/shelf.tsx | `workbench::shelf::tests::show_diff_in_the_shelf_tab_shows_the_selected_shelved_file` reads it on in the Shelf tab and off outside it |
 | [ ] | `softWrapSurfaceFocus` | src/workbench/softWrap.ts |  |
 | [x] | `terminalFocus` | src/features/terminal/store.ts | `workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository` |
+| [ ] | `testTreeFocus` | src/features/run/testTree.ts |  |
 | [ ] | `TEXT_WHEN` | src/editor/core/actions.ts |  |
 | [x] | `textEditorActive` | src/editor/core/controller.ts | `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor` |
 | [x] | `toolWindowFocus` | src/workbench/toolwindows/store.ts | `workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view` |
@@ -1221,11 +1281,35 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `problems` | src/features/code-insight/index.ts:54 |  |
 | [ ] | `terminal` | src/features/terminal/index.ts:106 |  |
 
+## Extension point `registerCellGrid` (0/1 at parity)
+
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/database/Grid.tsx:432` | src/features/database/Grid.tsx:432 |  |
+
+## Extension point `registerClientCommand` (0/1 at parity)
+
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `java.action.applyRefactoringCommand` | src/editor/lsp/index.ts:127 |  |
+
 ## Extension point `registerCloneSource` (0/1 at parity)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
 | [ ] | `github` | src/features/github/index.ts:262 |  |
+
+## Extension point `registerCommitCheck` (0/7 at parity)
+
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `vcs.analysis` | src/features/vcs/commitChecks.tsx:470 |  |
+| [ ] | `vcs.crlf` | src/features/vcs/commitChecks.tsx:470 |  |
+| [ ] | `vcs.detachedHead` | src/features/vcs/commitChecks.tsx:470 |  |
+| [ ] | `vcs.fileNames` | src/features/vcs/commitChecks.tsx:470 |  |
+| [ ] | `vcs.largeFiles` | src/features/vcs/commitChecks.tsx:470 |  |
+| [ ] | `vcs.rebase` | src/features/vcs/commitChecks.tsx:470 |  |
+| [ ] | `vcs.todo` | src/features/vcs/commitChecks.tsx:470 |  |
 
 ## Extension point `registerCommitCheckProvider` (0/1 at parity)
 
@@ -1233,11 +1317,40 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [ ] | `(at) src/features/plugins/uiPoints.tsx:215` | src/features/plugins/uiPoints.tsx:215 |  |
 
+## Extension point `registerContentTabSender` (0/1 at parity)
+
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/plugins/views/WebView.tsx:311` | src/features/plugins/views/WebView.tsx:311 |  |
+
+## Extension point `registerDiffViewerProvider` (0/2 at parity)
+
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `github.review` | src/features/github/diff/index.ts:34 |  |
+| [ ] | `vcs.annotateRevision` | src/features/vcs/annotateRevisionProvider.ts:23 |  |
+
 ## Extension point `registerDocumentIndexSync` (0/1 at parity)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
 | [ ] | `(at) src/features/plugins/navigation.ts:170` | src/features/plugins/navigation.ts:170 |  |
+
+## Extension point `registerDropTarget` (0/11 at parity)
+
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/editor/core/view/EditorArea.tsx:292` | src/editor/core/view/EditorArea.tsx:292 |  |
+| [ ] | `(at) src/editor/core/view/EditorArea.tsx:97` | src/editor/core/view/EditorArea.tsx:97 |  |
+| [ ] | `(at) src/features/agents/AgentsView.tsx:112` | src/features/agents/AgentsView.tsx:112 |  |
+| [ ] | `(at) src/features/agents/AgentsView.tsx:241` | src/features/agents/AgentsView.tsx:241 |  |
+| [ ] | `(at) src/features/agents/Composer.tsx:856` | src/features/agents/Composer.tsx:856 |  |
+| [ ] | `(at) src/features/project-tree/ProjectView.tsx:755` | src/features/project-tree/ProjectView.tsx:755 |  |
+| [ ] | `(at) src/features/terminal/drop.ts:32` | src/features/terminal/drop.ts:32 |  |
+| [ ] | `(at) src/features/terminal/TerminalView.tsx:198` | src/features/terminal/TerminalView.tsx:198 |  |
+| [ ] | `(at) src/features/vcs/CommitView.tsx:900` | src/features/vcs/CommitView.tsx:900 |  |
+| [ ] | `(at) src/ui/Tabs.tsx:238` | src/ui/Tabs.tsx:238 |  |
+| [ ] | `(at) src/ui/treeReorder.ts:79` | src/ui/treeReorder.ts:79 |  |
 
 ## Extension point `registerEditorBanner` (1/7 at parity)
 
@@ -1355,6 +1468,15 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [ ] | `viewers.associatedApps` | src/features/viewers/index.ts:90 |  |
 
+## Extension point `registerExternalIcons` (0/4 at parity)
+
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/plugins/iconThemes.ts:172` | src/features/plugins/iconThemes.ts:172 |  |
+| [ ] | `(at) src/features/plugins/pluginIcon.ts:44` | src/features/plugins/pluginIcon.ts:44 |  |
+| [ ] | `(at) src/features/plugins/uiPoints.tsx:339` | src/features/plugins/uiPoints.tsx:339 |  |
+| [ ] | `(at) src/features/plugins/uiPoints.tsx:424` | src/features/plugins/uiPoints.tsx:424 |  |
+
 ## Extension point `registerFileDropHandler` (0/2 at parity)
 
 | | Id | Registered at | Proof |
@@ -1410,6 +1532,15 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | | Id | Registered at | Proof |
 |---|---|---|---|
 | [ ] | `(at) src/features/http-client/index.ts:142` | src/features/http-client/index.ts:142 |  |
+
+## Extension point `registerLanguageSemantics` (0/4 at parity)
+
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `go` | src/editor/lsp/semantic/go/index.ts:13 |  |
+| [ ] | `kotlin` | src/editor/lsp/semantic/kotlin/index.ts:55 |  |
+| [ ] | `php` | src/editor/lsp/semantic/php/index.ts:15 |  |
+| [ ] | `python` | src/editor/lsp/semantic/python/index.ts:59 |  |
 
 ## Extension point `registerMenuGroup` (6/28 at parity, 8 partial)
 
@@ -1549,6 +1680,13 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `externalLibraries` | src/features/libraries/index.ts:181 |  |
 | [ ] | `scratches` | src/features/scratch/index.ts:28 |  |
 
+## Extension point `registerRelatedProvider` (0/2 at parity)
+
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/editor/navigation/index.ts:246` | src/editor/navigation/index.ts:246 |  |
+| [ ] | `(at) src/features/rails/index.ts:53` | src/features/rails/index.ts:53 |  |
+
 ## Extension point `registerRunAnythingProvider` (0/2 at parity)
 
 | | Id | Registered at | Proof |
@@ -1661,6 +1799,13 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [~] | `workbench.info` | src/workbench/activate.ts:88 | `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`; the status bar shows Next / Previous Occurrence's 1 of 3, a newer message replaces it and it goes after eight seconds. Missing: nothing else feeds it (the webview's debugger, Vim and Stop Background Processes messages), and it is not shown in a light-edit window |
 | [~] | `workbench.tasks` | src/workbench/activate.ts:87 | `workbench::status_items::tests::tracks_task_events_and_shows_the_current_task`, `workbench::status_items::tests::a_working_task_wins_over_the_queued_ones_and_the_others_are_counted`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`; the item shows the current task with its progress, the count of the others (+1) and the tooltip, its click is the Background Tasks toggle (view.backgroundTasks with toggle), and a plugin's cancellable task is the window's task status while it runs. Missing: the Background Tasks popup the item opens closes by itself when the last task ends (src/workbench/StatusBar.tsx:138-142); natively it stays open (app-gpui/src/workbench/background_tasks_view.rs:119-124 only replaces the rows), and the native test that operated it, workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it, relies on it staying open |
 
+## Extension point `registerTableEditor` (0/2 at parity)
+
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/database/ResultsView.tsx:487` | src/features/database/ResultsView.tsx:487 |  |
+| [ ] | `(at) src/features/database/TableEditor.tsx:254` | src/features/database/TableEditor.tsx:254 |  |
+
 ## Extension point `registerTextEditorWrapper` (0/3 at parity, 1 partial)
 
 | | Id | Registered at | Proof |
@@ -1730,6 +1875,12 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [ ] | `vscode-notebook-cell` | src/features/notebook/index.ts:93 |  |
 
+## Extension point `registerValueEditorActions` (0/1 at parity)
+
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/database/JsonValueEditor.tsx:150` | src/features/database/JsonValueEditor.tsx:150 |  |
+
 ## Extension point `registerWorkbenchBanner` (0/1 at parity, 1 partial)
 
 | | Id | Registered at | Proof |
@@ -1748,7 +1899,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [ ] | (registered at run time only) | src/workbench/devSamples.tsx |  |
 
-## Settings pages (22/101 at parity, 62 partial)
+## Settings pages (22/104 at parity, 62 partial)
 
 | | Page id | Source | Proof |
 |---|---|---|---|
@@ -1781,9 +1932,11 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [~] | `editor.codeStyle` | src/features/settings/pages/editor/codeStyle.tsx | `settings_view::custom_controls::tests::code_style_visual_guides_and_do_not_format_apply`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `workbench::tests::proofs19_settings_languages::code_style_offers_a_plugin_formatter_per_covered_language_and_stores_the_pick`, `editor::command_actions::tests::proofs23_right_margin::shows_line_numbers_and_the_right_margin_normally`, `workbench::tests::save_cleanup::editorconfig_overrides_the_save_options_while_its_support_is_on`; every control is drawn, General and Formatter as sections of one page; visual guides, a Do not format pattern and a plugin formatter chosen on the page are stored; stored guides and hard wrap are the editor's right margins and EditorConfig support decides whether .editorconfig overrides the save options. Missing: General and Formatter are drawn as sections of one page where the webview has two tabs (src/features/settings/pages/editor/codeStyleScheme.tsx:122-147); no test shows an effect of a change made on the page: the line separator of a new file, the hard wrap margin, indents detection, Do not format and the formatter markers on a reformat |
 | [~] | `editor.codeStyle.other` | src/features/settings/pages/editor/codeStyle.tsx | Use tab character and Tab size are drawn (app-gpui/src/settings_model/builtin_pages/editor.rs:639-652) and are the editor's indentation for a language without its own (app-gpui/src/editor/language_facts.rs:99). Missing: the Scheme row draws "This page is not available yet" (src/features/settings/pages/editor/codeStyle.tsx:121); no test changes a control on the page and shows the indentation it gives |
 | [~] | `editor.colorScheme` | src/features/settings/pages/editor/colorScheme.tsx | `editor::command_actions::tests::proofs23_color_scheme::applies_an_explicit_scheme_to_the_editor`; a scheme stored in editor.colorScheme is what the editor draws with, chosen on Appearance. Missing: the page draws "This page is not available yet": the Scheme choice, Import / Export / Delete Scheme, Restore Defaults, the follows-the-theme note and the links to the scheme pages (src/features/settings/pages/editor/colorScheme.tsx:1338-1600, 1699-1727) |
+| [ ] | `editor.colorScheme.console-colors` | src/features/settings/pages/editor/colorScheme.tsx |  |
 | [~] | `editor.colorScheme.debugger` | src/features/settings/pages/editor/colorScheme.tsx | the page is in the tree (app-gpui/src/settings_model/builtin_pages/editor.rs:566-568). Missing: it draws "This page is not available yet": the scheme row, the Debugger attribute tree, the attribute editor and the preview (src/features/settings/pages/editor/colorScheme.tsx:1001-1108, 1338-1666, 1766-1773); no test |
 | [~] | `editor.colorScheme.general` | src/features/settings/pages/editor/colorScheme.tsx | `editor::command_actions::tests::proofs23_color_scheme::the_editor_draws_tokens_with_the_schemes_edits_and_the_typography_weights`; an attribute override stored in editor.colorOverrides recolours and emboldens the editor's tokens. Missing: the page draws "This page is not available yet": the scheme row, the attribute tree, the attribute editor (bold, italic, foreground, background, effects) and the preview (src/features/settings/pages/editor/colorScheme.tsx:1001-1108, 1338-1666, 1731-1738) |
 | [ ] | `editor.colorScheme.git` | src/features/settings/pages/editor/colorScheme.tsx |  |
+| [ ] | `editor.colorScheme.language-defaults` | src/features/settings/pages/editor/colorScheme.tsx |  |
 | [~] | `editor.fileEncodings` | src/features/settings/pages/editor/codeStyle.tsx | `workbench::tests::proofs22_settings_units::stages_properties_conversion_and_applies_the_checkbox`; every control is drawn and a change is written on Apply, not before. Missing: the note on .editorconfig and the status bar (src/features/settings/pages/editor/codeStyle.tsx:386-387); no native test shows an encoding chosen on the page deciding how a project file is read or a new file is written (the backend reads them, crates/ide-workspace/src/file_defaults.rs:33-56) |
 | [~] | `editor.files` | src/features/settings/pages/builtins.tsx | `workbench::tests::proofs19_settings_misc::file_types_patterns_and_ignored_names_are_written_to_the_project`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::editor_files::tests::patterns_added_and_removed_are_stored_as_additions_and_removals`, `settings_view::pages::editor_files::tests::the_filter_matches_names_and_patterns_and_hashbangs_are_stored`; the recognized file types come from the backend's languages, and patterns and ignored names are written to the project after Apply, and Reset and Cancel discard an edit. Missing: the Files opened in associated applications section, a list of file name patterns, files.associatedApplications (src/features/settings/pages/builtins.tsx:63-73, src/features/settings/pages/FileTypes.tsx:143) |
 | [~] | `editor.fileTemplates` | src/features/templates/index.ts:187 | `workbench::tests::proofs32_settings_file_templates::the_project_scheme_and_an_include_are_stored_at_once_and_cancel_keeps_them`, `workbench::tests::proofs32_settings_file_templates::a_file_template_added_and_edited_on_the_page_is_stored_at_once`, `settings_view::pages::editor_file_templates::extension_guard::an_extension_typed_with_slashes_creates_nothing_outside_the_folder`, `templates::files_store::tests::a_template_whose_extension_is_not_a_plain_extension_is_not_stored`; file templates with their kinds, includes and code templates are added, edited, enabled, removed and restored in the Default or the Project scheme and stored under the webview's keys; an extension that is not a plain extension is refused with a message and never stored; the page stores each change at once as the webview's does: Apply stays off, Reset is not shown, Cancel and OK keep what was stored. Missing: New does not offer the templates yet, and contributed templates have no native source |
@@ -1845,6 +1998,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [x] | `tools.externalTools` | src/features/settings/pages/tools.tsx | `workbench::tests::proofs19_settings_misc::external_tools_a_tool_added_applies`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::tools_external_tools::tests::a_macro_is_added_after_a_space`, `settings_view::pages::tools_external_tools::tests::a_tool_added_is_edited_with_a_macro`, `settings_view::pages::tools_external_tools::tests::copy_move_and_remove_tools`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it; a tool added in the table is stored with its program, arguments and working directory |
 | [x] | `tools.sshConfigurations` | src/features/settings/pages/ssh.tsx | `workbench::tests::proofs29_settings_ssh::ssh_a_configuration_added_and_edited_is_written_to_the_global_settings`, `workbench::tests::proofs29_settings_ssh::ssh_reset_and_cancel_discard_a_configuration_added_and_a_password_typed`, `workbench::tests::proofs29_settings_ssh::ssh_a_password_typed_is_stored_by_the_backend_on_apply_and_then_shown_as_stored`; configurations are added, copied, removed and edited by authentication type and written to the global settings on Apply; a typed password is staged, handed to the backend on Apply and never drawn, logged or written to a settings file; Reset and Cancel discard. Not built: the file chooser's title |
 | [~] | `tools.terminal` | src/features/settings/pages/tools.tsx | `settings_view::custom_controls::tests::terminal_environment_cursor_and_shell_apply`, `settings_view::custom_controls::tests::the_login_shell_is_read_after_the_dialog_opens`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; the page's other controls are drawn and the tests operate some of its own controls. Missing: the Highlight occurrences of selected text checkbox, terminal.highlightSelection, on by default (src/features/settings/pages/tools.tsx:245, src/platform/workflowSettings.ts) |
+| [ ] | `vcs` | src/features/settings/pages/vcs.tsx |  |
 | [x] | `vcs.commit` | src/features/settings/pages/vcs.tsx | `settings_view::custom_controls::tests::vcs_commit_limits_and_checks_apply`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; every control of the page is drawn; the tests operate some of its own controls and the others were compared with the original page by reading |
 | [x] | `vcs.confirmation` | src/features/settings/pages/vcs.tsx | `settings_view::custom_controls::tests::vcs_confirmation_radio_buttons_and_history_limit_apply`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; every control of the page is drawn; the tests operate some of its own controls and the others were compared with the original page by reading |
 | [~] | `vcs.git` | src/features/settings/pages/vcs.tsx | `settings_view::custom_controls::tests::vcs_git_test_protected_branches_and_update_method`, `settings_view::custom_controls::tests::git_test_is_refused_in_restricted_mode`, `settings_view::custom_controls::tests::passwords_lists_a_saved_credential_and_forget_removes_it`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; the page's other controls are drawn and the tests operate the Git test, protected branches, update method and saved passwords. Missing: Show branch and incoming/outgoing commits in the Project view, vcs.git.showBranchInProjectView (src/features/settings/pages/vcs.tsx:497-501), and Enable staging area with its hint, vcs.git.stagingArea, both off by default (vcs.tsx:507-512) |
@@ -1906,9 +2060,9 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [~] | `welcome` | 1986 | `workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`, `workbench::welcome::tests`, `workbench::plugins_window::tests::the_welcome_screen_lists_projects_and_customize_and_plugins_only_with_a_plugin_host`, `workbench::plugins_window::tests::customize_changes_the_theme_and_the_font_size_through_the_global_settings`, `workbench::plugins_window::tests::all_settings_on_customize_opens_the_settings_dialog`; the Welcome screen with search, groups, row menus, remove and reopen, the Customize page (theme, accent, font, keymap, All settings…) and the Plugins page with a plugin host. Missing: the Recent Projects popup, the project popup of the title bar, reopening the last project at start, and the IntelliJ theme imports of the Plugins page |
 | [ ] | `whats-new` | 238 |  |
 
-## Editor, platform, workbench and design-system modules (23/289 at parity, 74 partial)
+## Editor, platform, workbench and design-system modules (23/291 at parity, 74 partial)
 
-Outside `src/features/`: the text editor (CodeMirror today), the platform layer, the workbench shell and the `src/ui` primitives.
+Outside the feature folders: the text editor (CodeMirror today), the platform layer, the workbench shell, the `src/ui` primitives, the entry point and the feature list.
 
 | | Module | TS lines | Proof |
 |---|---|---|---|
@@ -2201,12 +2355,22 @@ Outside `src/features/`: the text editor (CodeMirror today), the platform layer,
 | [ ] | `src/ui/treeReorder.ts` | 136 |  |
 | [ ] | `src/ui/useSanitizedField.ts` | 35 |  |
 | [ ] | `src/ui/useSelectionBoundary.ts` | 130 |  |
+| [ ] | `src/main.tsx` | 120 |  |
+| [ ] | `src/features/index.ts` | 201 |  |
 
-## Design tokens, icons and locales (9/9 at parity)
+## Design tokens, icons and locales (9/17 at parity)
 
 | | Item | Entries | Proof |
 |---|---|---|---|
 | [x] | `src/styles/tokens.css` custom properties | 454 | `theme::tokens::tests::every_token_resolves_in_every_builtin_theme` |
+| [ ] | `src/styles/global.css` rule blocks | 44 |  |
+| [ ] | keyed catalog `en.json` | 527 |  |
+| [ ] | keyed catalog `es.json` | 456 |  |
+| [ ] | keyed catalog `fr.json` | 452 |  |
+| [ ] | keyed catalog `ko.json` | 462 |  |
+| [ ] | keyed catalog `pl.json` | 454 |  |
+| [ ] | keyed catalog `pt.json` | 451 |  |
+| [ ] | keyed catalog `zh.json` | 527 |  |
 | [x] | `src/ui/icons.tsx` icons | 539 | `theme::icons::tests` |
 | [x] | text catalog `en.json` | 2169 | `platform::i18n::tests::catalogs_are_complete_and_well_formed` |
 | [x] | text catalog `es.json` | 6145 | `platform::i18n::tests::catalogs_are_complete_and_well_formed` |

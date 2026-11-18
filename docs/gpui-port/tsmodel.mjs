@@ -209,26 +209,258 @@ export function actions() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Extension points: every call of an exported `register*` function of the workbench, the platform
-// and the editor API (direct, or passed to `.map` / `.forEach`).
+// String values reached through constants, parameters and helpers (context keys and `when` clauses
+// that are not written as literals at the place that sets or tests them).
+
+/** Component function → the JSX elements that render it (`<Tree focusContext="…" />`). */
+let jsxByFunction = null;
+export function jsxOf(fn) {
+  if (!jsxByFunction) {
+    jsxByFunction = new Map();
+    for (const source of appSources) {
+      const visit = (node) => {
+        if ((ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) && ts.isIdentifier(node.tagName)) {
+          for (const d of declarationsOf(node.tagName)) {
+            const target = ts.isVariableDeclaration(d) && d.initializer ? unwrap(d.initializer) : d;
+            if (ts.isFunctionLike(target)) jsxByFunction.set(target, [...(jsxByFunction.get(target) ?? []), node]);
+          }
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(source);
+    }
+  }
+  return jsxByFunction.get(fn) ?? [];
+}
+
+const NOTHING = { values: [], dynamic: false };
+const DYNAMIC = { values: [], dynamic: true };
+const merge = (results) => ({ values: results.flatMap((r) => r.values), dynamic: results.some((r) => r.dynamic) });
+const isConst = (d) => Boolean(ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const);
+
+/** The string literal types of `node`, when its type is made of nothing else (nullish parts aside). */
+function typedValues(node) {
+  const type = checker.getTypeAtLocation(node);
+  const parts = (type.isUnion() ? type.types : [type]).filter(
+    (t) => !(t.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Null | ts.TypeFlags.Void)),
+  );
+  if (!parts.length || !parts.every((t) => t.isStringLiteral())) return DYNAMIC;
+  return { values: parts.map((t) => ({ value: t.value, node })), dynamic: false };
+}
+
+/** Every concatenation of one value of each part; computed at run time when a part is. */
+function concatenation(parts, node) {
+  if (parts.some((p) => p.dynamic || !p.values.length)) return DYNAMIC;
+  let joined = [""];
+  for (const p of parts) {
+    joined = joined.flatMap((head) => p.values.map((v) => head + v.value));
+    if (joined.length > 200) return DYNAMIC;
+  }
+  return { values: [...new Set(joined)].map((value) => ({ value, node })), dynamic: false };
+}
+
+/**
+ * The string values `expr` can take: literals, `const` identifiers (in the file or imported),
+ * parameters and component props followed to the arguments and JSX attributes of their callers,
+ * templates and concatenations of those, and the returns of helper functions. `dynamic` is set
+ * when some part is computed at run time; `values` then holds what could be resolved.
+ */
+export function stringValues(expr, depth = 0, seen = new Set()) {
+  expr = unwrap(expr);
+  if (!expr) return NOTHING;
+  // `seen` holds the path being followed: a cycle is run-time state, a value reached twice is not.
+  if (depth > 12 || seen.has(expr)) return DYNAMIC;
+  seen.add(expr);
+  try {
+    return resolveString(expr, depth, seen);
+  } finally {
+    seen.delete(expr);
+  }
+}
+
+function resolveString(expr, depth, seen) {
+  const next = (e) => stringValues(e, depth + 1, seen);
+  if (ts.isStringLiteralLike(expr)) return { values: [{ value: expr.text, node: expr }], dynamic: false };
+  if (
+    ts.isNumericLiteral(expr) ||
+    [ts.SyntaxKind.NullKeyword, ts.SyntaxKind.TrueKeyword, ts.SyntaxKind.FalseKeyword].includes(expr.kind) ||
+    (ts.isIdentifier(expr) && expr.text === "undefined")
+  )
+    return NOTHING;
+  if (ts.isConditionalExpression(expr)) return merge([next(expr.whenTrue), next(expr.whenFalse)]);
+  if (ts.isBinaryExpression(expr)) {
+    const op = expr.operatorToken.kind;
+    if (op === ts.SyntaxKind.QuestionQuestionToken || op === ts.SyntaxKind.BarBarToken)
+      return merge([next(expr.left), next(expr.right)]);
+    if (op === ts.SyntaxKind.PlusToken) return concatenation([next(expr.left), next(expr.right)], expr);
+  }
+  if (ts.isTemplateExpression(expr)) {
+    const text = (t) => ({ values: [{ value: t, node: expr }], dynamic: false });
+    return concatenation(
+      [text(expr.head.text), ...expr.templateSpans.flatMap((s) => [next(s.expression), text(s.literal.text)])],
+      expr,
+    );
+  }
+  let found = DYNAMIC;
+  if (ts.isIdentifier(expr)) found = declaredValues(declarationsOf(expr), next, depth, seen);
+  else if (ts.isPropertyAccessExpression(expr) && ts.isIdentifier(expr.name))
+    found = propertyValues(expr.expression, expr.name.text, next, depth, seen);
+  else if (ts.isCallExpression(expr) && ts.isIdentifier(unwrap(expr.expression))) {
+    const bodies = declarationsOf(unwrap(expr.expression)).flatMap((d) => {
+      if (ts.isFunctionDeclaration(d)) return [d];
+      const init = ts.isVariableDeclaration(d) && d.initializer && unwrap(d.initializer);
+      return init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) ? [init] : [];
+    });
+    if (bodies.length) found = merge(bodies.flatMap(returnedExpressions).map(next));
+  }
+  // A value no caller pins down may still have a literal type (`name: GithubHandlerName`).
+  if (found.dynamic || !found.values.length) {
+    const typed = typedValues(expr);
+    if (!typed.dynamic) return typed;
+  }
+  return found;
+}
+
+function declaredValues(declarations, next, depth, seen) {
+  if (!declarations.length) return DYNAMIC;
+  return merge(
+    declarations.map((d) => {
+      if (ts.isVariableDeclaration(d) && ts.isIdentifier(d.name))
+        return isConst(d) && d.initializer ? next(d.initializer) : DYNAMIC;
+      if (ts.isParameter(d) && ts.isIdentifier(d.name)) return argumentValues(d, null, next, depth, seen);
+      if (ts.isBindingElement(d) && ts.isIdentifier(d.name) && ts.isObjectBindingPattern(d.parent)) {
+        const name = d.propertyName ? d.propertyName.getText() : d.name.text;
+        const holder = d.parent.parent;
+        if (ts.isVariableDeclaration(holder) && holder.initializer && isConst(holder))
+          return propertyValues(holder.initializer, name, next, depth, seen);
+        if (ts.isParameter(holder)) return argumentValues(holder, name, next, depth, seen);
+      }
+      return DYNAMIC;
+    }),
+  );
+}
+
+/** Property `name` of the value `object` evaluates to. */
+function propertyValues(object, name, next, depth, seen) {
+  object = unwrap(object);
+  if (ts.isObjectLiteralExpression(object)) {
+    for (const p of object.properties) {
+      if (ts.isPropertyAssignment(p) && p.name.getText().replace(/["']/g, "") === name) return next(p.initializer);
+      if (ts.isShorthandPropertyAssignment(p) && p.name.text === name) return next(p.name);
+    }
+    return DYNAMIC;
+  }
+  if (!ts.isIdentifier(object)) return DYNAMIC;
+  return merge(
+    declarationsOf(object).map((d) => {
+      if (ts.isVariableDeclaration(d) && d.initializer && isConst(d))
+        return propertyValues(d.initializer, name, next, depth, seen);
+      if (ts.isParameter(d) && ts.isIdentifier(d.name)) return argumentValues(d, name, next, depth, seen);
+      return DYNAMIC;
+    }),
+  );
+}
+
+/** The values callers pass for `parameter` (or for its property `name`): call arguments and JSX attributes. */
+function argumentValues(parameter, name, next, depth, seen) {
+  const fn = parameter.parent;
+  if (!ts.isFunctionLike(fn)) return DYNAMIC;
+  const index = fn.parameters.indexOf(parameter);
+  const results = callsOf(fn).map((call) => {
+    const arg = call.arguments[index];
+    if (!arg) return parameter.initializer ? next(parameter.initializer) : NOTHING;
+    return name === null ? next(arg) : propertyValues(arg, name, next, depth, seen);
+  });
+  if (index === 0 && name !== null)
+    for (const element of jsxOf(fn)) {
+      const attributes = element.attributes.properties;
+      const attribute = attributes.find((a) => ts.isJsxAttribute(a) && a.name.getText() === name);
+      if (!attribute) results.push(attributes.some(ts.isJsxSpreadAttribute) ? DYNAMIC : NOTHING);
+      else if (!attribute.initializer) results.push(NOTHING);
+      else if (ts.isJsxExpression(attribute.initializer)) results.push(next(attribute.initializer.expression));
+      else results.push(next(attribute.initializer));
+    }
+  return results.length ? merge(results) : DYNAMIC;
+}
+
+/**
+ * Context keys set (`setContext(key, …)` of `src/platform/context.ts`) and `when` clauses written
+ * as something else than a literal at the place that sets or tests them; literals are read from
+ * the text. Each use: { kind: "set" | "when", site, values: [{ value, node }], dynamic }.
+ */
+export function contextKeyUses() {
+  const uses = [];
+  for (const source of appSources) {
+    const visit = (node) => {
+      if (
+        ts.isCallExpression(node) &&
+        ts.isIdentifier(unwrap(node.expression)) &&
+        unwrap(node.expression).text === "setContext" &&
+        node.arguments[0] &&
+        !ts.isStringLiteralLike(unwrap(node.arguments[0])) &&
+        declarationsOf(unwrap(node.expression)).some(
+          (d) => rel(d.getSourceFile().fileName) === "src/platform/context.ts",
+        )
+      )
+        uses.push({ kind: "set", site: node, ...stringValues(node.arguments[0]) });
+      if (ts.isPropertyAssignment(node) && node.name.getText().replace(/["']/g, "") === "when") {
+        const value = unwrap(node.initializer);
+        if (
+          !ts.isStringLiteralLike(value) &&
+          !ts.isArrayLiteralExpression(value) &&
+          !ts.isObjectLiteralExpression(value) &&
+          !ts.isFunctionLike(value) &&
+          !ts.isNumericLiteral(value)
+        )
+          uses.push({ kind: "when", site: node, ...stringValues(value) });
+      }
+      if (ts.isShorthandPropertyAssignment(node) && node.name.text === "when") {
+        const symbol = checker.getShorthandAssignmentValueSymbol(node);
+        const values = declaredValues(symbol?.declarations ?? [], (e) => stringValues(e, 1), 0, new Set());
+        uses.push({ kind: "when", site: node, ...values });
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+  }
+  return uses;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Extension points: every call of an exported `register*` function of the workbench, the platform,
+// the editor API and the registries other modules keep (direct, or passed to `.map` / `.forEach`).
 
 export const POINT_FILES = /^src\/(workbench\/|platform\/|editor\/api\.ts|editor\/navigationProviders\.ts)/;
+// Registries other modules keep. The inventory lists their registrations; the contribution manifest
+// `gen-data.mjs` writes for the GPUI app reads `POINT_FILES` only.
+export const REGISTRY_FILES = new RegExp(
+  "^src/(editor/relatedProviders\\.ts|editor/lsp/intentions\\.ts|editor/lsp/semantic/languages\\.ts|" +
+    "features/vcs/diffViewerProviders\\.ts|features/vcs/commitCheckRegistry\\.ts|ui/pointerDrag\\.ts|ui/icons\\.tsx|" +
+    "features/database/(cellActions|tableEditorFocus|valueEditorActions)\\.ts|features/plugins/views/contentTab\\.ts)$",
+);
+export const isPointFile = (file, registries = true) =>
+  POINT_FILES.test(file) || (registries && REGISTRY_FILES.test(file));
 export const COVERED_ELSEWHERE = new Set(["registerAction", "registerActions", "registerMessages"]);
 export const ID_PROPERTIES = ["id", "kind", "name", "slot", "language", "scheme"];
+/** Registries whose first argument is the id itself (`registerLanguageSemantics("go", …)`); a slot
+ * argument (`registerMenuSlotItem("pluginTools", …)`) names where items go, not an item. */
+export const KEYED_BY_ARGUMENT = new Set(["registerClientCommand", "registerLanguageSemantics"]);
 
-export function pointName(identifier) {
+export function pointName(identifier, registries = false) {
   if (!ts.isIdentifier(identifier) || !/^register[A-Z]/.test(identifier.text)) return null;
-  const declared = declarationsOf(identifier).some((d) => POINT_FILES.test(rel(d.getSourceFile().fileName)));
+  const declared = declarationsOf(identifier).some((d) => isPointFile(rel(d.getSourceFile().fileName), registries));
   return declared && !COVERED_ELSEWHERE.has(identifier.text) ? identifier.text : null;
 }
 
 export function extensionPoints() {
   /** point → Map(row key → source) */
   const points = new Map();
-  const add = (point, objects, callSite) => {
+  const add = (point, objects, callSite, named = []) => {
     const rows = points.get(point) ?? new Map();
     points.set(point, rows);
-    const ids = objects.flatMap((o) => ID_PROPERTIES.map((p) => property(o, p)).find((v) => v.length) ?? []);
+    const ids = named.length
+      ? named
+      : objects.flatMap((o) => ID_PROPERTIES.map((p) => property(o, p)).find((v) => v.length) ?? []);
     if (ids.length) {
       for (const id of ids) if (!rows.has(id)) rows.set(id, at(callSite));
     } else {
@@ -240,12 +472,13 @@ export function extensionPoints() {
     const visit = (node) => {
       if (ts.isCallExpression(node)) {
         const callee = unwrap(node.expression);
-        const direct = pointName(callee);
+        const direct = pointName(callee, true);
         if (direct && node.arguments.length) {
           // The declaration itself (`export const registerX = register(...)`) is not a use.
-          add(direct, objectLiterals(node.arguments[0]), node);
+          const named = KEYED_BY_ARGUMENT.has(direct) ? literals(node.arguments[0]) : [];
+          add(direct, named.length ? [] : objectLiterals(node.arguments[0]), node, named);
         } else if (ts.isPropertyAccessExpression(callee) && ["map", "forEach", "flatMap"].includes(callee.name.text)) {
-          const passed = node.arguments[0] && pointName(unwrap(node.arguments[0]));
+          const passed = node.arguments[0] && pointName(unwrap(node.arguments[0]), true);
           if (passed) add(passed, objectLiterals(callee.expression), node);
         }
       }

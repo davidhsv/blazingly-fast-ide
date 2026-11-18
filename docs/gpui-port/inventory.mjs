@@ -16,9 +16,11 @@ import {
   walk,
   lineCount,
   isSource,
+  at,
   actions,
+  contextKeyUses,
   extensionPoints,
-  POINT_FILES,
+  isPointFile,
   COVERED_ELSEWHERE,
 } from "./tsmodel.mjs";
 
@@ -51,15 +53,26 @@ function contextKeys() {
     if (["true", "false", "in", "not"].includes(key) || /^\d/.test(key)) return;
     if (!set.has(key)) set.set(key, file);
   };
+  const noteClause = (clause, file) => {
+    // Operands only: quoted right-hand sides of `==` are values, not keys.
+    const expression = clause.replace(/(==|!=|=~)\s*('[^']*'|[^\s&|)]+)/g, "");
+    for (const key of expression.matchAll(/[A-Za-z_][\w.\-:/]*/g)) note(key[0], file);
+  };
   for (const source of appSources) {
     const file = rel(source.fileName);
     const text = source.text;
     for (const m of text.matchAll(/\bsetContext\(\s*["'`]([^"'`$]+)["'`]/g)) note(m[1], file);
-    for (const m of text.matchAll(/\bwhen:\s*["'`]([^"'`]+)["'`]/g)) {
-      // Operands only: quoted right-hand sides of `==` are values, not keys.
-      const expression = m[1].replace(/(==|!=|=~)\s*('[^']*'|[^\s&|)]+)/g, "");
-      for (const key of expression.matchAll(/[A-Za-z_][\w.\-:/]*/g)) note(key[0], file);
+    for (const m of text.matchAll(/\bwhen:\s*["'`]([^"'`]+)["'`]/g)) noteClause(m[1], file);
+  }
+  // Keys and clauses given through constants, props and helpers, resolved by the program; the
+  // file is where the literal is written. What stays computed at run time is a `(dynamic)` row.
+  for (const use of contextKeyUses()) {
+    for (const { value, node } of use.values) {
+      const file = rel(node.getSourceFile().fileName);
+      if (use.kind === "set") note(value, file);
+      else noteClause(value, file);
     }
+    if (use.dynamic) set.set(`(dynamic) ${at(use.site)}`, at(use.site));
   }
   return set;
 }
@@ -103,8 +116,12 @@ function settingsPages(points) {
   const dir = join(root, "src/features/settings/pages");
   for (const file of walk(dir, isSource)) {
     const text = readFileSync(file, "utf8");
-    for (const m of text.matchAll(/^\s+id:\s*"([a-zA-Z][\w.]*)",?\s*$/gm)) {
-      if (!found.has(m[1])) found.set(m[1], rel(file));
+    // A page entry's id on a line of its own, or a whole entry on one line (`{ id: "vcs", title: … }`).
+    for (const m of text.matchAll(
+      /^\s+id:\s*"([a-zA-Z][\w.-]*)",?\s*$|^\s*\{\s*id:\s*"([a-zA-Z][\w.-]*)",\s*title:/gm,
+    )) {
+      const id = m[1] ?? m[2];
+      if (!found.has(id)) found.set(id, rel(file));
     }
   }
   return found;
@@ -365,7 +382,7 @@ for (const [point, rows] of sorted(points)) {
 }
 // Every exported register* function of the extension-point files is either used or reported.
 for (const source of appSources) {
-  if (!POINT_FILES.test(rel(source.fileName))) continue;
+  if (!isPointFile(rel(source.fileName))) continue;
   for (const m of source.text.matchAll(/^export (?:function|const) (register[A-Z]\w*)/gm)) {
     if (!COVERED_ELSEWHERE.has(m[1]) && !points.has(m[1]))
       section(
@@ -409,8 +426,16 @@ for (const top of ["src/editor", "src/platform", "src/workbench", "src/ui"]) {
   }
   for (const [group, lines] of sorted(groups)) moduleRows.push({ key: group, cells: [code(group), lines] });
 }
+// Files no folder above holds: the entry point (`src/main.tsx`) and the feature list (`src/features/index.ts`).
+for (const dir of ["src", "src/features"])
+  for (const name of readdirSync(join(root, dir)).sort()) {
+    const file = `${dir}/${name}`;
+    if (file === "src/bindings.ts" || name.endsWith(".d.ts") || !isSource(join(root, file))) continue;
+    if (statSync(join(root, file)).isFile())
+      moduleRows.push({ key: file, cells: [code(file), lineCount(join(root, file))] });
+  }
 section("Editor, platform, workbench and design-system modules", "module", moduleRows, ["Module", "TS lines"], {
-  note: "Outside `src/features/`: the text editor (CodeMirror today), the platform layer, the workbench shell and the `src/ui` primitives.",
+  note: "Outside the feature folders: the text editor (CodeMirror today), the platform layer, the workbench shell, the `src/ui` primitives, the entry point and the feature list.",
 });
 
 const tokens = readFileSync(join(root, "src/styles/tokens.css"), "utf8");
@@ -420,11 +445,27 @@ const iconNames = new Set(
   Object.keys(JSON.parse(readFileSync(join(root, "app-gpui/assets/gen/icons.json"), "utf8")).icons),
 );
 const localeDir = join(root, "src/platform/locales/text");
+const messagesDir = join(root, "src/platform/locales");
+// Rule blocks of the global stylesheet (comments aside).
+const globalRules = [
+  ...readFileSync(join(root, "src/styles/global.css"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .matchAll(/\{/g),
+].length;
 section(
   "Design tokens, icons and locales",
   "design",
   [
     { key: "tokens", cells: ["`src/styles/tokens.css` custom properties", tokenNames.size] },
+    { key: "global.css", cells: ["`src/styles/global.css` rule blocks", globalRules] },
+    // Keyed catalogues (`t("app.unsaved.body")`), next to the source-text catalogues (`tx("…")`) below.
+    ...readdirSync(messagesDir)
+      .filter((n) => n.endsWith(".json"))
+      .sort()
+      .map((n) => ({
+        key: `messages.${n}`,
+        cells: [`keyed catalog \`${n}\``, Object.keys(JSON.parse(readFileSync(join(messagesDir, n), "utf8"))).length],
+      })),
     { key: "icons", cells: ["`src/ui/icons.tsx` icons", iconNames.size] },
     ...readdirSync(localeDir)
       .filter((n) => n.endsWith(".json"))
