@@ -5,24 +5,24 @@ A row is `[x]` only when `parity.json` names a Rust test (Proof) that demonstrat
 A row is `[m]` (model only) when its tests pass but are tests of code that nothing reachable from the application uses yet: the logic exists, the app does not do it. `[m]` rows do not count as at parity.
 A row is `[–]` (nothing to port) when it is a backend command that no file of the webview calls; this script checks that claim on every run. Those rows do not count as at parity either.
 
-**Overall: 1195/3905 rows at parity, 9 model only, 936 partial, 14 with nothing to port.**
+**Overall: 1237/3905 rows at parity, 9 model only, 969 partial, 14 with nothing to port.**
 
 | Section | At parity | Model only | Partial | Nothing to port | Total |
 |---|---|---|---|---|---|
 | Actions | 464 | 0 | 188 | 0 | 974 |
 | Keymap ids with no statically registered action | 43 | 0 | 0 | 0 | 45 |
 | Keymap presets | 4 | 0 | 2 | 0 | 6 |
-| Context keys | 49 | 0 | 6 | 0 | 147 |
+| Context keys | 86 | 0 | 11 | 0 | 147 |
 | Extension point `registerAgentContextSource` | 0 | 0 | 0 | 0 | 3 |
-| Extension point `registerCellGrid` | 0 | 0 | 0 | 0 | 1 |
+| Extension point `registerCellGrid` | 0 | 0 | 1 | 0 | 1 |
 | Extension point `registerClientCommand` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerCloneSource` | 0 | 0 | 0 | 0 | 1 |
-| Extension point `registerCommitCheck` | 0 | 0 | 0 | 0 | 7 |
+| Extension point `registerCommitCheck` | 1 | 0 | 6 | 0 | 7 |
 | Extension point `registerCommitCheckProvider` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerContentTabSender` | 0 | 0 | 0 | 0 | 1 |
-| Extension point `registerDiffViewerProvider` | 0 | 0 | 0 | 0 | 2 |
+| Extension point `registerDiffViewerProvider` | 0 | 0 | 1 | 0 | 2 |
 | Extension point `registerDocumentIndexSync` | 0 | 0 | 0 | 0 | 1 |
-| Extension point `registerDropTarget` | 0 | 0 | 0 | 0 | 11 |
+| Extension point `registerDropTarget` | 1 | 0 | 2 | 0 | 11 |
 | Extension point `registerEditorBanner` | 1 | 0 | 0 | 0 | 7 |
 | Extension point `registerEditorContribution` | 0 | 0 | 9 | 0 | 40 |
 | Extension point `registerEditorDropHandler` | 0 | 0 | 0 | 0 | 1 |
@@ -31,14 +31,14 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerEndpointProvider` | 1 | 0 | 0 | 0 | 2 |
 | Extension point `registerExtensionBindings` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerExternalFileOpenHandler` | 0 | 0 | 0 | 0 | 1 |
-| Extension point `registerExternalIcons` | 0 | 0 | 0 | 0 | 4 |
+| Extension point `registerExternalIcons` | 1 | 0 | 2 | 0 | 4 |
 | Extension point `registerFileDropHandler` | 0 | 0 | 0 | 0 | 2 |
 | File editor providers | 2 | 0 | 1 | 0 | 4 |
 | Extension point `registerFontZoomSurface` | 0 | 0 | 0 | 0 | 4 |
 | Extension point `registerGitLogChecks` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerKeyClaim` | 4 | 0 | 1 | 0 | 14 |
 | Extension point `registerLanguageMode` | 0 | 0 | 0 | 0 | 1 |
-| Extension point `registerLanguageSemantics` | 0 | 0 | 0 | 0 | 4 |
+| Extension point `registerLanguageSemantics` | 0 | 0 | 4 | 0 | 4 |
 | Extension point `registerMenuGroup` | 6 | 0 | 8 | 0 | 28 |
 | Extension point `registerMenuSlotItem` | 1 | 0 | 1 | 0 | 2 |
 | Extension point `registerNavigationProvider` | 0 | 0 | 0 | 0 | 6 |
@@ -56,7 +56,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerServiceView` | 1 | 0 | 2 | 0 | 3 |
 | Extension point `registerSoftWrapSurface` | 0 | 0 | 0 | 0 | 1 |
 | Status bar items | 5 | 0 | 5 | 0 | 19 |
-| Extension point `registerTableEditor` | 0 | 0 | 0 | 0 | 2 |
+| Extension point `registerTableEditor` | 0 | 0 | 2 | 0 | 2 |
 | Extension point `registerTextEditorWrapper` | 0 | 0 | 1 | 0 | 3 |
 | Title bar items | 3 | 0 | 2 | 0 | 5 |
 | Tool windows | 0 | 0 | 22 | 0 | 34 |
@@ -66,10 +66,10 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerWorkbenchBanner` | 0 | 0 | 1 | 0 | 1 |
 | Extension point `registerShellActions` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerDevSamples` | 0 | 0 | 0 | 0 | 1 |
-| Settings pages | 22 | 0 | 62 | 0 | 104 |
+| Settings pages | 22 | 0 | 64 | 0 | 104 |
 | Features | 0 | 0 | 19 | 0 | 47 |
-| Editor, platform, workbench and design-system modules | 23 | 0 | 74 | 0 | 291 |
-| Design tokens, icons and locales | 9 | 0 | 0 | 0 | 17 |
+| Editor, platform, workbench and design-system modules | 23 | 0 | 76 | 0 | 291 |
+| Design tokens, icons and locales | 11 | 0 | 6 | 0 | 17 |
 | Native shell modules (src-tauri) | 0 | 0 | 2 | 0 | 25 |
 | IPC commands | 312 | 0 | 56 | 14 | 715 |
 | Backend events (IdeEvent) | 11 | 0 | 9 | 0 | 31 |
@@ -1121,16 +1121,16 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [~] | `vscode-macos` | 396 | 153 | `platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the preset's bindings load verbatim from the generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatch. Missing: the preset now binds Meta+N to file.newUntitled and leaves file.new unbound (src/platform/keymaps/vscode-macos.ts:198-199, 951e81e06 "untitled buffers and Save As with a file type"); the native app registers no file.newUntitled action (no "file.newUntitled" under app-gpui/src), so in this preset Meta+N does nothing natively where it ran file.new before the merge |
 | [~] | `vscode-windows` | 46 | 32 | `platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the preset's bindings load verbatim from the generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatch. Missing: the preset now binds Ctrl+N to file.newUntitled and leaves file.new unbound (src/platform/keymaps/vscode-macos.ts:198-199, 951e81e06 "untitled buffers and Save As with a file type"); the native app registers no file.newUntitled action (no "file.newUntitled" under app-gpui/src), so in this preset Ctrl+N does nothing natively where it ran file.new before the merge |
 
-## Context keys (49/147 at parity, 6 partial)
+## Context keys (86/147 at parity, 11 partial)
 
 | | Key | First source | Proof |
 |---|---|---|---|
-| [ ] | `(dynamic) src/features/plugins/points.tsx:210` | src/features/plugins/points.tsx:210 |  |
-| [ ] | `(dynamic) src/features/plugins/runtimeUi.tsx:222` | src/features/plugins/runtimeUi.tsx:222 |  |
-| [ ] | `(dynamic) src/features/plugins/uiPoints.tsx:190` | src/features/plugins/uiPoints.tsx:190 |  |
-| [ ] | `(dynamic) src/features/plugins/workspaceContains.ts:64` | src/features/plugins/workspaceContains.ts:64 |  |
-| [ ] | `(dynamic) src/features/settings/window/bridge.ts:48` | src/features/settings/window/bridge.ts:48 |  |
-| [ ] | `(dynamic) src/workbench/toolwindows/store.ts:455` | src/workbench/toolwindows/store.ts:455 |  |
+| [x] | `(dynamic) src/features/plugins/points.tsx:210` | src/features/plugins/points.tsx:210 | `workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`; a plugin command's own when is its action's: Tools lists Sync (when workspaceContains:MODULE.bazel) greyed out without the file and enabled once it is written, and an entry chosen in the menu bar runs the plugin's command |
+| [x] | `(dynamic) src/features/plugins/runtimeUi.tsx:222` | src/features/plugins/runtimeUi.tsx:222 | `workbench::plugin_runtime::tests::proofs10_host_ui::a_context_key_the_plugin_sets_is_on_and_removing_it_takes_it_away`; a key the plugin's code sets is plugin.<id>.<key> in the window's context (read as true) and is gone once the code clears it |
+| [x] | `(dynamic) src/features/plugins/uiPoints.tsx:190` | src/features/plugins/uiPoints.tsx:190 | `workbench::context_menus::tests::renders_toolbar_slots_with_command_icons_and_honors_when_clauses`; a plugin's editor.title entry whose own when fails has no button until the key holds, then shows, and a slot button runs its command; the commit.message and mainToolbar slots are drawn by the same slot_buttons (app-gpui/src/workbench/context_menus.rs:1136) |
+| [x] | `(dynamic) src/features/plugins/workspaceContains.ts:64` | src/features/plugins/workspaceContains.ts:64 | `workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`, `workbench::context_menus::tests::renders_toolbar_slots_with_command_icons_and_honors_when_clauses`; workspaceContains:MODULE.bazel is answered false in a project without the file and true once it is written, and the Tools entry and the tab strip button that need it follow |
+| [~] | `(dynamic) src/features/settings/window/bridge.ts:48` | src/features/settings/window/bridge.ts:48 | the native Settings dialog runs in the project window, so the Keymap page reads the registered actions with their when directly (app-gpui/src/settings_view/keymap.rs:52-63, app-gpui/src/settings_model/keymap_model.rs:68-73) where the webview sends them to the settings window (src/features/settings/window/bridge.ts:41-55, used for conflicts at src/features/settings/keymap/model.ts:148-162). Missing: no test opens the Keymap page from a window and shows a conflict that exists or not according to the when of registered actions |
+| [~] | `(dynamic) src/workbench/toolwindows/store.ts:455` | src/workbench/toolwindows/store.ts:455 | `workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`, `workbench::tests::proofs20_shell::registers_toolwindow_id_and_generic_actions`, `workbench::tests::proofs_tool_windows::hide_active_tool_window_hides_the_focused_project_view`; toolWindow.project.visible reads on when the project opens and off after ⌘1 and after Hide Active Tool Window, and each declared tool window's key reads on once its toolwindow.<id> action shows it. Missing: with a side maximized the other sides' windows read off (src/workbench/toolwindows/store.ts:448-457; native app-gpui/src/workbench/tool_windows.rs:632-642): no test reads the keys while a side is maximized |
 | [x] | `activeToolWindow` | src/workbench/toolwindows/store.ts | `workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository` |
 | [ ] | `agentEffortAvailable` | src/features/agents/effortFocus.ts |  |
 | [ ] | `agentInputAvailable` | src/features/agents/sessionFocus.ts |  |
@@ -1138,13 +1138,13 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [x] | `build.gradle` | src/features/build-tools/index.ts | `workbench::build_tools::tests::a_new_gradle_build_turns_on_only_the_gradle_conditions`, `workbench::build_tools::tests::the_build_conditions_are_off_without_a_build_and_a_new_pom_turns_on_only_maven`; off in a project with no Gradle build, on once one is written, while the Maven half stays off |
 | [x] | `build.lastStatus` | src/features/run/buildTask.ts | `workbench::tests::building_a_project_without_a_build_system_ends_in_a_failed_build` |
 | [x] | `build.maven` | src/features/build-tools/index.ts | `workbench::build_tools::tests::the_build_conditions_are_off_without_a_build_and_a_new_pom_turns_on_only_maven`; off in a trusted project with no pom.xml (every Maven action unavailable, the Maven tool window not offered), on once a pom.xml is written and the model read again, while the Gradle half stays off |
-| [ ] | `build.running` | src/features/build/store.ts |  |
+| [x] | `build.running` | src/features/build/store.ts | `workbench::tests::building_a_project_without_a_build_system_ends_in_a_failed_build`, `workbench::tests::a_cargo_build_lists_its_error_succeeds_once_fixed_and_ends_cancelled_when_stopped`; off before any build, on as soon as Build Project runs (before the backend answers), off once the build fails, succeeds or is cancelled, also after Build Module, Rebuild Project and Build Artifacts; Stop Build (when build.running) runs while a Cargo build script sleeps and ends the build cancelled |
 | [ ] | `build.sbt` | src/features/build-tools/index.ts |  |
 | [ ] | `command` | src/features/vcs/mergeActions.ts |  |
 | [ ] | `CONNECTED` | src/features/github/index.ts |  |
 | [ ] | `coverageSuites` | src/features/coverage/store.ts |  |
 | [ ] | `coverageVisible` | src/features/coverage/store.ts |  |
-| [ ] | `databaseViewFocus` | src/features/database/treeActions.ts |  |
+| [x] | `databaseViewFocus` | src/features/database/treeActions.ts | `workbench::tests::proofs5_database::refresh_in_the_tree_lists_a_table_created_since_it_was_read`, `workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`; off with the editor's keyboard, where ⌘R is Replace in File and the tree is not read again; on once the Database tree has the keyboard, where ⌘R (keyWhen databaseViewFocus) lists a table created since; on again when the tree takes the keyboard from the table editor |
 | [ ] | `dbCellGridFocus` | src/features/database/cellActions.ts |  |
 | [ ] | `dbJsonValueCanOpenWindow` | src/features/database/valueEditorActions.ts |  |
 | [ ] | `dbJsonValueEditable` | src/features/database/valueEditorActions.ts |  |
@@ -1166,7 +1166,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [x] | `debugSessionRunning` | src/features/debugger/state.ts | `workbench::debug::tests::proofs_debug::the_session_keys_follow_a_session_from_paused_to_running_to_ended`; off before any session and at the breakpoint, on while the program runs its loop, off after Stop |
 | [x] | `debugVariablesFocus` | src/features/debugger/ui/focusedView.ts | `workbench::debug::tests::the_debuggers_keys_act_only_where_their_conditions_hold` |
 | [x] | `diffEditorFocus` | src/features/vcs/DiffEditor.tsx | `workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`, `workbench::diff_tab::tests::compares_the_next_and_previous_file_in_a_diff_tab_from_the_keymap`; on while a diff viewer has the keyboard, in the window and in a tab, and off after it loses it |
-| [ ] | `distractionFree` | src/workbench/distractionFree.ts |  |
+| [x] | `distractionFree` | src/workbench/distractionFree.ts | `workbench::app_actions::tests::hides_tool_windows_and_restores_the_previous_layout_on_exit`; on after Enter Distraction Free Mode (status bar and tool window bars hidden, compact title bar, the hint shown, the mode stored, the action titled Exit), off after the action again with the Project view back |
 | [ ] | `EDITOR_WHEN` | src/features/templates/index.ts |  |
 | [x] | `editorAreaFocus` | src/workbench/focus.ts | `workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository` |
 | [x] | `editorFocus` | src/platform/actions.ts | `workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository` |
@@ -1186,7 +1186,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `github.showCurrentBranchPullRequest` | src/features/github/toolwindow/handlers.ts |  |
 | [ ] | `github.submitReview` | src/features/github/toolwindow/handlers.ts |  |
 | [ ] | `github.toggleReviewMode` | src/features/github/toolwindow/handlers.ts |  |
-| [ ] | `github.toggleViewed` | src/features/github/toolwindow/handlers.ts |  |
+| [~] | `github.toggleViewed` | src/features/github/toolwindow/handlers.ts | `workbench::github::part2::tests::toggle_viewed_marks_the_selected_file_viewed_then_not_viewed`; with a pull request's tab shown, Toggle viewed/not viewed state runs through the registry (its when needs the key; set at app-gpui/src/workbench/github_part2.rs:497-506) and marks the selected file viewed on GitHub, then not viewed. Missing: no test reads the key off (the list tab or the New Pull Request tab active, the window hidden); the webview sets it while a pull request's changes tree is mounted (src/features/github/details/ChangesTree.tsx:100) |
 | [ ] | `github.updateReviewBranch` | src/features/github/toolwindow/handlers.ts |  |
 | [x] | `githubConnected` | src/features/github/reviewMode/index.ts | `workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::change_repository_disconnects_then_connects_again`, `workbench::github::tests::in_restricted_mode_the_window_runs_no_gh_until_the_project_is_trusted_again`; off before the window is shown, after Change Repository disconnects and in Restricted Mode; on once connected and after reconnecting |
 | [ ] | `githubCurrentBranchPullRequest` | src/features/github/reviewMode/index.ts |  |
@@ -1205,36 +1205,36 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `macrosSaved` | src/features/macros/index.ts |  |
 | [ ] | `MAVEN_WHEN` | src/features/build-tools/index.ts |  |
 | [x] | `merge.` | src/features/vcs/mergeActions.ts | `workbench::tests::the_merge_actions_move_between_the_changes_and_apply_the_non_conflicting_ones`; the focused merge editor publishes merge.<command> keys: merge.applyAll is asserted on, then off once nothing non-conflicting is left (merge.annotate off) |
-| [ ] | `merge.accept` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.acceptTheirs` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.acceptYours` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.annotate` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.apply` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.applyAll` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.applyLeft` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.applyRight` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.autoApply` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.cancel` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.change` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.compare` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.compareBaseResult` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.compareBaseTheirs` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.compareBaseYours` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.compareResultTheirs` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.compareYoursResult` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.compareYoursTheirs` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.copy` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.cut` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.ignore` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.paste` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.reload` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.resolveAutomatically` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.resolveSimple` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.resolveUsingTheirs` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.resolveUsingYours` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.revert` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.selectAll` | src/features/vcs/mergeActions.ts |  |
-| [ ] | `merge.settings` | src/features/vcs/mergeActions.ts |  |
+| [x] | `merge.accept` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_change::settles_one_side_of_a_conflict_and_leaves_the_text_the_other_side_then_replaces_it`, `workbench::tests::proofs_merge_change::takes_the_text_and_leaves_a_conflict_open_for_the_other_side`; off and refused with the caret in the result or on an unchanged line of a side, on on a changed line, where it takes that side's text, then off once the change is settled |
+| [x] | `merge.acceptTheirs` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_apply::accept_theirs_asks_once_the_result_was_changed_and_writes_their_version`, `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; on; run after the result changed it asks, No keeps the editor, Discard writes Theirs and stages it; refused once the editor is closed; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.acceptYours` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`, `workbench::tests::the_merge_editor_opened_from_the_banner_runs_its_actions_and_the_rebase_is_continued_from_the_notice`; on while the merge editor has the keyboard; run from a merge editor the conflict banner opened, it resolves the file with Yours, the editor closes and All conflicts resolved offers Continue Rebase; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [~] | `merge.annotate` | src/features/vcs/mergeActions.ts | `workbench::tests::the_merge_actions_move_between_the_changes_and_apply_the_non_conflicting_ones`; read off with the caret in the result. Missing: natively Annotate is always off (app-gpui/src/vcs/merge_view.rs:832) and does nothing (:902), where the webview turns it on with the caret in a side pane and toggles Git blame in that pane (src/features/vcs/MergeEditor.tsx:429-430, :490-500); the test that reads it on in the side panes (proofs_merge_annotate_pending.rs) is not declared |
+| [x] | `merge.apply` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_apply::apply_merge_result_asks_about_unresolved_changes_and_writes_the_result`, `workbench::tests::proofs_merge_apply::resolve_simple_conflicts_then_apply_writes_both_sides_words_and_stages_the_file`; on; with an unresolved change it asks, No keeps the file unmerged, Mark Resolved writes and stages it; with everything settled it writes without asking; off and refused once the editor is closed |
+| [x] | `merge.applyAll` | src/features/vcs/mergeActions.ts | `workbench::tests::the_merge_actions_move_between_the_changes_and_apply_the_non_conflicting_ones`, `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`, `workbench::tests::proofs_merge_apply::applies_those_of_the_chosen_side_only`; on with non-conflicting changes left, applied as an action, off once only the conflict is left; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.applyLeft` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_apply::applies_those_of_the_chosen_side_only`, `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; on with a non-conflicting change of Yours left; run, it takes that change alone, then reads off and is refused; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.applyRight` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_apply::applies_those_of_the_chosen_side_only`, `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; on with a non-conflicting change of Theirs left; run, it takes that change alone and reads off; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.autoApply` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_compare::automatically_apply_non_conflicting_changes_is_checked_stored_and_starts_the_next_merge`, `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; on; run it is checked in the menu, stored, applies the non-conflicting changes at once and starts the next merge with them; run again it is stored off and unchecked; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.cancel` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`, `workbench::tests::the_merge_editor_opened_from_the_banner_runs_its_actions_and_the_rebase_is_continued_from_the_notice`; on while the merge editor has the keyboard; run after a change it asks Cancel Merge, No keeps the editor with the keyboard, OK closes it and the file stays unmerged; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.change` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_change::resolve_merge_change_does_what_its_argument_says_to_the_change`, `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; on; run with a change and what to do (accept with Yours, ignore, automatic) it does that to the change, and nothing on a settled change; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.compare` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`, `workbench::tests::the_merge_editor_opened_from_the_banner_runs_its_actions_and_the_rebase_is_continued_from_the_notice`; on; run it opens the menu of comparisons, and a row chosen there shows the diff window over the merge editor, which has the keyboard again after Escape; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.compareBaseResult` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_compare::each_comparison_shows_its_two_versions_in_the_diff_window`, `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; on, and run it shows the base and the result in the diff window; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.compareBaseTheirs` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_compare::each_comparison_shows_its_two_versions_in_the_diff_window`, `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; on, and run it shows the base and Theirs in the diff window; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.compareBaseYours` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_compare::each_comparison_shows_its_two_versions_in_the_diff_window`, `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; on, and run it shows the base and Yours in the diff window; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.compareResultTheirs` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_compare::each_comparison_shows_its_two_versions_in_the_diff_window`, `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; on, and run it shows the result and Theirs in the diff window; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.compareYoursResult` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_compare::each_comparison_shows_its_two_versions_in_the_diff_window`, `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; on, and run it shows Yours and the result in the diff window; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.compareYoursTheirs` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_compare::each_comparison_shows_its_two_versions_in_the_diff_window`, `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; on, and run it shows Yours and Theirs in the diff window; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.copy` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_edit::select_all_copy_cut_and_paste_edit_the_result`, `workbench::tests::proofs_merge_edit::a_side_pane_copies_its_version_but_is_not_cut_or_pasted_into`; off and refused with nothing selected, on after Select All in the result or a side, where it puts that version on the clipboard and leaves the result |
+| [x] | `merge.cut` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_edit::select_all_copy_cut_and_paste_edit_the_result`, `workbench::tests::proofs_merge_edit::a_side_pane_copies_its_version_but_is_not_cut_or_pasted_into`; off and refused with nothing selected and in a read-only side, on after Select All in the result, where it cuts to the clipboard and reads off again |
+| [x] | `merge.ignore` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_change::settles_one_side_of_a_conflict_and_leaves_the_text_the_other_side_then_replaces_it`, `workbench::tests::proofs_merge_change::merges_a_conflict_whose_sides_changed_different_words`; on with the caret on a side of a conflict, run it settles that side and keeps the result's text, then off and refused; in the result it settles the conflict with the base |
+| [x] | `merge.paste` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_edit::select_all_copy_cut_and_paste_edit_the_result`, `workbench::tests::proofs_merge_edit::a_side_pane_copies_its_version_but_is_not_cut_or_pasted_into`; on in the result, where it replaces the selection with the clipboard and moves the caret after it; off and refused in a read-only side |
+| [x] | `merge.reload` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_compare::reload_from_disk_reads_the_versions_again`, `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; on; run it reads the versions again; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.resolveAutomatically` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_change::merges_a_conflict_whose_sides_changed_different_words`; on with the caret on a conflict whose sides changed different words, run it merges both words, then off and refused, and off on a conflict already settled |
+| [x] | `merge.resolveSimple` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_apply::resolves_the_simple_conflicts_and_the_non_conflicting_changes_together_and_no_more`, `workbench::tests::proofs_merge_apply::resolve_simple_conflicts_then_apply_writes_both_sides_words_and_stages_the_file`, `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; on with simple conflicts, run it settles them with the non-conflicting changes, then off and refused for a conflict of the same word; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.resolveUsingTheirs` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_change::settles_the_change_at_once_when_resolving_using_a_side`; off and refused on a settled conflict, on from Theirs' side after Revert, where it settles the conflict with Theirs |
+| [x] | `merge.resolveUsingYours` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_change::settles_the_change_at_once_when_resolving_using_a_side`, `workbench::tests::proofs_merge_apply::accept_theirs_asks_once_the_result_was_changed_and_writes_their_version`; on from Yours' side of the conflict, run it takes Yours and settles the conflict at once, then both resolutions read off and are refused there |
+| [x] | `merge.revert` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_apply::resolves_the_simple_conflicts_and_the_non_conflicting_changes_together_and_no_more`, `workbench::tests::proofs_merge_change::settles_the_change_at_once_when_resolving_using_a_side`, `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; off and refused with nothing settled, on once changes are settled, run it sends them back to the base and reads off again; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.selectAll` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_edit::select_all_copy_cut_and_paste_edit_the_result`, `workbench::tests::proofs_merge_edit::a_side_pane_copies_its_version_but_is_not_cut_or_pasted_into`, `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; on, and run it selects the whole result or the whole side; off, and refused, before a merge editor opens and while another editor has the keyboard |
+| [x] | `merge.settings` | src/features/vcs/mergeActions.ts | `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`, `workbench::tests::proofs_merge_compare::automatically_apply_non_conflicting_changes_is_checked_stored_and_starts_the_next_merge`, `workbench::tests::the_merge_editor_opened_from_the_banner_runs_its_actions_and_the_rebase_is_continued_from_the_notice`; on; run it opens the merge settings menu with Automatically Apply Non-Conflicting Changes, and Escape gives the keyboard back to the merge editor; off, and refused, before a merge editor opens and while another editor has the keyboard |
 | [x] | `mergeEditorFocus` | src/features/vcs/mergeActions.ts | `workbench::tests::the_merge_actions_move_between_the_changes_and_apply_the_non_conflicting_ones` |
 | [~] | `pasteHistoryListFocus` | src/editor/core/view/PasteHistoryDialog.tsx | `workbench::editor_extras::tests::the_paste_history_keys_are_enabled_while_its_dialog_has_the_keyboard`, `workbench::editor_extras::tests::the_paste_history_keys_edit_the_filter_or_act_on_the_chosen_entry`; read off before Paste from History opens, on while its dialog has the keyboard and off after Escape. Missing: it is on while the filter field has the keyboard as well, where the webview sets it only while the list itself is focused |
 | [x] | `pasteHistoryOpen` | src/editor/core/view/PasteHistoryDialog.tsx | `workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; read on: editor.pasteHistory.paste and remove (when pasteHistoryOpen) run while the dialog is open; read off: before it opens they do not run |
@@ -1244,14 +1244,14 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [x] | `projectOpen` | src/editor/core/actions.ts | `workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository` |
 | [ ] | `projectOpenAsk` | src/workbench/activate.ts |  |
 | [x] | `projectOpening` | src/platform/project.ts | `workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository` |
-| [ ] | `projectViewFocus` | src/features/project-tree/ProjectView.tsx |  |
+| [x] | `projectViewFocus` | src/features/project-tree/ProjectView.tsx | `workbench::project_view_actions::tests::proofs20_tree::compare_with_hands_two_files_to_compare_files_and_one_to_compare_with`, `workbench::project_view_actions::tests::proofs20_tree::undo_in_the_project_view_takes_back_its_last_move_and_rename`; on with a row of the Project view selected, where Compare With… (when projectViewFocus) hands the files to the diff and Edit › Undo takes back the view's last move on disk; off once a file's editor has the keyboard, where Compare With… is refused |
 | [ ] | `run.canRerunFailed` | src/features/run/index.ts |  |
 | [x] | `run.cmakeBuild` | src/features/run/index.ts | `workbench::tests::proofs3_context::the_cmake_build_key_follows_the_selected_configuration`; read OFF with a program configuration selected and ON (app:build) with the CMake configure step and with the build selected |
 | [x] | `run.selectedKind` | src/features/run/index.ts | `workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes` |
 | [~] | `run.updatableRunning` | src/features/run/index.ts | `workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`; published with the other run keys; no test sets a CMake build or an updatable session |
 | [ ] | `searchFieldHistory` | src/ui/Input.tsx |  |
 | [ ] | `searchFieldNewLine` | src/ui/Input.tsx |  |
-| [ ] | `servicesViewFocus` | src/features/services/ServicesTree.tsx |  |
+| [~] | `servicesViewFocus` | src/features/services/ServicesTree.tsx | set while the Services tool window has the keyboard (app-gpui/src/workbench/mod.rs:2409), with Add Service's keyWhen from the manifest. Missing: no test reads it or presses Add Service's shortcut (⌘N, Alt+Insert: src/platform/keymaps/intellij-macos.ts:402, intellij-windows.ts:400) in and out of the Services tree; the webview sets it for the tree only (src/features/services/ServicesTree.tsx:227) |
 | [x] | `shelfFocus` | src/features/vcs/shelf.tsx | `workbench::shelf::tests::show_diff_in_the_shelf_tab_shows_the_selected_shelved_file` reads it on in the Shelf tab and off outside it |
 | [ ] | `softWrapSurfaceFocus` | src/workbench/softWrap.ts |  |
 | [x] | `terminalFocus` | src/features/terminal/store.ts | `workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository` |
@@ -1281,11 +1281,11 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `problems` | src/features/code-insight/index.ts:54 |  |
 | [ ] | `terminal` | src/features/terminal/index.ts:106 |  |
 
-## Extension point `registerCellGrid` (0/1 at parity)
+## Extension point `registerCellGrid` (0/1 at parity, 1 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
-| [ ] | `(at) src/features/database/Grid.tsx:432` | src/features/database/Grid.tsx:432 |  |
+| [~] | `(at) src/features/database/Grid.tsx:432` | src/features/database/Grid.tsx:432 | the native grid has its own menu with Set NULL and the local filter (app-gpui/src/database/grid_view.rs:608, :635). Missing: Toggle Boolean Cell, Set NULL, Set DEFAULT, Local Filter and Edit Cell are not registered actions and dbCellGridFocus is never set (src/features/database/cellActions.ts:41-100), so no key or Find Action reaches them; no window test |
 
 ## Extension point `registerClientCommand` (0/1 at parity)
 
@@ -1299,17 +1299,17 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [ ] | `github` | src/features/github/index.ts:262 |  |
 
-## Extension point `registerCommitCheck` (0/7 at parity)
+## Extension point `registerCommitCheck` (1/7 at parity, 6 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
-| [ ] | `vcs.analysis` | src/features/vcs/commitChecks.tsx:470 |  |
-| [ ] | `vcs.crlf` | src/features/vcs/commitChecks.tsx:470 |  |
-| [ ] | `vcs.detachedHead` | src/features/vcs/commitChecks.tsx:470 |  |
-| [ ] | `vcs.fileNames` | src/features/vcs/commitChecks.tsx:470 |  |
-| [ ] | `vcs.largeFiles` | src/features/vcs/commitChecks.tsx:470 |  |
-| [ ] | `vcs.rebase` | src/features/vcs/commitChecks.tsx:470 |  |
-| [ ] | `vcs.todo` | src/features/vcs/commitChecks.tsx:470 |  |
+| [~] | `vcs.analysis` | src/features/vcs/commitChecks.tsx:470 | `workbench::shelf::tests::reported_errors_stop_the_commit_and_review_shows_the_problems`, `workbench::shelf::tests::a_file_reported_clean_is_committed_without_waiting_for_analysis`; errors a language server reported for a committed file stop the commit as Code analysis: 1 error found in 1 file, whose Review shows the Problems tool window, and nothing is committed; a file reported clean is committed without waiting (app-gpui/src/workbench/shelf.rs:1937-2019, :2126-2131). Missing: no test commits a file no server has reported on, which the check opens, waits for and closes (src/features/vcs/commitChecks.tsx:329-344), nor reads the warnings and errors-and-warnings wording |
+| [~] | `vcs.crlf` | src/features/vcs/commitChecks.tsx:470 | `workbench::shelf::tests::a_detached_head_is_told_crlf_in_project_text_is_not_and_the_language_server_checks_are_disabled`; the test asserts that a file with CRLF line separators and core.autocrlf false is not told. Missing: the native check reads the project's text of the file, whose line breaks are normalised (app-gpui/src/workbench/shelf.rs:1918-1929), so CRLF on disk is never told; the webview reads the bytes on disk and stops the commit with Line separators (src/features/vcs/commitChecks.tsx:420-447, :457-470) |
+| [x] | `vcs.detachedHead` | src/features/vcs/commitChecks.tsx:470 | `workbench::shelf::tests::a_detached_head_is_told_crlf_in_project_text_is_not_and_the_language_server_checks_are_disabled`; a commit in a detached HEAD stops with Commit in detached HEAD and its text, nothing is committed and no committed notification shows (app-gpui/src/workbench/shelf.rs:2039-2059) |
+| [~] | `vcs.fileNames` | src/features/vcs/commitChecks.tsx:470 | built with the webview's texts for reserved names and characters Windows rejects, on added, untracked and renamed paths only (app-gpui/src/workbench/shelf.rs:2062-2088; src/features/vcs/commitChecks.tsx:286-305). Missing: no window test commits such a file and reads File names |
+| [~] | `vcs.largeFiles` | src/features/vcs/commitChecks.tsx:470 | built with the webview's limit and texts (app-gpui/src/workbench/shelf.rs:2093-2125, sizes at :1887-1907; src/features/vcs/commitChecks.tsx:306-323). Missing: no window test commits a file over the limit and reads Large files |
+| [~] | `vcs.rebase` | src/features/vcs/commitChecks.tsx:470 | built in the commit's checks with the webview's condition and text (app-gpui/src/workbench/shelf.rs:2039-2059; src/features/vcs/commitChecks.tsx:263-272). Missing: no test commits during a rebase and reads Commit during rebase |
+| [~] | `vcs.todo` | src/features/vcs/commitChecks.tsx:470 | `workbench::shelf::tests::a_todo_in_the_changed_lines_stops_the_commit_until_commit_anyway`; a TODO in a changed line stops the commit with the count and a.txt:2 // TODO finish, the button becomes Commit Anyway, which commits. Missing: each hit is a link that opens the file at its line in the webview (src/features/vcs/commitChecks.tsx:387-399); natively the hits are text with no action (app-gpui/src/workbench/shelf.rs:2146-2152) |
 
 ## Extension point `registerCommitCheckProvider` (0/1 at parity)
 
@@ -1323,11 +1323,11 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [ ] | `(at) src/features/plugins/views/WebView.tsx:311` | src/features/plugins/views/WebView.tsx:311 |  |
 
-## Extension point `registerDiffViewerProvider` (0/2 at parity)
+## Extension point `registerDiffViewerProvider` (0/2 at parity, 1 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
-| [ ] | `github.review` | src/features/github/diff/index.ts:34 |  |
+| [~] | `github.review` | src/features/github/diff/index.ts:34 | the review diff is built as a model (app-gpui/src/github/review_diff.rs, review_diff_context at :43) and a pull request file's diff carries its kind (app-gpui/src/workbench/github.rs:497-503). Missing: nothing calls review_diff_context, so no diff shows review threads, the comment gutter, Add Review Comment or Mark File as Viewed (src/features/github/diff/index.ts:34) |
 | [ ] | `vcs.annotateRevision` | src/features/vcs/annotateRevisionProvider.ts:23 |  |
 
 ## Extension point `registerDocumentIndexSync` (0/1 at parity)
@@ -1336,19 +1336,19 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [ ] | `(at) src/features/plugins/navigation.ts:170` | src/features/plugins/navigation.ts:170 |  |
 
-## Extension point `registerDropTarget` (0/11 at parity)
+## Extension point `registerDropTarget` (1/11 at parity, 2 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
 | [ ] | `(at) src/editor/core/view/EditorArea.tsx:292` | src/editor/core/view/EditorArea.tsx:292 |  |
 | [ ] | `(at) src/editor/core/view/EditorArea.tsx:97` | src/editor/core/view/EditorArea.tsx:97 |  |
 | [ ] | `(at) src/features/agents/AgentsView.tsx:112` | src/features/agents/AgentsView.tsx:112 |  |
-| [ ] | `(at) src/features/agents/AgentsView.tsx:241` | src/features/agents/AgentsView.tsx:241 |  |
+| [~] | `(at) src/features/agents/AgentsView.tsx:241` | src/features/agents/AgentsView.tsx:241 | the Agents tool window's view handles a dropped session tab and docks it (app-gpui/src/agents/task_list_view.rs:184), tested on the view alone. Missing: nothing outside tests calls it and no editor tab can be dragged natively, so a session tab cannot be docked by dragging |
 | [ ] | `(at) src/features/agents/Composer.tsx:856` | src/features/agents/Composer.tsx:856 |  |
 | [ ] | `(at) src/features/project-tree/ProjectView.tsx:755` | src/features/project-tree/ProjectView.tsx:755 |  |
 | [ ] | `(at) src/features/terminal/drop.ts:32` | src/features/terminal/drop.ts:32 |  |
-| [ ] | `(at) src/features/terminal/TerminalView.tsx:198` | src/features/terminal/TerminalView.tsx:198 |  |
-| [ ] | `(at) src/features/vcs/CommitView.tsx:900` | src/features/vcs/CommitView.tsx:900 |  |
+| [~] | `(at) src/features/terminal/TerminalView.tsx:198` | src/features/terminal/TerminalView.tsx:198 | the terminal store moves a tab within a group and splits one off a group's edge (app-gpui/src/terminal/store.rs:686, :711), tested on the store. Missing: nothing outside tests calls them and the panel drags only the line between groups, so a terminal tab cannot be dragged into a group or a split |
+| [x] | `(at) src/features/vcs/CommitView.tsx:900` | src/features/vcs/CommitView.tsx:900 | `workbench::shelf::tests::a_change_dragged_onto_another_list_moves_there`; a change dragged with the mouse onto another change list's row moves to that list and the tree shows it under it (app-gpui/src/vcs/commit_view.rs:708-711) |
 | [ ] | `(at) src/ui/Tabs.tsx:238` | src/ui/Tabs.tsx:238 |  |
 | [ ] | `(at) src/ui/treeReorder.ts:79` | src/ui/treeReorder.ts:79 |  |
 
@@ -1468,14 +1468,14 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [ ] | `viewers.associatedApps` | src/features/viewers/index.ts:90 |  |
 
-## Extension point `registerExternalIcons` (0/4 at parity)
+## Extension point `registerExternalIcons` (1/4 at parity, 2 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
-| [ ] | `(at) src/features/plugins/iconThemes.ts:172` | src/features/plugins/iconThemes.ts:172 |  |
-| [ ] | `(at) src/features/plugins/pluginIcon.ts:44` | src/features/plugins/pluginIcon.ts:44 |  |
+| [~] | `(at) src/features/plugins/iconThemes.ts:172` | src/features/plugins/iconThemes.ts:172 | plugin icon themes are a model with unit tests (app-gpui/src/plugin_models/icon_themes.rs, icon_theme_resolver.rs) and the Plugins page adopts one as the setting (app-gpui/src/plugin_models/plugins_page.rs:690). Missing: nothing loads a theme's SVGs or asks its resolver, so no file or folder shows a theme's icon |
+| [~] | `(at) src/features/plugins/pluginIcon.ts:44` | src/features/plugins/pluginIcon.ts:44 | `plugin_models::plugins_page::tests::shows_a_plugins_own_icon_in_its_row_and_details`; the Plugins page draws a plugin's own icon in its row and details, and the generic one without. Missing: the test opens the page view alone, not from a window; the workbench never uses the plugin icons, so commands and toolbar buttons without an icon of their own do not show the plugin's (src/features/plugins/points.tsx:216-220, uiPoints.tsx:196) |
 | [ ] | `(at) src/features/plugins/uiPoints.tsx:339` | src/features/plugins/uiPoints.tsx:339 |  |
-| [ ] | `(at) src/features/plugins/uiPoints.tsx:424` | src/features/plugins/uiPoints.tsx:424 |  |
+| [x] | `(at) src/features/plugins/uiPoints.tsx:424` | src/features/plugins/uiPoints.tsx:424 | `workbench::plugin_tool_windows::tests::proofs9_view_icon::a_views_svg_icon_is_read_from_the_plugin_and_draws_its_tool_window`; a view whose icon is an SVG of the plugin gets its tool window drawn with it (ext:hello/view-greetings), its stripe button is drawn, and reading the icon runs no plugin code |
 
 ## Extension point `registerFileDropHandler` (0/2 at parity)
 
@@ -1533,14 +1533,14 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [ ] | `(at) src/features/http-client/index.ts:142` | src/features/http-client/index.ts:142 |  |
 
-## Extension point `registerLanguageSemantics` (0/4 at parity)
+## Extension point `registerLanguageSemantics` (0/4 at parity, 4 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
-| [ ] | `go` | src/editor/lsp/semantic/go/index.ts:13 |  |
-| [ ] | `kotlin` | src/editor/lsp/semantic/kotlin/index.ts:55 |  |
-| [ ] | `php` | src/editor/lsp/semantic/php/index.ts:15 |  |
-| [ ] | `python` | src/editor/lsp/semantic/python/index.ts:59 |  |
+| [~] | `go` | src/editor/lsp/semantic/go/index.ts:13 | the language's token-class hooks are written (app-gpui/src/editor_lsp/semantic.rs:80-140) but semantic_ranges has no caller outside tests and nothing in the app requests semantic tokens (Go's readonly, static and locals rules). Missing: no semantic tokens are requested or painted, so none of it is seen |
+| [~] | `kotlin` | src/editor/lsp/semantic/kotlin/index.ts:55 | the language's token-class hooks are written (app-gpui/src/editor_lsp/semantic.rs:80-140) but semantic_ranges has no caller outside tests and nothing in the app requests semantic tokens (Kotlin's operator, modification and label rules). Missing: no semantic tokens are requested or painted; annotation usages coloured as annotations (src/editor/lsp/semantic/kotlin/index.ts:10-46) are not built |
+| [~] | `php` | src/editor/lsp/semantic/php/index.ts:15 | the constructs' docs are a model with unit tests (editor_model semantic_php). Missing: hover and completion ask only the server, so empty, isset and the other constructs get no documentation (src/editor/lsp/semantic/php/index.ts:10-13) |
+| [~] | `python` | src/editor/lsp/semantic/python/index.ts:59 | the language's token-class hooks are written (app-gpui/src/editor_lsp/semantic.rs:80-140) but semantic_ranges has no caller outside tests and nothing in the app requests semantic tokens (Python's static, method call and builtin classes). Missing: no semantic tokens are requested or painted; symbol kinds, syntax ranges, fallbacks, member intentions and Implement Methods (src/editor/lsp/semantic/python/index.ts:45-58) are not reached |
 
 ## Extension point `registerMenuGroup` (6/28 at parity, 8 partial)
 
@@ -1799,12 +1799,12 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [~] | `workbench.info` | src/workbench/activate.ts:88 | `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`; the status bar shows Next / Previous Occurrence's 1 of 3, a newer message replaces it and it goes after eight seconds. Missing: nothing else feeds it (the webview's debugger, Vim and Stop Background Processes messages), and it is not shown in a light-edit window |
 | [~] | `workbench.tasks` | src/workbench/activate.ts:87 | `workbench::status_items::tests::tracks_task_events_and_shows_the_current_task`, `workbench::status_items::tests::a_working_task_wins_over_the_queued_ones_and_the_others_are_counted`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`; the item shows the current task with its progress, the count of the others (+1) and the tooltip, its click is the Background Tasks toggle (view.backgroundTasks with toggle), and a plugin's cancellable task is the window's task status while it runs. Missing: the Background Tasks popup the item opens closes by itself when the last task ends (src/workbench/StatusBar.tsx:138-142); natively it stays open (app-gpui/src/workbench/background_tasks_view.rs:119-124 only replaces the rows), and the native test that operated it, workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it, relies on it staying open |
 
-## Extension point `registerTableEditor` (0/2 at parity)
+## Extension point `registerTableEditor` (0/2 at parity, 2 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
-| [ ] | `(at) src/features/database/ResultsView.tsx:487` | src/features/database/ResultsView.tsx:487 |  |
-| [ ] | `(at) src/features/database/TableEditor.tsx:254` | src/features/database/TableEditor.tsx:254 |  |
+| [~] | `(at) src/features/database/ResultsView.tsx:487` | src/features/database/ResultsView.tsx:487 | `workbench::tests::proofs43_database_results::submit_revert_and_go_to_column_reach_a_focused_console_result`; with an editable console result's grid focused dbTableEditorFocus is on, an edit turns dbTableEditorChanges on, Submit writes it, Revert drops one, Go to Column selects the column picked by name, a cell being edited counts as the grid and Submit confirms it, and the keys go off with the editor's keyboard. Missing: the nine db.* table commands (reload, first, previous, next and last page, add row, export, delete and restore rows: src/features/database/index.ts:66-76, :332-348) are not registered natively, so their keys (keyWhen dbTableEditorFocus) and Find Action entries do nothing |
+| [~] | `(at) src/features/database/TableEditor.tsx:254` | src/features/database/TableEditor.tsx:254 | `workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`; with the table editor focused dbTableEditorFocus is on and dbTableEditorChanges off, an edit turns Changes on, Submit writes the cell and turns it off, Revert discards an edit, and the keys go off when the Database tree takes the keyboard. Missing: the nine db.* table commands (reload, first, previous, next and last page, add row, export, delete and restore rows: src/features/database/index.ts:66-76, :332-348) are not registered natively, so their keys (keyWhen dbTableEditorFocus) and Find Action entries do nothing; Changes is not on while a cell is edited with nothing staged (src/features/database/tableEditorFocus.ts:52, :63) |
 
 ## Extension point `registerTextEditorWrapper` (0/3 at parity, 1 partial)
 
@@ -1899,7 +1899,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [ ] | (registered at run time only) | src/workbench/devSamples.tsx |  |
 
-## Settings pages (22/104 at parity, 62 partial)
+## Settings pages (22/104 at parity, 64 partial)
 
 | | Page id | Source | Proof |
 |---|---|---|---|
@@ -1936,7 +1936,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [~] | `editor.colorScheme.debugger` | src/features/settings/pages/editor/colorScheme.tsx | the page is in the tree (app-gpui/src/settings_model/builtin_pages/editor.rs:566-568). Missing: it draws "This page is not available yet": the scheme row, the Debugger attribute tree, the attribute editor and the preview (src/features/settings/pages/editor/colorScheme.tsx:1001-1108, 1338-1666, 1766-1773); no test |
 | [~] | `editor.colorScheme.general` | src/features/settings/pages/editor/colorScheme.tsx | `editor::command_actions::tests::proofs23_color_scheme::the_editor_draws_tokens_with_the_schemes_edits_and_the_typography_weights`; an attribute override stored in editor.colorOverrides recolours and emboldens the editor's tokens. Missing: the page draws "This page is not available yet": the scheme row, the attribute tree, the attribute editor (bold, italic, foreground, background, effects) and the preview (src/features/settings/pages/editor/colorScheme.tsx:1001-1108, 1338-1666, 1731-1738) |
 | [ ] | `editor.colorScheme.git` | src/features/settings/pages/editor/colorScheme.tsx |  |
-| [ ] | `editor.colorScheme.language-defaults` | src/features/settings/pages/editor/colorScheme.tsx |  |
+| [~] | `editor.colorScheme.language-defaults` | src/features/settings/pages/editor/colorScheme.tsx | `workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; opened through File › Settings…, its first checkbox is clicked and in effect after Apply; both checkboxes and hints are drawn (app-gpui/src/settings_model/builtin_pages/editor.rs:548-564). Missing: the scheme row and attribute editor for Language Defaults (src/features/settings/pages/editor/colorScheme.tsx:1745) draw the not available line; editor.semanticHighlighting is stored and read by nothing that draws, as there are no semantic tokens natively |
 | [~] | `editor.fileEncodings` | src/features/settings/pages/editor/codeStyle.tsx | `workbench::tests::proofs22_settings_units::stages_properties_conversion_and_applies_the_checkbox`; every control is drawn and a change is written on Apply, not before. Missing: the note on .editorconfig and the status bar (src/features/settings/pages/editor/codeStyle.tsx:386-387); no native test shows an encoding chosen on the page deciding how a project file is read or a new file is written (the backend reads them, crates/ide-workspace/src/file_defaults.rs:33-56) |
 | [~] | `editor.files` | src/features/settings/pages/builtins.tsx | `workbench::tests::proofs19_settings_misc::file_types_patterns_and_ignored_names_are_written_to_the_project`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::editor_files::tests::patterns_added_and_removed_are_stored_as_additions_and_removals`, `settings_view::pages::editor_files::tests::the_filter_matches_names_and_patterns_and_hashbangs_are_stored`; the recognized file types come from the backend's languages, and patterns and ignored names are written to the project after Apply, and Reset and Cancel discard an edit. Missing: the Files opened in associated applications section, a list of file name patterns, files.associatedApplications (src/features/settings/pages/builtins.tsx:63-73, src/features/settings/pages/FileTypes.tsx:143) |
 | [~] | `editor.fileTemplates` | src/features/templates/index.ts:187 | `workbench::tests::proofs32_settings_file_templates::the_project_scheme_and_an_include_are_stored_at_once_and_cancel_keeps_them`, `workbench::tests::proofs32_settings_file_templates::a_file_template_added_and_edited_on_the_page_is_stored_at_once`, `settings_view::pages::editor_file_templates::extension_guard::an_extension_typed_with_slashes_creates_nothing_outside_the_folder`, `templates::files_store::tests::a_template_whose_extension_is_not_a_plain_extension_is_not_stored`; file templates with their kinds, includes and code templates are added, edited, enabled, removed and restored in the Default or the Project scheme and stored under the webview's keys; an extension that is not a plain extension is refused with a message and never stored; the page stores each change at once as the webview's does: Apply stays off, Reset is not shown, Cancel and OK keep what was stored. Missing: New does not offer the templates yet, and contributed templates have no native source |
@@ -1998,7 +1998,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [x] | `tools.externalTools` | src/features/settings/pages/tools.tsx | `workbench::tests::proofs19_settings_misc::external_tools_a_tool_added_applies`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::tools_external_tools::tests::a_macro_is_added_after_a_space`, `settings_view::pages::tools_external_tools::tests::a_tool_added_is_edited_with_a_macro`, `settings_view::pages::tools_external_tools::tests::copy_move_and_remove_tools`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it; a tool added in the table is stored with its program, arguments and working directory |
 | [x] | `tools.sshConfigurations` | src/features/settings/pages/ssh.tsx | `workbench::tests::proofs29_settings_ssh::ssh_a_configuration_added_and_edited_is_written_to_the_global_settings`, `workbench::tests::proofs29_settings_ssh::ssh_reset_and_cancel_discard_a_configuration_added_and_a_password_typed`, `workbench::tests::proofs29_settings_ssh::ssh_a_password_typed_is_stored_by_the_backend_on_apply_and_then_shown_as_stored`; configurations are added, copied, removed and edited by authentication type and written to the global settings on Apply; a typed password is staged, handed to the backend on Apply and never drawn, logged or written to a settings file; Reset and Cancel discard. Not built: the file chooser's title |
 | [~] | `tools.terminal` | src/features/settings/pages/tools.tsx | `settings_view::custom_controls::tests::terminal_environment_cursor_and_shell_apply`, `settings_view::custom_controls::tests::the_login_shell_is_read_after_the_dialog_opens`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; the page's other controls are drawn and the tests operate some of its own controls. Missing: the Highlight occurrences of selected text checkbox, terminal.highlightSelection, on by default (src/features/settings/pages/tools.tsx:245, src/platform/workflowSettings.ts) |
-| [ ] | `vcs` | src/features/settings/pages/vcs.tsx |  |
+| [~] | `vcs` | src/features/settings/pages/vcs.tsx | `workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the Version Control folder page (app-gpui/src/settings_model/builtin_pages/vcs.rs:153) opens through File › Settings… on its id and passes as a page with nothing to change. Missing: no test reads which pages it links to against the webview's (src/features/settings/pages/vcs.tsx:356-358) or follows a link |
 | [x] | `vcs.commit` | src/features/settings/pages/vcs.tsx | `settings_view::custom_controls::tests::vcs_commit_limits_and_checks_apply`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; every control of the page is drawn; the tests operate some of its own controls and the others were compared with the original page by reading |
 | [x] | `vcs.confirmation` | src/features/settings/pages/vcs.tsx | `settings_view::custom_controls::tests::vcs_confirmation_radio_buttons_and_history_limit_apply`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; every control of the page is drawn; the tests operate some of its own controls and the others were compared with the original page by reading |
 | [~] | `vcs.git` | src/features/settings/pages/vcs.tsx | `settings_view::custom_controls::tests::vcs_git_test_protected_branches_and_update_method`, `settings_view::custom_controls::tests::git_test_is_refused_in_restricted_mode`, `settings_view::custom_controls::tests::passwords_lists_a_saved_credential_and_forget_removes_it`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; the page's other controls are drawn and the tests operate the Git test, protected branches, update method and saved passwords. Missing: Show branch and incoming/outgoing commits in the Project view, vcs.git.showBranchInProjectView (src/features/settings/pages/vcs.tsx:497-501), and Enable staging area with its hint, vcs.git.stagingArea, both off by default (vcs.tsx:507-512) |
@@ -2060,7 +2060,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [~] | `welcome` | 1986 | `workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`, `workbench::welcome::tests`, `workbench::plugins_window::tests::the_welcome_screen_lists_projects_and_customize_and_plugins_only_with_a_plugin_host`, `workbench::plugins_window::tests::customize_changes_the_theme_and_the_font_size_through_the_global_settings`, `workbench::plugins_window::tests::all_settings_on_customize_opens_the_settings_dialog`; the Welcome screen with search, groups, row menus, remove and reopen, the Customize page (theme, accent, font, keymap, All settings…) and the Plugins page with a plugin host. Missing: the Recent Projects popup, the project popup of the title bar, reopening the last project at start, and the IntelliJ theme imports of the Plugins page |
 | [ ] | `whats-new` | 238 |  |
 
-## Editor, platform, workbench and design-system modules (23/291 at parity, 74 partial)
+## Editor, platform, workbench and design-system modules (23/291 at parity, 76 partial)
 
 Outside the feature folders: the text editor (CodeMirror today), the platform layer, the workbench shell, the `src/ui` primitives, the entry point and the feature list.
 
@@ -2355,22 +2355,22 @@ Outside the feature folders: the text editor (CodeMirror today), the platform la
 | [ ] | `src/ui/treeReorder.ts` | 136 |  |
 | [ ] | `src/ui/useSanitizedField.ts` | 35 |  |
 | [ ] | `src/ui/useSelectionBoundary.ts` | 130 |  |
-| [ ] | `src/main.tsx` | 120 |  |
-| [ ] | `src/features/index.ts` | 201 |  |
+| [~] | `src/main.tsx` | 120 | app-gpui/src/main.rs opens one window for a folder, a file or nothing from its first argument after app-gpui/src/lib.rs:58-90 init; the webview's auxiliary windows (src/main.tsx:55-71) are dialogs of the native window. Missing: no test runs the start from its argument to its window; pointer focus modality, page swipe tracking and uncaught-error logging installed at start (src/main.tsx:38-53) have no counterpart read at HEAD |
+| [~] | `src/features/index.ts` | 201 | app-gpui/src/lib.rs:58-90 registers the features in one sequence. Missing: the webview starts each feature in a try/catch, so one whose activation fails is logged and the others start (src/features/index.ts:117-127); natively a failing plugin host start ends the start (lib.rs:86); no test of the start |
 
-## Design tokens, icons and locales (9/17 at parity)
+## Design tokens, icons and locales (11/17 at parity, 6 partial)
 
 | | Item | Entries | Proof |
 |---|---|---|---|
 | [x] | `src/styles/tokens.css` custom properties | 454 | `theme::tokens::tests::every_token_resolves_in_every_builtin_theme` |
-| [ ] | `src/styles/global.css` rule blocks | 44 |  |
-| [ ] | keyed catalog `en.json` | 527 |  |
-| [ ] | keyed catalog `es.json` | 456 |  |
-| [ ] | keyed catalog `fr.json` | 452 |  |
-| [ ] | keyed catalog `ko.json` | 462 |  |
-| [ ] | keyed catalog `pl.json` | 454 |  |
-| [ ] | keyed catalog `pt.json` | 451 |  |
-| [ ] | keyed catalog `zh.json` | 527 |  |
+| [~] | `src/styles/global.css` rule blocks | 44 | no stylesheet natively: ligatures follow editor.ligatures in the code font (app-gpui/src/editor/view.rs:69-83), antialiasing reaches the window model (app-gpui/src/settings_model/appearance_runtime.rs:33-54), colours come from the theme per view. Missing: focus rings on controls only and dropped after a pointer click (src/styles/global.css:130-187), the selection colour (:189), the scrollbars (:246-270), the resize cursor and selection locks (:49-67) have no counterpart read at HEAD; no test |
+| [x] | keyed catalog `en.json` | 527 | `platform::i18n::tests::catalogs_are_complete_and_well_formed`, `workbench::tests::ui_language::the_language_applied_in_settings_reaches_the_menus_a_tool_window_and_find_action`; the English keyed catalogue is embedded and well formed, and the menu bar's titles, which are its menu.* messages (app-gpui/src/workbench/menu.rs:418-421), read File, also after switching back from Chinese |
+| [~] | keyed catalog `es.json` | 456 | `platform::i18n::tests::catalogs_are_complete_and_well_formed`; the Spanish keyed catalogue is embedded and parsed (app-gpui/src/platform/i18n.rs:43-75), every message well formed, an English key and with the English parameters. Missing: no test applies the language in a window and reads one of its keyed messages, or the English text of a key the Spanish catalogue lacks |
+| [~] | keyed catalog `fr.json` | 452 | `platform::i18n::tests::catalogs_are_complete_and_well_formed`; the French keyed catalogue is embedded and parsed (app-gpui/src/platform/i18n.rs:43-75), every message well formed, an English key and with the English parameters. Missing: no test applies the language in a window and reads one of its keyed messages, or the English text of a key the French catalogue lacks |
+| [~] | keyed catalog `ko.json` | 462 | `platform::i18n::tests::catalogs_are_complete_and_well_formed`; the Korean keyed catalogue is embedded and parsed (app-gpui/src/platform/i18n.rs:43-75), every message well formed, an English key and with the English parameters. Missing: no test applies the language in a window and reads one of its keyed messages, or the English text of a key the Korean catalogue lacks |
+| [~] | keyed catalog `pl.json` | 454 | `platform::i18n::tests::catalogs_are_complete_and_well_formed`; the Polish keyed catalogue is embedded and parsed (app-gpui/src/platform/i18n.rs:43-75), every message well formed, an English key and with the English parameters. Missing: no test applies the language in a window and reads one of its keyed messages, or the English text of a key the Polish catalogue lacks |
+| [~] | keyed catalog `pt.json` | 451 | `platform::i18n::tests::catalogs_are_complete_and_well_formed`; the Portuguese keyed catalogue is embedded and parsed (app-gpui/src/platform/i18n.rs:43-75), every message well formed, an English key and with the English parameters. Missing: no test applies the language in a window and reads one of its keyed messages, or the English text of a key the Portuguese catalogue lacks |
+| [x] | keyed catalog `zh.json` | 527 | `platform::i18n::tests::catalogs_are_complete_and_well_formed`, `workbench::tests::ui_language::the_language_applied_in_settings_reaches_the_menus_a_tool_window_and_find_action`, `workbench::tests::ui_language::a_home_whose_settings_choose_chinese_opens_its_first_window_in_chinese`; the Chinese keyed catalogue has every English key with the English parameters; applied in Settings it turns the menu bar's titles, its menu.* messages (app-gpui/src/workbench/menu.rs:418-421), to Chinese (文件) without a restart, and a home whose settings choose Chinese opens its first window with 文件 in the menu bar |
 | [x] | `src/ui/icons.tsx` icons | 539 | `theme::icons::tests` |
 | [x] | text catalog `en.json` | 2169 | `platform::i18n::tests::catalogs_are_complete_and_well_formed` |
 | [x] | text catalog `es.json` | 6145 | `platform::i18n::tests::catalogs_are_complete_and_well_formed` |
