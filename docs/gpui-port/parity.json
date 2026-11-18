@@ -8929,7 +8929,7 @@
   },
   "ipc:clipboard_text": {
     "status": "done",
-    "proof": "`editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`; the native app reads the text clipboard through GPUI with no backend call (the webview's command exists because its web view cannot read the clipboard for a Paste chosen from a menu, src/platform/clipboard.ts:17): text copied is pasted into the editor"
+    "proof": "`editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `editor_commands::clipboard::tests::pastes_a_copied_caret_line_above_the_line_through_the_context_menu`; the native app reads the text clipboard through GPUI with no backend call (the webview's command exists because its web view cannot read the clipboard for a Paste chosen from a menu, src/platform/clipboard.ts:17): text copied is pasted into the editor; Paste run through the registry, as a menu runs it, pastes into a dialog's text field, and Paste chosen in the editor's context menu pastes into the editor"
   },
   "ipc:clipboard_write_text": {
     "status": "done",
@@ -8938,5 +8938,21 @@
   "ipc:db_connect": {
     "status": "partial",
     "proof": "`workbench::tests::proofs20_database::the_password_a_connection_asks_for_reaches_the_backend_and_the_retry_connects`; expanding a data source in the Database tree connects it on demand through the listing of its schemas or databases, not through the connect command, and the tree marks it connected (src/features/database/store.ts:544; DatabaseView.tsx:318, :330). Missing: the plugin data source's connect action is not built (src/features/database/index.ts:191; the store's plugin_connect has no caller)"
+  },
+  "ipc:window_open_diff": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs12_diff_window::opens_the_context_menus_show_diff_in_a_front_dialog_not_in_an_editor_tab`; under the modal commit interface Show Diff opens the diff in front of the project window with the file's two sides, and no editor tab is opened (src/features/vcs/DiffWindow.tsx:272). Missing: the native diff is a layer over the project window, not a window of its own, so it cannot be moved to another screen"
+  },
+  "ipc:scaffold_create": {
+    "status": "partial",
+    "proof": "`workbench::app_actions::tests::new_project_creates_the_folder_and_opens_it`; New Project creates an empty project folder and opens it, and refuses a folder that is not empty, through the file functions and not through the generator (src/features/app/NewProject.tsx:229). Missing: every generator other than the empty folder and the view of its steps are not built; Git on creation has a test file that is not declared (app-gpui/src/workbench/app_actions/tests/proofs6_app_actions.rs), so it never runs"
+  },
+  "ipc:vcs_log_refs": {
+    "status": "partial",
+    "proof": "`vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`; the log draws each commit's ref labels, which arrive with the commits and not through this command. Missing: the log does not reload when refs move, nor poll them for a read-only or external log (src/features/vcs/GitLog.tsx:248, :269; src/features/vcs/logStore.ts:976)"
+  },
+  "ipc:window_group_cancel_close": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs13_close_guard::keeps_the_window_when_saving_fails_or_the_user_cancels`, `workbench::tests::proofs13_close_guard::asks_before_terminating_a_running_process`; a close the user cancels, or whose save fails, keeps the window with its project, and closing the last project window goes back to Welcome; the native window refuses the close itself, there being no window groups to call off (src/features/app/closeGuard.ts:239, :256, :265). Missing: a detached document window refusing to close (closeGuard.ts:222): detached editor windows are not built"
   }
 }

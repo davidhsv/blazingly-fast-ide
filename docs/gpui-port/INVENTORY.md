@@ -5,7 +5,7 @@ A row is `[x]` only when `parity.json` names a Rust test (Proof) that demonstrat
 A row is `[m]` (model only) when its tests pass but are tests of code that nothing reachable from the application uses yet: the logic exists, the app does not do it. `[m]` rows do not count as at parity.
 A row is `[–]` (nothing to port) when it is a backend command that no file of the webview calls; this script checks that claim on every run. Those rows do not count as at parity either.
 
-**Overall: 1268/3905 rows at parity, 9 model only, 944 partial, 14 with nothing to port.**
+**Overall: 1268/3905 rows at parity, 9 model only, 948 partial, 14 with nothing to port.**
 
 | Section | At parity | Model only | Partial | Nothing to port | Total |
 |---|---|---|---|---|---|
@@ -71,7 +71,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Editor, platform, workbench and design-system modules | 26 | 0 | 73 | 0 | 291 |
 | Design tokens, icons and locales | 11 | 0 | 6 | 0 | 17 |
 | Native shell modules (src-tauri) | 0 | 0 | 2 | 0 | 25 |
-| IPC commands | 315 | 0 | 59 | 14 | 715 |
+| IPC commands | 315 | 0 | 63 | 14 | 715 |
 | Backend events (IdeEvent) | 11 | 0 | 9 | 0 | 31 |
 | Plugin API interfaces (wit/) | 10 | 0 | 10 | 0 | 53 |
 | Behaviour specification: unit tests (vitest) | 205 | 9 | 400 | 0 | 976 |
@@ -2412,7 +2412,7 @@ Desktop-shell behaviour implemented in Rust next to the webview (menus, title ba
 | [~] | `src-tauri/src/windows.rs` | 2438 | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; labels, opening a window for nothing, a project or a file, focusing the window that has a project, cycling. Not yet: restoring the windows of the last run, native window tabs and groups, auxiliary windows (settings, diff), LightEdit routing of loose files between windows, detaching a tab, the close and quit sequence, window state |
 | [ ] | `src-tauri/src/windows_error_mode.rs` | 51 |  |
 
-## IPC commands (315/715 at parity, 59 partial, 14 with nothing to port)
+## IPC commands (315/715 at parity, 63 partial, 14 with nothing to port)
 
 The GPUI app calls the implementation directly; a row is at parity when the UI behaviour that used the command is.
 
@@ -2498,7 +2498,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `clipboard_has_image` | src-tauri/src/commands/clipboard.rs | desktop shell | yes |  |
 | [~] | `clipboard_image` | src-tauri/src/commands/clipboard.rs | desktop shell | yes | `agents::new_task_view::tests::attaches_the_clipboards_image_when_pasting_without_text`; pasting an image with no text into the agents' New Task composer attaches it; missing: the session composer (`src/features/agents/Composer.tsx:654` via SessionEditor) and the Project view image paste (`src/features/project-tree/clipboard.ts:59`) |
 | [ ] | `clipboard_set_file_list` | src-tauri/src/commands/clipboard.rs | desktop shell | yes |  |
-| [x] | `clipboard_text` | src-tauri/src/commands/clipboard.rs | desktop shell | yes | `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`; the native app reads the text clipboard through GPUI with no backend call (the webview's command exists because its web view cannot read the clipboard for a Paste chosen from a menu, src/platform/clipboard.ts:17): text copied is pasted into the editor |
+| [x] | `clipboard_text` | src-tauri/src/commands/clipboard.rs | desktop shell | yes | `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `editor_commands::clipboard::tests::pastes_a_copied_caret_line_above_the_line_through_the_context_menu`; the native app reads the text clipboard through GPUI with no backend call (the webview's command exists because its web view cannot read the clipboard for a Paste chosen from a menu, src/platform/clipboard.ts:17): text copied is pasted into the editor; Paste run through the registry, as a menu runs it, pastes into a dialog's text field, and Paste chosen in the editor's context menu pastes into the editor |
 | [x] | `clipboard_write_text` | src-tauri/src/commands/clipboard.rs | desktop shell | yes | `app_views::about_dialog::tests::copy_info_fills_the_clipboard_and_close_and_escape_close`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`; the native app writes the text clipboard through GPUI with no backend call (src/platform/clipboard.ts:6): Copy in the About dialog and Copy in the editor leave their text on the clipboard |
 | [x] | `close_project` | src-tauri/src/commands/app.rs | desktop shell | yes | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them` |
 | [ ] | `coverage_collect` | src-tauri/src/commands/coverage.rs | `ide_host::ops` | yes |  |
@@ -2937,7 +2937,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `run_tomcat_update` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
 | [x] | `run_without_derived` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes | `workbench::tests::proofs4_run::kept_temporary_configurations_take_todays_settings_and_are_stored_without_them`; deleting the other temporary configuration stores the remaining one without GOPATH but with its own FOO, while the listed one keeps GOPATH; the driver calls ide_host::ops::run::without_derived, as the adapter does |
 | [ ] | `scaffold_catalog` | src-tauri/src/commands/scaffold.rs | `ide_host::ops` | yes |  |
-| [ ] | `scaffold_create` | src-tauri/src/commands/scaffold.rs | `ide_host::ops` | yes |  |
+| [~] | `scaffold_create` | src-tauri/src/commands/scaffold.rs | `ide_host::ops` | yes | `workbench::app_actions::tests::new_project_creates_the_folder_and_opens_it`; New Project creates an empty project folder and opens it, and refuses a folder that is not empty, through the file functions and not through the generator (src/features/app/NewProject.tsx:229). Missing: every generator other than the empty folder and the view of its steps are not built; Git on creation has a test file that is not declared (app-gpui/src/workbench/app_actions/tests/proofs6_app_actions.rs), so it never runs |
 | [ ] | `scaffold_options` | src-tauri/src/commands/scaffold.rs | `ide_host::ops` | yes |  |
 | [ ] | `scaffold_requirements` | src-tauri/src/commands/scaffold.rs | `ide_host::ops` | yes |  |
 | [ ] | `sdk_container_python` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
@@ -3048,7 +3048,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [~] | `vcs_log` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes | `vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`, `workbench::tests::the_log_filters_by_text_and_by_the_branch_chosen_in_the_branches_pane`, `workbench::tests::proofs_vcs::the_log_user_filter_lists_the_authors_and_keeps_the_chosen_ones_commits`, `workbench::log_actions::tests::the_commit_menu_offers_history_rewriting_for_a_pushed_commit_too`, `workbench::log_actions::tests::a_commit_action_reads_a_commit_the_log_has_not_read`, `workbench::tests::proofs4_vcs::the_log_date_filter_keeps_the_commits_of_the_chosen_period`, `workbench::tests::proofs42_gitlog_real_repo::the_log_opens_on_the_current_branch_and_its_branch_chip_reads_head`, `workbench::tests::proofs42_gitlog_real_repo::with_every_branch_shown_the_newest_rows_draw_their_node_and_their_subject`, `workbench::tests::proofs42_gitlog_real_repo::the_log_reads_a_page_ahead_and_page_down_moves_twenty_rows`, `workbench::tests::proofs42_gitlog_real_repo::the_log_is_read_again_when_a_reference_moves_and_not_on_other_changes`, `workbench::log_actions::tests::copy_commit_message_copies_the_whole_message_of_a_commit_listed_by_its_subject`; the pages in the chosen order with the text, branch, user and date (Last 7 Days) filters, the @{u}..HEAD range and a commit read by id. Missing: the path filter and a typed date range (Select Folders… and the date range's Select… are not available). Since 2026-11-17 the log asks for summaries only, reads a page ahead, opens on the current branch and is read again when a reference moves, each proven through the window on a repository with forty remote branches |
 | [x] | `vcs_log_details` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes | `workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file` |
 | [ ] | `vcs_log_details_batch` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
-| [ ] | `vcs_log_refs` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [~] | `vcs_log_refs` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes | `vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`; the log draws each commit's ref labels, which arrive with the commits and not through this command. Missing: the log does not reload when refs move, nor poll them for a read-only or external log (src/features/vcs/GitLog.tsx:248, :269; src/features/vcs/logStore.ts:976) |
 | [x] | `vcs_log_users` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes | `workbench::tests::proofs9_log_users` |
 | [x] | `vcs_merge` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes | `workbench::tests::a_merge_stopped_on_conflicts_is_aborted_from_the_title_bar` |
 | [x] | `vcs_merge_base` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes | `workbench::vcs_operations::tests::proofs_update::update_project_tells_what_came_in_from_where_the_branch_met_its_upstream`; Update Project counts what came in from the merge base of HEAD and the tracked branch: 1 file in 1 commit, not the local commit's file |
@@ -3102,7 +3102,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `window_complete_launch` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
 | [x] | `window_cycle` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`, `workbench::windows::tests::cycling_wraps_around_and_needs_two_windows`; the adapter's function, windows::cycle, is the Tauri shell's own; the native equivalent is the window.next and window.previous actions (workbench::windows::cycle_target over the open windows' labels): Next activates main from the last window and Previous goes back to it |
 | [ ] | `window_flash_taskbar` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
-| [ ] | `window_group_cancel_close` | src-tauri/src/commands/window_group.rs | desktop shell | yes |  |
+| [~] | `window_group_cancel_close` | src-tauri/src/commands/window_group.rs | desktop shell | yes | `workbench::tests::proofs13_close_guard::keeps_the_window_when_saving_fails_or_the_user_cancels`, `workbench::tests::proofs13_close_guard::asks_before_terminating_a_running_process`; a close the user cancels, or whose save fails, keeps the window with its project, and closing the last project window goes back to Welcome; the native window refuses the close itself, there being no window groups to call off (src/features/app/closeGuard.ts:239, :256, :265). Missing: a detached document window refusing to close (closeGuard.ts:222): detached editor windows are not built |
 | [ ] | `window_group_close` | src-tauri/src/commands/window_group.rs | desktop shell | yes |  |
 | [ ] | `window_group_close_tabs` | src-tauri/src/commands/window_group.rs | desktop shell | yes |  |
 | [ ] | `window_group_current` | src-tauri/src/commands/window_group.rs | desktop shell | yes |  |
@@ -3115,7 +3115,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `window_new` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; the adapter's function, windows::create_window, is the Tauri shell's own; the native equivalent is the window.new action (workbench::windows::open_window with an empty target), and run through the registry it adds window project-2 to the open windows |
 | [ ] | `window_open_comparison` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
 | [~] | `window_open_deployment` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::deployment::tests::sync_with_default_compares_previews_and_synchronizes_all`; Sync with Deployed to (default server) opens the comparison of local and server files, previews a file and synchronizes all, through the action in a window; missing: it is a dialog over the window, not the separate window `src/features/deployment/windowBridge.ts:11` opens |
-| [ ] | `window_open_diff` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [~] | `window_open_diff` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::proofs12_diff_window::opens_the_context_menus_show_diff_in_a_front_dialog_not_in_an_editor_tab`; under the modal commit interface Show Diff opens the diff in front of the project window with the file's two sides, and no editor tab is opened (src/features/vcs/DiffWindow.tsx:272). Missing: the native diff is a layer over the project window, not a window of its own, so it cannot be moved to another screen |
 | [ ] | `window_open_file_in_new_window` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
 | [x] | `window_open_files` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::proofs3_windows::open_file_opens_the_picked_file_in_the_project_or_in_the_window_that_has_it`, `workbench::tests::proofs13_windows::leaves_files_to_the_existing_light_edit_window_or_their_projects_window`, `workbench::tests::proofs13_windows::turns_a_window_without_a_project_into_light_edit_when_no_light_edit_window_exists`; a command of the Tauri shell with no backend function behind it; the native app does the same for the user itself: a loose file opened from a window goes to the window whose project has it, which comes to the front, else to the single-file window, else this window becomes one |
 | [~] | `window_open_project` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; see the file.openProjectPath action |
