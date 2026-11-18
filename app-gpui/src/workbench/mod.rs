@@ -157,7 +157,7 @@ use notifications::{
     notification_settings, suppress_group,
 };
 use notifications_view::{NotificationsEvent, NotificationsView, logged_entries};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -480,6 +480,18 @@ pub struct TabTitle {
     pub name: String,
     pub hint: Option<String>,
     pub active: bool,
+}
+
+/// A tab as its strip draws it: the title with the marks the Editor Tabs settings add, its icon
+/// (`None`: drawn without one) and the text shown while the pointer rests on it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TabLabel {
+    pub id: String,
+    pub name: String,
+    pub hint: Option<String>,
+    pub active: bool,
+    pub icon: Option<String>,
+    pub tooltip: Option<String>,
 }
 
 /// How a workbench window is created: the title bar is the app's own, drawn under the native
@@ -1516,6 +1528,66 @@ impl Workbench {
             .collect()
     }
 
+    /// What the strip of `pane_id` draws for each of its tabs, in strip order, as the Editor Tabs
+    /// settings say now: a change applies to the tabs already open.
+    pub fn tab_labels_of(&self, pane_id: &str, cx: &App) -> Vec<TabLabel> {
+        let Some(pane) = self.tabs().and_then(|tabs| tabs.pane(pane_id)) else { return Vec::new() };
+        let prefs = crate::platform::settings::effective(&self.label, cx).editor.tabs;
+        let dirty = self.dirty_tabs(cx);
+        self.tab_titles_of(pane_id)
+            .into_iter()
+            .zip(&pane.tabs)
+            .map(|(title, tab)| {
+                // A dot that starts the name (".gitignore") is not an extension.
+                let name = match title.name.rfind('.') {
+                    Some(dot) if dot > 0 && !prefs.show_extension && tab.input.kind == tab_views::FILE_KIND => {
+                        title.name[..dot].to_owned()
+                    }
+                    _ => title.name,
+                };
+                let tooltip =
+                    prefs.show_full_path_on_hover.then(|| tab.input.path.clone().unwrap_or_else(|| name.clone()));
+                let name = if prefs.mark_modified && dirty.contains(&tab.id) { format!("*{name}") } else { name };
+                let icon = prefs.show_file_icon.then(|| match self.tab_view(&tab.id) {
+                    Some(view) => view.icon.clone(),
+                    None => tab_views::icon_of(&tab.input),
+                });
+                TabLabel {
+                    id: tab.id.clone(),
+                    name,
+                    hint: title.hint.filter(|_| prefs.show_directory_for_non_unique),
+                    active: title.active,
+                    icon,
+                    tooltip,
+                }
+            })
+            .collect()
+    }
+
+    /// The rows of the strip of `pane_id`, as the number of tabs in each, top row first: the pinned
+    /// tabs take a row of their own when the setting asks for it and the pane has other tabs too.
+    pub fn tab_rows_of(&self, pane_id: &str, cx: &App) -> Vec<usize> {
+        let Some(pane) = self.tabs().and_then(|tabs| tabs.pane(pane_id)) else { return Vec::new() };
+        let separate = crate::platform::settings::effective(&self.label, cx).editor.tabs.pinned_separate_row;
+        match pane.pinned_row(separate) {
+            Some(pinned) => vec![pinned, pane.tabs.len() - pinned],
+            None => vec![pane.tabs.len()],
+        }
+    }
+
+    /// The tabs whose editor or view holds unsaved changes.
+    fn dirty_tabs(&self, cx: &App) -> HashSet<String> {
+        match &self.content {
+            Content::Project { editors, view_tabs, .. } | Content::Editor { editors, view_tabs, .. } => editors
+                .iter()
+                .filter(|(_, editor)| editor.read(cx).is_dirty())
+                .map(|(id, _)| id.clone())
+                .chain(view_tabs.dirty_tabs(cx))
+                .collect(),
+            _ => HashSet::new(),
+        }
+    }
+
     /// One pane of the editor area: its tabs over the editor of the selected one.
     fn pane_element(&self, pane_id: &str, window: &Window, cx: &mut Context<Self>) -> gpui_kit::Div {
         let shown_tab = self.tabs().and_then(|tabs| tabs.pane(pane_id)).and_then(|pane| pane.active.clone());
@@ -1542,7 +1614,7 @@ impl Workbench {
             editor.as_ref().and_then(|editor| self.conflict_banner_for(&editor.read(cx).path().to_string_lossy()));
         let editor_focused = editor.as_ref().is_some_and(|editor| editor.focus_handle(cx).is_focused(window))
             || view.as_ref().is_some_and(|(_, focus)| focus.contains_focused(window, cx));
-        let layout_actions = host.as_ref().map(|host| host.update(cx, |host, cx| host.layout_actions(cx)));
+        let mut layout_actions = host.as_ref().map(|host| host.update(cx, |host, cx| host.layout_actions(cx)));
         // A right click in the editor opens its menu (left of the text: the gutter's).
         let menu_editor = editor.clone();
         let body: Option<gpui_kit::AnyElement> = match (view, host, editor) {
@@ -1566,28 +1638,80 @@ impl Workbench {
             }
             (None, None, None) => None,
         };
-        let titles = self.tab_titles_of(pane_id);
+        let labels = self.tab_labels_of(pane_id, cx);
+        let rows = self.tab_rows_of(pane_id, cx);
         let colors: Vec<Option<gpui_kit::Hsla>> =
             self.tab_colors_of(pane_id).into_iter().map(|token| token.map(|token| theme::color(cx, &token))).collect();
-        let ids: Vec<(String, String)> = self
-            .tabs()
-            .and_then(|tabs| tabs.pane(pane_id))
-            .map(|pane| {
-                pane.tabs
-                    .iter()
-                    .map(|tab| {
-                        let icon = match self.tab_view(&tab.id) {
-                            Some(view) => view.icon.clone(),
-                            None => tab_views::icon_of(&tab.input),
-                        };
-                        (tab.id.clone(), icon)
-                    })
-                    .collect()
+        let shows_strip = !labels.is_empty() && !distraction_free_active(cx);
+        let mut tabs: Vec<_> = labels
+            .into_iter()
+            .zip(colors)
+            .map(|(TabLabel { id, name, hint, active, icon, tooltip }, color)| {
+                let (select, close) = (id.clone(), id.clone());
+                let (select_pane, close_pane) = (pane_id.to_owned(), pane_id.to_owned());
+                let (menu_pane, menu_tab) = (pane_id.to_owned(), id.clone());
+                let selected = if editor_focused { "bg-tab-selected" } else { "bg-tab-selected-inactive" };
+                div()
+                    .id(SharedString::from(format!("tab:{id}")))
+                    .debug_selector(|| format!("tab:{id}"))
+                    .when_some(tooltip, |el, tooltip| el.with_tooltip(tooltip))
+                    .h(theme::length(cx, "h-tab"))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .gap(gpui_kit::px(6.0))
+                    .pl(gpui_kit::px(8.0))
+                    .pr(gpui_kit::px(4.0))
+                    .rounded(gpui_kit::px(6.0))
+                    .text_color(theme::color(cx, "fg-strong"))
+                    .when(active, |el| el.bg(theme::color(cx, selected)))
+                    .when(!active, |el| el.hover(|el| el.bg(theme::color(cx, "bg-tab-hover"))))
+                    .children(icon.map(|icon| theme::icon(cx, &icon, 16.0, theme::color(cx, "fg-strong"))))
+                    .child(div().when_some(color, |el, color| el.text_color(color)).child(SharedString::from(name)))
+                    .children(
+                        hint.map(|hint| div().text_color(theme::color(cx, "fg-muted")).child(SharedString::from(hint))),
+                    )
+                    .child(
+                        div()
+                            .id(SharedString::from(format!("close:{id}")))
+                            .debug_selector(|| format!("close:{id}"))
+                            .with_tooltip("Close Tab")
+                            .size(gpui_kit::px(16.0))
+                            .flex_none()
+                            .rounded(gpui_kit::px(4.0))
+                            .hover(|el| el.bg(theme::color(cx, "bg-tab-hover")))
+                            .child(theme::icon(cx, "close", 16.0, theme::color(cx, "fg-muted")))
+                            .on_click(cx.listener(move |workbench, _, window, cx| {
+                                workbench.with_tabs(window, cx, |tabs, _| tabs.close_tab(&close_pane, &close));
+                                cx.stop_propagation();
+                            })),
+                    )
+                    .on_click(cx.listener(move |workbench, _, window, cx| {
+                        workbench.with_tabs(window, cx, |tabs, _| {
+                            tabs.set_active_pane(&select_pane);
+                            tabs.activate_tab(&select_pane, &select);
+                            true
+                        });
+                    }))
+                    .on_mouse_down(
+                        gpui_kit::MouseButton::Right,
+                        cx.listener(move |workbench, event: &MouseDownEvent, window, cx| {
+                            let items = workbench.tab_menu(&menu_pane, &menu_tab, window, cx);
+                            let (pane, tab) = (menu_pane.clone(), menu_tab.clone());
+                            workbench.show_menu(
+                                &items,
+                                event.position,
+                                move |workbench, command, window, cx| {
+                                    workbench.run_tab_command(&pane, &tab, command, window, cx);
+                                },
+                                window,
+                                cx,
+                            );
+                        }),
+                    )
             })
-            .unwrap_or_default();
-        // The tab strip: the selected tab is a rounded pill; the rest are plain titles. Distraction
-        // Free Mode hides it.
-        let strip = (!titles.is_empty() && !distraction_free_active(cx)).then(|| {
+            .collect();
+        let row = |cx: &App| {
             div()
                 .h(theme::length(cx, "h-header"))
                 .flex_none()
@@ -1597,78 +1721,25 @@ impl Workbench {
                 .px(gpui_kit::px(4.0))
                 .border_b_1()
                 .border_color(theme::color(cx, "border-editor-tabs"))
-                .children(titles.into_iter().zip(ids).zip(colors).map(
-                    |((TabTitle { name, hint, active }, (id, icon)), color)| {
-                        let (select, close) = (id.clone(), id.clone());
-                        let (select_pane, close_pane) = (pane_id.to_owned(), pane_id.to_owned());
-                        let (menu_pane, menu_tab) = (pane_id.to_owned(), id.clone());
-                        let selected = if editor_focused { "bg-tab-selected" } else { "bg-tab-selected-inactive" };
-                        div()
-                            .id(SharedString::from(format!("tab:{id}")))
-                            .debug_selector(|| format!("tab:{id}"))
-                            .h(theme::length(cx, "h-tab"))
-                            .flex_none()
-                            .flex()
-                            .items_center()
-                            .gap(gpui_kit::px(6.0))
-                            .pl(gpui_kit::px(8.0))
-                            .pr(gpui_kit::px(4.0))
-                            .rounded(gpui_kit::px(6.0))
-                            .text_color(theme::color(cx, "fg-strong"))
-                            .when(active, |el| el.bg(theme::color(cx, selected)))
-                            .when(!active, |el| el.hover(|el| el.bg(theme::color(cx, "bg-tab-hover"))))
-                            .child(theme::icon(cx, &icon, 16.0, theme::color(cx, "fg-strong")))
-                            .child(
-                                div()
-                                    .when_some(color, |el, color| el.text_color(color))
-                                    .child(SharedString::from(name)),
-                            )
-                            .children(hint.map(|hint| {
-                                div().text_color(theme::color(cx, "fg-muted")).child(SharedString::from(hint))
-                            }))
-                            .child(
-                                div()
-                                    .id(SharedString::from(format!("close:{id}")))
-                                    .debug_selector(|| format!("close:{id}"))
-                                    .with_tooltip("Close Tab")
-                                    .size(gpui_kit::px(16.0))
-                                    .flex_none()
-                                    .rounded(gpui_kit::px(4.0))
-                                    .hover(|el| el.bg(theme::color(cx, "bg-tab-hover")))
-                                    .child(theme::icon(cx, "close", 16.0, theme::color(cx, "fg-muted")))
-                                    .on_click(cx.listener(move |workbench, _, window, cx| {
-                                        workbench.with_tabs(window, cx, |tabs, _| tabs.close_tab(&close_pane, &close));
-                                        cx.stop_propagation();
-                                    })),
-                            )
-                            .on_click(cx.listener(move |workbench, _, window, cx| {
-                                workbench.with_tabs(window, cx, |tabs, _| {
-                                    tabs.set_active_pane(&select_pane);
-                                    tabs.activate_tab(&select_pane, &select);
-                                    true
-                                });
-                            }))
-                            .on_mouse_down(
-                                gpui_kit::MouseButton::Right,
-                                cx.listener(move |workbench, event: &MouseDownEvent, window, cx| {
-                                    let items = workbench.tab_menu(&menu_pane, &menu_tab, window, cx);
-                                    let (pane, tab) = (menu_pane.clone(), menu_tab.clone());
-                                    workbench.show_menu(
-                                        &items,
-                                        event.position,
-                                        move |workbench, command, window, cx| {
-                                            workbench.run_tab_command(&pane, &tab, command, window, cx);
-                                        },
-                                        window,
-                                        cx,
-                                    );
-                                }),
-                            )
-                    },
-                ))
-                .child(div().flex_1())
-                .children(context_menus::slot_buttons("editor.title", window, cx))
-                .children(layout_actions)
+        };
+        // The tab strip: the selected tab is a rounded pill; the rest are plain titles. Pinned tabs
+        // may take a row of their own above the others. Distraction Free Mode hides it.
+        let strip = shows_strip.then(|| {
+            let mut strips: Vec<gpui_kit::Div> = Vec::with_capacity(rows.len());
+            for (index, count) in rows.iter().enumerate() {
+                let rest = tabs.split_off((*count).min(tabs.len()));
+                let taken = std::mem::replace(&mut tabs, rest);
+                let strip = row(cx).children(taken);
+                strips.push(if index + 1 == rows.len() {
+                    strip
+                        .child(div().flex_1())
+                        .children(context_menus::slot_buttons("editor.title", window, cx))
+                        .children(layout_actions.take())
+                } else {
+                    strip
+                });
+            }
+            div().flex_none().flex().flex_col().children(strips)
         });
         div()
             .size_full()
@@ -3708,15 +3779,7 @@ impl Workbench {
             }
             _ => {}
         }
-        let dirty: std::collections::HashSet<String> = match &self.content {
-            Content::Project { editors, view_tabs, .. } | Content::Editor { editors, view_tabs, .. } => editors
-                .iter()
-                .filter(|(_, editor)| editor.read(cx).is_dirty())
-                .map(|(id, _)| id.clone())
-                .chain(view_tabs.dirty_tabs(cx))
-                .collect(),
-            _ => Default::default(),
-        };
+        let dirty = self.dirty_tabs(cx);
         let read_only = self.read_only_tabs(cx);
         self.with_tabs(window, cx, |tabs, _| match command {
             TabCommand::Close => tabs.close_tab(&pane, &tab),
@@ -4617,6 +4680,8 @@ mod tests {
     mod proofs41_recent_edited;
     mod proofs42_gitlog_real_repo;
     mod proofs43_database_results;
+    mod proofs44_attach_trust;
+    mod proofs44_editor_tabs;
     mod proofs4_run;
     mod proofs4_shell;
     mod proofs4_vcs;

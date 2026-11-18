@@ -16,7 +16,7 @@
 
 use super::{Content, Workbench, active_editor, for_window};
 use crate::backend::Backend;
-use crate::editor::tabs::{EditorInput, OpenTabOptions, Tab, TabsState};
+use crate::editor::tabs::{ClosingPolicy, EditorInput, OpenTabOptions, Tab, TabsState};
 use crate::editor::view::{Editor, EditorEvent};
 use crate::features_b::viewers::file_kinds::{
     BINARY_KIND, IMAGE_ACTIONS, IMAGE_KIND, binary_input, image_viewer_for, is_markdown_path, wants_hex_view,
@@ -46,6 +46,28 @@ use std::time::{Duration, Instant};
 
 /// The editor kind of text documents.
 pub const FILE_KIND: &str = "file";
+
+/// Editor Tabs › Open new tabs at the end, Tab limit and Closing policy, read as a tab opens.
+struct TabOpening {
+    /// Where a new tab goes: after the active one, or last.
+    options: OpenTabOptions,
+    limit: usize,
+    policy: ClosingPolicy,
+    /// The tabs with unsaved changes, which "close non-modified files first" spares while it can.
+    dirty: HashSet<String>,
+    /// The views with unsaved changes: the limit never closes one, as its close needs its own
+    /// question. A modified text tab may close; closing it writes it, or asks with autosave off.
+    guarded: HashSet<String>,
+}
+
+impl TabOpening {
+    /// Past the limit, closes the tabs of `pane` the closing policy picks; `keep` (the tab just
+    /// opened), the active and the pinned tabs stay. The closed tabs can be reopened.
+    fn limit(&self, tabs: &mut TabsState, pane: &str, keep: &str) -> bool {
+        let dirty = |tab: &Tab| self.dirty.contains(&tab.id);
+        tabs.enforce_tab_limit(pane, self.limit, self.policy, dirty, Some(keep), |tab| self.guarded.contains(&tab.id))
+    }
+}
 
 /// How many bytes one read of the hex view asks for: one page.
 const PAGE_LEN: u32 = PAGE_SIZE as u32;
@@ -636,13 +658,40 @@ impl Workbench {
     /// Opens (or brings to the front) the tab of `input` in the active pane; its view is built
     /// when it shows.
     pub(super) fn open_view_tab(&mut self, input: EditorInput, window: &mut Window, cx: &mut Context<Self>) {
-        self.with_tabs(window, cx, |tabs, pane| tabs.open_tab(pane, input, OpenTabOptions::default()).is_some());
+        let opening = self.tab_opening(cx);
+        self.with_tabs(window, cx, |tabs, pane| match tabs.open_tab(pane, input, opening.options.clone()) {
+            Some(id) => {
+                opening.limit(tabs, pane, &id);
+                true
+            }
+            None => false,
+        });
+    }
+
+    /// How a tab opens now, as Editor Tabs says: where a new one goes, and which tabs the limit
+    /// closes once it is open.
+    fn tab_opening(&self, cx: &App) -> TabOpening {
+        let prefs = crate::platform::settings::effective(&self.label, cx).editor.tabs;
+        let guarded = match &self.content {
+            Content::Project { view_tabs, .. } | Content::Editor { view_tabs, .. } => {
+                view_tabs.dirty_tabs(cx).into_iter().collect()
+            }
+            _ => HashSet::new(),
+        };
+        TabOpening {
+            options: OpenTabOptions { index: prefs.open_at_end.then_some(usize::MAX), ..OpenTabOptions::default() },
+            limit: usize::try_from(prefs.tab_limit).unwrap_or(usize::MAX),
+            policy: ClosingPolicy::from_setting(&prefs.closing_policy),
+            dirty: self.dirty_tabs(cx),
+            guarded,
+        }
     }
 
     /// Opens the text tab of `path`, or brings it to the front. With `probe` a new tab gets its
     /// document only once the probe tells that the file is text; binary content turns it into
     /// the hex view.
     fn open_text_tab(&mut self, path: PathBuf, probe: bool, window: &mut Window, cx: &mut Context<Self>) {
+        let opening = self.tab_opening(cx);
         let (Content::Project { tabs, editors, .. } | Content::Editor { tabs, editors, .. }) = &mut self.content else {
             return;
         };
@@ -657,10 +706,11 @@ impl Workbench {
             }
             None => {
                 let input = EditorInput { kind: FILE_KIND.to_owned(), key: key.clone(), path: Some(key), data: None };
-                let Some(id) = tabs.open_tab(&pane, input, OpenTabOptions::default()) else { return };
+                let Some(id) = tabs.open_tab(&pane, input, opening.options.clone()) else { return };
                 id
             }
         };
+        opening.limit(tabs, &pane, &tab_id);
         // The tab counts as loading before the window looks at it, so it is opened once, probed.
         if !editors.contains_key(&tab_id) {
             self.load_tab_probed(tab_id, path, true, probe && fresh, window, cx);

@@ -49,9 +49,8 @@ type This = WeakEntity<Workbench>;
 /// stopped again (which kills them), and again before the close gives up.
 const TERMINATE_GRACE: Duration = Duration::from_secs(10);
 
-/// Attach (to the window's workspace) is not offered: the Project view shows the project's own
-/// folder only, so an attached folder would not be seen, and there is no trust question to ask
-/// before attaching one.
+/// Attach (to the window's workspace) is not offered: the window does not read its project again
+/// once a folder is attached, so the Project view would not show it.
 const ATTACH: &str = "attach";
 
 /// The dialog a close or open question waits on, over the window.
@@ -836,6 +835,21 @@ fn start_open(workbench: &Entity<Workbench>, flow: OpenFlow, step: OpenStep, win
         .detach();
 }
 
+/// Attaches the folder at `path` to this window's workspace as the "Open project in" question's
+/// Attach answer does. Users are not offered that answer (see [`ATTACH`]); tests reach the steps it
+/// starts through here.
+#[cfg(test)]
+pub(super) fn attach_as_answered(path: &Path, window: &mut Window, cx: &mut App) {
+    let Some(workbench) = for_window(window, cx) else { panic!("the window has a workbench") };
+    let path = canonical(path);
+    let mut state = workbench.read(cx).window_state(cx);
+    state.open_project_in = "ask".to_owned();
+    let (mut flow, asked) = OpenFlow::with_policy(&path, &[], &state, i18n(cx));
+    assert!(matches!(asked, OpenStep::Ask(_)), "the window asks where the folder opens: {asked:?}");
+    let step = flow.answered(&Answer::new(ATTACH, false));
+    start_open(&workbench, flow, step, window, cx);
+}
+
 /// Carries out the steps of opening a project, from `step` on.
 async fn carry_out_open(
     this: &This,
@@ -910,8 +924,18 @@ async fn carry_out_open(
                 };
                 cx.update(|_, cx| flow.project_opened(opened, i18n(cx)))?
             }
-            // A folder is attached only when it is trusted already: there is no trust question here.
-            OpenStep::ConfirmTrust { .. } => cx.update(|_, cx| flow.trust_confirmed(Ok(()), i18n(cx)))?,
+            // A folder nobody decided about is asked about in this window first. Don't Open cancels
+            // the attaching; either other answer is stored and then read, and only a trusted folder
+            // is attached.
+            OpenStep::ConfirmTrust { path } => {
+                let confirmed = super::app_actions::confirm_project_trust(this, cx, Path::new(&path)).await?;
+                let answered = match confirmed {
+                    Ok(true) => Ok(()),
+                    Ok(false) => Err(IdeError::new(ErrorKind::Cancelled, "Project attaching cancelled")),
+                    Err(error) => Err(error),
+                };
+                cx.update(|_, cx| flow.trust_confirmed(answered, i18n(cx)))?
+            }
             OpenStep::ReadTrust { path } => cx.update(|_, cx| {
                 let trusted = match cx.try_global::<Backend>() {
                     Some(backend) => backend.host.trust.trusted(Path::new(&path)),
