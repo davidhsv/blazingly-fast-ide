@@ -112,24 +112,24 @@
     "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::undo_and_redo_walk_groups_of_typing`, `workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`; acts on code editors, and run through the registry while the Project view has the keyboard it brings the view's last deleted file back from Local History and selects it. In a text field it takes back the field's typing (`workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`). Missing: ⌘Z pressed in the tree (edit.undo has no key binding and the tree passes no modified keys on), and the Project view's Undo of a move"
   },
   "action:edit.redo": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::undo_and_redo_walk_groups_of_typing`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut; missing: listed in Settings › Keymap although hidden and unbound (`src/features/app/appActions.ts:83`)"
+    "status": "done",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::undo_and_redo_walk_groups_of_typing`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`, `settings_view::keymap::tests::the_keymap_lists_the_hidden_edit_actions_that_can_get_a_shortcut`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut. Listed in Settings › Keymap through the action's `keymap` flag although hidden and unbound"
   },
   "action:edit.copy": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::context_menus::tests::right_click_in_the_selection_keeps_it_and_copy_puts_it_on_the_clipboard`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut; missing: listed in Settings › Keymap although hidden and unbound (`src/features/app/appActions.ts:83`)"
+    "status": "done",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::context_menus::tests::right_click_in_the_selection_keeps_it_and_copy_puts_it_on_the_clipboard`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`, `settings_view::keymap::tests::the_keymap_lists_the_hidden_edit_actions_that_can_get_a_shortcut`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut. Listed in Settings › Keymap through the action's `keymap` flag although hidden and unbound"
   },
   "action:edit.cut": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut; missing: listed in Settings › Keymap although hidden and unbound (`src/features/app/appActions.ts:83`)"
+    "status": "done",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`, `settings_view::keymap::tests::the_keymap_lists_the_hidden_edit_actions_that_can_get_a_shortcut`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut. Listed in Settings › Keymap through the action's `keymap` flag although hidden and unbound"
   },
   "action:edit.paste": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut; missing: listed in Settings › Keymap although hidden and unbound (`src/features/app/appActions.ts:83`)"
+    "status": "done",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`, `settings_view::keymap::tests::the_keymap_lists_the_hidden_edit_actions_that_can_get_a_shortcut`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut. Listed in Settings › Keymap through the action's `keymap` flag although hidden and unbound"
   },
   "action:edit.selectAll": {
     "status": "partial",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`, `workbench::edit_actions::tests::select_all_in_the_services_tree_selects_every_row`; selects all of what has the keyboard: a code editor, a text field, every row of the Services tree; missing: listed in Settings › Keymap although hidden and unbound (`src/features/app/appActions.ts:83`); selects the focused reading pane's text (`src/features/app/appActions.ts:53`)"
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`, `workbench::edit_actions::tests::select_all_in_the_services_tree_selects_every_row`, `settings_view::keymap::tests::the_keymap_lists_the_hidden_edit_actions_that_can_get_a_shortcut`; selects all of what has the keyboard: a code editor, a text field, every row of the Services tree. Listed in Settings › Keymap through the `keymap` flag. Missing: selects the focused reading pane's text (`src/features/app/appActions.ts:53`)"
   },
   "feature:project-tree": {
     "status": "partial",
@@ -3528,8 +3528,8 @@
     "proof": "`workbench::tests::push_sends_a_new_commit_to_origin_and_fetch_shows_what_came_in`; the current branch of one repository to a local remote. Not yet: pushing another branch, update and retry of a rejected push, the changed files of a commit, Cancel on the progress notice"
   },
   "action:vcs.fetch": {
-    "status": "partial",
-    "proof": "`workbench::tests::push_sends_a_new_commit_to_origin_and_fetch_shows_what_came_in`; what the cited tests drive still holds: push sends a new commit to origin and fetch shows what came in; missing: the fetch result shows as a balloon even with balloons off (`src/features/vcs/ops.ts:65`)"
+    "status": "done",
+    "proof": "`workbench::tests::push_sends_a_new_commit_to_origin_and_fetch_shows_what_came_in`, `workbench::vcs_operations::tests::op_balloons::a_git_command_s_result_shows_as_a_balloon_while_balloons_are_off`; what the cited tests drive still holds: push sends a new commit to origin and fetch shows what came in. The fetch result shows as a balloon while balloons are off"
   },
   "context:vcsOperation": {
     "status": "done",
@@ -3645,7 +3645,7 @@
   },
   "action:project.rename": {
     "status": "partial",
-    "proof": "`workbench::tests::proofs3_rename_lsp::renaming_a_file_applies_the_reference_updates_its_language_server_returns`, `workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`; the language server watching the file is asked workspace/willRenameFiles with the old and new URIs, its update of another file is previewed and applied with the rename, the server hears didRenameFiles, and Undo Move / Rename takes both back; text references and the open editor follow too; missing: Alt+Shift+R renames in the Project view under the Eclipse (Windows) keymap although Git log actions share the stroke (`src/platform/keymap.ts`, f82808a82)"
+    "proof": "`workbench::tests::proofs3_rename_lsp::renaming_a_file_applies_the_reference_updates_its_language_server_returns`, `workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`, `platform::input::tests::the_eclipse_rename_key_renames_in_the_view_that_claims_it_before_editing_a_commit_message`, `platform::dispatcher::tests::prefers_a_matching_key_when_over_a_key_whenless_action_sharing_the_stroke`; the language server watching the file is asked workspace/willRenameFiles with the old and new URIs, its update of another file is previewed and applied with the rename, the server hears didRenameFiles, and Undo Move / Rename takes both back; text references and the open editor follow too. Under the Eclipse (Windows) preset the shared key runs the action whose `keyWhen` matches, proven at the dispatcher in a window with the context keys set by the test. Missing: the key pressed in a project window with the Project view holding the keyboard, ending in the rename"
   },
   "action:project.undoMove": {
     "status": "done",
@@ -4249,7 +4249,7 @@
   },
   "action:db.rename": {
     "status": "partial",
-    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; what the cited tests drive still holds: the database trees actions and shortcuts reach the store and the backend; missing: Alt+Shift+R renames in the Database view under the Eclipse (Windows) keymap although Git log actions share the stroke (`src/platform/keymap.ts`, f82808a82)"
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`, `platform::input::tests::the_eclipse_rename_key_renames_in_the_view_that_claims_it_before_editing_a_commit_message`, `platform::dispatcher::tests::prefers_a_matching_key_when_over_a_key_whenless_action_sharing_the_stroke`; what the cited tests drive still holds: the database trees actions and shortcuts reach the store and the backend. Under the Eclipse (Windows) preset the shared key runs the action whose `keyWhen` matches, proven at the dispatcher in a window with the context keys set by the test. Missing: the key pressed with the Database view holding the keyboard, ending in the rename"
   },
   "action:db.copyReference": {
     "status": "done",
@@ -5033,7 +5033,7 @@
   },
   "action:vcs.log.branches.update": {
     "status": "partial",
-    "proof": "`workbench::log_actions::tests::the_branches_pane_actions_act_on_the_selected_branch`; what the cited tests drive still holds: the branches pane actions act on the selected branch; missing: updates only the repository whose branch menu was used (`src/features/vcs/branchOps.ts:534`)"
+    "proof": "`workbench::log_actions::tests::the_branches_pane_actions_act_on_the_selected_branch`, `workbench::vcs_operations::tests::operation_repo::update_with_a_repository_pulls_that_repository_only`; what the cited tests drive still holds: the branches pane actions act on the selected branch. Update given a repository updates only that one. Missing: the branch menu's own call with its repository is not driven by a test (`src/features/vcs/branchOps.ts:534`)"
   },
   "action:vcs.log.changes.compareBeforeWithLocal": {
     "status": "partial",
@@ -5057,15 +5057,15 @@
   },
   "action:vcs.log.changes.jumpToSource": {
     "status": "partial",
-    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`; what the cited tests drive still holds: the changed files actions act on the files of the selected commit; missing: F4 / ⌘↓ in the changed files tree runs it on the selected files (`src/features/vcs/GitLog.tsx:2780`)"
+    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`, `workbench::log_actions::tests::changes_keys::in_the_changed_files_show_diff_s_key_shows_the_commit_s_diff_and_f4_jumps_to_source`; what the cited tests drive still holds: the changed files actions act on the files of the selected commit. F4 in the changed files jumps to the source of the selected file. Missing: ⌘↓ shares the handler and is not driven by a test (`src/ui/Tree.tsx:540`)"
   },
   "action:vcs.log.changes.revert": {
     "status": "done",
     "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`"
   },
   "action:vcs.log.changes.showDiff": {
-    "status": "partial",
-    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`; what the cited tests drive still holds: the changed files actions act on the files of the selected commit; missing: ⌘D / Ctrl+D in the changed files runs it: native has no `vcsLogChangesFocus` context key (`src/features/vcs/logPaneActions.ts:155`); an explicit Show Diff opens in the reusable preview tab (`src/features/vcs/logChanges.ts:251`)"
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`, `workbench::log_actions::tests::changes_keys::in_the_changed_files_show_diff_s_key_shows_the_commit_s_diff_and_f4_jumps_to_source`, `workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`; what the cited tests drive still holds: the changed files actions act on the files of the selected commit. ⌘D in a commit's changed files runs it through the `vcsLogChangesFocus` context, and an explicit Show Diff opens in the reusable preview tab"
   },
   "action:vcs.log.checkoutRevision": {
     "status": "done",
@@ -5176,8 +5176,8 @@
     "proof": "`workbench::vcs_operations::tests::the_remotes_dialog_adds_edits_and_removes_a_remote`; a password inside a remote URL is masked in the list and the edit field; the original shows the URL as stored"
   },
   "action:vcs.merge": {
-    "status": "partial",
-    "proof": "`workbench::vcs_operations::tests::merge_merges_a_branch_and_abort_merge_undoes_one_stopped_on_conflicts`; what the cited tests drive still holds: merge merges a branch and abort merge undoes one stopped on conflicts; missing: starts on the repository of the context's file (`src/features/vcs/actions.tsx:152`); in the editor's Git submenu (`src/editor/core/controller.ts:2252`)"
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::merge_merges_a_branch_and_abort_merge_undoes_one_stopped_on_conflicts`, `workbench::vcs_operations::tests::operation_repo::merge_starts_on_the_repository_of_the_action_s_file`, `workbench::vcs_operations::tests::operation_repo::merge_and_pull_without_an_argument_start_on_the_active_editor_s_repository`, `workbench::context_menus::tests::in_a_git_repository_the_editor_menus_git_rows_are_enabled`; what the cited tests drive still holds: merge merges a branch and abort merge undoes one stopped on conflicts. Starts on the repository of the action's file or of the active editor's, and the editor's Git submenu passes the file"
   },
   "action:vcs.merge.abort": {
     "status": "done",
@@ -5200,12 +5200,12 @@
     "proof": "`workbench::vcs_operations::tests::the_operations_popup_lists_the_operations_in_order_and_runs_the_chosen_one`"
   },
   "action:vcs.pull": {
-    "status": "partial",
-    "proof": "`workbench::vcs_operations::tests::pull_brings_in_a_commit_from_the_remote`; what the cited tests drive still holds: pull brings in a commit from the remote; missing: starts on the repository of the context's file (`src/features/vcs/actions.tsx:152`); in the editor's Git submenu (`src/editor/core/controller.ts:2252`)"
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::pull_brings_in_a_commit_from_the_remote`, `workbench::vcs_operations::tests::operation_repo::merge_and_pull_without_an_argument_start_on_the_active_editor_s_repository`, `workbench::context_menus::tests::in_a_git_repository_the_editor_menus_git_rows_are_enabled`; what the cited tests drive still holds: pull brings in a commit from the remote. Starts on the repository of the active editor's file in a project with a nested repository, and the editor's Git submenu runs it on the file"
   },
   "action:vcs.rebase": {
-    "status": "partial",
-    "proof": "`workbench::vcs_operations::tests::merge_merges_a_branch_and_abort_merge_undoes_one_stopped_on_conflicts`, `workbench::vcs_operations::tests::rebase_onto_a_branch_and_continue_a_rebase_that_stopped`; what the cited tests drive still holds: merge merges a branch and abort merge undoes one stopped on conflicts; rebase onto a branch and continue a rebase that stopped; missing: starts on the repository of the context's file (`src/features/vcs/actions.tsx:152`); in the editor's Git submenu (`src/editor/core/controller.ts:2252`)"
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::merge_merges_a_branch_and_abort_merge_undoes_one_stopped_on_conflicts`, `workbench::vcs_operations::tests::rebase_onto_a_branch_and_continue_a_rebase_that_stopped`, `workbench::vcs_operations::tests::operation_repo::rebase_starts_on_the_repository_the_action_names`, `workbench::context_menus::tests::in_a_git_repository_the_editor_menus_git_rows_are_enabled`; what the cited tests drive still holds: merge merges a branch and abort merge undoes one stopped on conflicts; rebase onto a branch and continue a rebase that stopped. Starts on the repository the action names, and the editor's Git submenu passes the file"
   },
   "action:vcs.rebase.abort": {
     "status": "done",
@@ -5224,8 +5224,8 @@
     "proof": "`workbench::vcs_operations::tests::a_stopped_cherry_pick_and_revert_are_aborted_and_continued`"
   },
   "action:vcs.resetHead": {
-    "status": "partial",
-    "proof": "`workbench::vcs_operations::tests::reset_head_moves_the_branch_in_each_mode`; what the cited tests drive still holds: reset head moves the branch in each mode; missing: in the editor's Git submenu (`src/editor/core/controller.ts:2278`)"
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::reset_head_moves_the_branch_in_each_mode`, `workbench::context_menus::tests::in_a_git_repository_the_editor_menus_git_rows_are_enabled`; what the cited tests drive still holds: reset head moves the branch in each mode. Listed and enabled in the editor's Git submenu in a repository"
   },
   "action:vcs.revert.abort": {
     "status": "done",
@@ -5236,8 +5236,8 @@
     "proof": "`workbench::vcs_operations::tests::a_stopped_cherry_pick_and_revert_are_aborted_and_continued`"
   },
   "action:vcs.rollback": {
-    "status": "partial",
-    "proof": "`workbench::vcs_operations::tests::rollback_in_an_editor_restores_the_changed_lines_under_the_caret`, `workbench::vcs_operations::tests::rollback_restores_a_modified_file_and_deletes_an_added_one_only_when_asked`; what the cited tests drive still holds: rollback in an editor restores the changed lines under the caret; rollback restores a modified file and deletes an added one only when asked; missing: falls back to the checked changes when the Commit window's selection has nothing to roll back (`src/features/vcs/actions.tsx:383`)"
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::rollback_in_an_editor_restores_the_changed_lines_under_the_caret`, `workbench::vcs_operations::tests::rollback_restores_a_modified_file_and_deletes_an_added_one_only_when_asked`, `workbench::vcs_operations::tests::rollback_included::rollback_falls_back_to_the_included_changes_when_the_selection_has_nothing_to_roll_back`; what the cited tests drive still holds: rollback in an editor restores the changed lines under the caret; rollback restores a modified file and deletes an added one only when asked. Falls back to the checked changes when the Commit window's selection has nothing to roll back"
   },
   "action:vcs.shelf.compareLocal": {
     "status": "done",
@@ -5292,8 +5292,8 @@
     "proof": "`workbench::shelf::tests::shelving_selected_changes_reverts_them_and_the_shelf_lists_the_entry_with_its_files`, `workbench::shelf::tests::show_diff_in_the_shelf_tab_shows_the_selected_shelved_file`, `vcs::shelf_time::tests::a_shelf_row_shows_its_files_then_when_it_was_shelved`, `vcs::shelf_time::tests::the_shelf_tab_shows_each_shelfs_time_after_its_files`; the Shelf tab lists each shelf with its files and its time"
   },
   "action:vcs.stash": {
-    "status": "partial",
-    "proof": "`workbench::vcs_operations::tests::stash_then_unstash_restores_the_change`; what the cited tests drive still holds: stash then unstash restores the change; missing: in the editor's Git submenu (`src/editor/core/controller.ts:2280`)"
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::stash_then_unstash_restores_the_change`, `workbench::context_menus::tests::in_a_git_repository_the_editor_menus_git_rows_are_enabled`; what the cited tests drive still holds: stash then unstash restores the change. Listed and enabled in the editor's Git submenu in a repository"
   },
   "action:vcs.toggleAmend": {
     "status": "done",
@@ -5304,12 +5304,12 @@
     "proof": "`workbench::shelf::tests::unshelve_restores_the_changes_into_the_chosen_list_and_removes_what_applied_when_asked`"
   },
   "action:vcs.unstash": {
-    "status": "partial",
-    "proof": "`workbench::vcs_operations::tests::stash_then_unstash_restores_the_change`; what the cited tests drive still holds: stash then unstash restores the change; missing: in the editor's Git submenu (`src/editor/core/controller.ts:2281`)"
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::stash_then_unstash_restores_the_change`, `workbench::context_menus::tests::in_a_git_repository_the_editor_menus_git_rows_are_enabled`; what the cited tests drive still holds: stash then unstash restores the change. Listed and enabled in the editor's Git submenu in a repository"
   },
   "action:vcs.update": {
     "status": "partial",
-    "proof": "`workbench::vcs_operations::tests::proofs_update::update_project_tells_what_came_in_from_where_the_branch_met_its_upstream`, `workbench::vcs_operations::tests::update_project_pulls_with_the_method_chosen_and_resets_to_the_remote_branch`; what the cited tests drive still holds: update project tells what came in from where the branch met its upstream; update project pulls with the method chosen and resets to the remote branch; missing: updates only the repository it is given (`src/features/vcs/remoteUi.tsx:44`); the editor's Git submenu shows Pull… instead of it (`src/editor/core/controller.ts:2269`); its result is shown as a balloon even when VCS balloons are off (`src/features/vcs/ops.ts:65`)"
+    "proof": "`workbench::vcs_operations::tests::proofs_update::update_project_tells_what_came_in_from_where_the_branch_met_its_upstream`, `workbench::vcs_operations::tests::update_project_pulls_with_the_method_chosen_and_resets_to_the_remote_branch`, `workbench::vcs_operations::tests::operation_repo::update_with_a_repository_pulls_that_repository_only`, `workbench::context_menus::tests::in_a_git_repository_the_editor_menus_git_rows_are_enabled`, `workbench::vcs_operations::tests::op_balloons::a_git_command_s_result_shows_as_a_balloon_while_balloons_are_off`; what the cited tests drive still holds: update project tells what came in from where the branch met its upstream; update project pulls with the method chosen and resets to the remote branch. Given a repository it updates only that one; the editor's Git submenu shows Pull… in its place; results of the remote runner show as balloons with balloons off (driven for Fetch). Missing: a test that drives Update itself to its balloon"
   },
   "action:vcs.worktrees": {
     "status": "done",

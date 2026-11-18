@@ -29,7 +29,9 @@ The notes' last table. For each, say which missing clause of its proof is now pr
 
 ## Changed since
 
-BEFORE LAUNCH (for the manager; delete this paragraph then): HEAD, what landed since the notes were written (90f5b83b2), the undeclared drafts then in the tree.
+The notes were written on the tree at `90f5b83b2`. Since then one integration landed that touches the log (code commit `1e6a4ba69`): `workbench/log_window.rs` now publishes the `vcsLogChangesFocus` context while the details pane has the keyboard; `vcs/log_details.rs` handles F4 and ⌘↓ (Jump to Source); `show_log_diff` in `workbench/log_actions.rs` opens an explicit diff in the reusable preview tab unless the commit interface is modal; a new test file `workbench/log_actions/tests/changes_keys.rs`; and `workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file` and `the_changed_files_actions_act_on_the_files_of_the_selected_commit` changed their Show Diff expectation. `vcs/log_view.rs`, the file most hunks are in, did not change (check: `git diff --stat 90f5b83b2 HEAD -- app-gpui/src/vcs/log_view.rs` prints nothing). Re-anchor every hunk from its quoted text and read the place before editing. Other agents' undeclared drafts now in the tree, none of them yours except the one this brief hands you, are listed in `$S/undeclared_now.txt`.
+
+Eight tests that wait for a run or debug process to stop timed out once under a machine load of 80 to 130 (`workbench::debug::tests::proofs40_debug_guards::*`, `workbench::tests::proofs18_e2e_run::cmd_f2_stops_a_running_process`, `workbench::tests::proofs40_run_start::*`) and passed in clean runs: they are not this slice's; if they fail in your whole-suite runs, quote them and go on, and never run your repeats in a way that raises the load beside the first suite run.
 
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 
