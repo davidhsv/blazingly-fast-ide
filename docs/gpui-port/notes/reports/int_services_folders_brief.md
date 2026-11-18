@@ -27,7 +27,11 @@ Riding along (same tree, same harness): `context:servicesViewFocus` is partial f
 
 ## Changed since
 
-BEFORE LAUNCH (for the manager; delete this paragraph then): say HEAD, what landed since the ranking, and refresh `$S/undeclared_now.txt`.
+HEAD is the commit `git log -1` shows (the worktree is clean except docs the manager is editing: do not touch `docs/`). Since the ranking landed: wiring batch 1, three tests-only harvests (the last one, H1, added Database result tests and a small fix in `app-gpui/src/workbench/database.rs`: a cell being edited now counts as a change for `dbTableEditorChanges`, and the grid's own cell field counts as its focus). The undeclared files to leave alone are listed in `$S/undeclared_now.txt` (refreshed at this HEAD). The suite at this HEAD: 8,422 tests.
+
+## One extra, after the Services rows (small, same gates)
+
+`context:dbTableEditorChanges` is partial on one clause: on while a cell is being edited in the Database tool window's table editor although nothing is staged yet (`src/features/database/tableEditorFocus.ts:52`, `:63`). The code for it landed with H1 (`sync_database_context` in `app-gpui/src/workbench/database.rs`) and is proven only for the query console's result grid (`workbench::tests::proofs43_database_results::revert_confirms_the_result_cell_being_edited_and_drops_it`, helper `edit_a_result_cell`). Write the same proof for a table opened with Edit Data (the harness of `workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`): a cell's field open with a typed value, nothing staged, the key on, Revert available and dropping it, Go to Column confirming it first. One mutation of the table editor's branch of `sync_database_context`.
 
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 

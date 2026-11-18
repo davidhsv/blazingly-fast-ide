@@ -4268,8 +4268,8 @@
     "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`, `workbench::tests::proofs43_database_results::submit_revert_and_go_to_column_reach_a_focused_console_result`; what the cited tests drive still holds: edit data shows the rows submit writes an edit and revert discards one. Acts on a focused console result grid and confirms the cell being edited before it runs, the value written to the database"
   },
   "action:db.revertChanges": {
-    "status": "partial",
-    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`, `workbench::tests::proofs43_database_results::submit_revert_and_go_to_column_reach_a_focused_console_result`; what the cited tests drive still holds: edit data shows the rows submit writes an edit and revert discards one. Acts on a focused console result grid. Missing: confirming the cell being edited before Revert is not driven by a test (`src/features/database/tableEditorFocus.ts:92`)"
+    "status": "done",
+    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`, `workbench::tests::proofs43_database_results::submit_revert_and_go_to_column_reach_a_focused_console_result`, `workbench::tests::proofs43_database_results::revert_confirms_the_result_cell_being_edited_and_drops_it`; what the cited tests drive still holds: edit data shows the rows submit writes an edit and revert discards one. Acts on a focused console result grid. With only a result cell being edited Revert is available, confirms the typed value and drops it: the field closes, the cell shows its stored value and nothing waits to be submitted (unavailable in that state until 2026-11-18)"
   },
   "action:db.editData": {
     "status": "partial",
@@ -4280,8 +4280,8 @@
     "proof": "`workbench::tests::execute_shows_a_querys_rows_and_its_output_lines_and_a_failing_statement_its_error`, `workbench::database_extras::tests::the_console_toolbar_chooses_the_data_source_of_a_plain_sql_file_and_executes_on_it`, `workbench::tests::proofs43_database_results::a_statement_waiting_for_the_data_sources_is_dropped_when_the_project_changes`; the statement at the caret runs, rows and output shown; a plain .sql file with two or more sources runs on the one chosen in the toolbar. A statement waiting for the data sources is dropped when the project changes"
   },
   "action:db.explainPlan": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`, `workbench::database_extras::tests::the_console_banner_and_the_query_plan_tab_follow_the_runs`, `database::plan_view::tests::a_narrow_plan_puts_the_properties_under_the_tree_and_a_wide_one_beside_it`, `database::plan_view::tests::an_empty_plan_shows_no_rows`, `database::plan_view::tests::collapsing_an_operation_hides_what_is_under_it`, `database::plan_view::tests::explain_again_asks_once_until_the_new_plan_arrives`, `database::plan_view::tests::roots_the_operations_in_the_statement_with_everything_expanded`, `database::plan_view::tests::selecting_an_operation_shows_its_properties`; the statement is explained by the backend and the Query Plan tab shows the plan's tree with the selected node's properties, beside the tree in a wide pane and under it in a narrow one; running again replaces it. Read, not tested: the wait lives in the Database slot, which is rebuilt per project (`workbench/database.rs` `reset_database`), as proven for `db.execute`. Missing: the project change while the data sources load is not driven for this action (`src/features/database/requests.ts:20`)"
+    "status": "done",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`, `workbench::database_extras::tests::the_console_banner_and_the_query_plan_tab_follow_the_runs`, `database::plan_view::tests::a_narrow_plan_puts_the_properties_under_the_tree_and_a_wide_one_beside_it`, `database::plan_view::tests::an_empty_plan_shows_no_rows`, `database::plan_view::tests::collapsing_an_operation_hides_what_is_under_it`, `database::plan_view::tests::explain_again_asks_once_until_the_new_plan_arrives`, `database::plan_view::tests::roots_the_operations_in_the_statement_with_everything_expanded`, `database::plan_view::tests::selecting_an_operation_shows_its_properties`, `workbench::tests::proofs43_database_results::explain_plan_waiting_for_the_data_sources_is_dropped_when_the_project_changes`; the statement is explained by the backend and the Query Plan tab shows the plan's tree with the selected node's properties, beside the tree in a wide pane and under it in a narrow one; running again replaces it. Asked while the data sources are still being read, in a project the window leaves before they are, it shows no plan in the project opened in its place"
   },
   "action:db.openConsole": {
     "status": "partial",
@@ -4913,7 +4913,7 @@
   },
   "context:dbTableEditorChanges": {
     "status": "partial",
-    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`; off with nothing changed, on after an edit of the focused table editor and off once it is submitted (workbench/database.rs:1965, focused && dirty). Missing: on while a cell is being edited although nothing is staged yet (src/features/database/tableEditorFocus.ts:52, :63), and on for an editable query console result grid with pending edits (src/features/database/ResultsView.tsx:487)"
+    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`, `workbench::tests::proofs43_database_results::submit_revert_and_go_to_column_reach_a_focused_console_result`, `workbench::tests::proofs43_database_results::revert_confirms_the_result_cell_being_edited_and_drops_it`; off with nothing changed, on after an edit of the focused table editor and off once it is submitted; on for an editable query console result grid with pending edits; on while a cell of that grid is being edited although nothing is staged yet, and off after Revert. Missing: a cell being edited in the Database tool window's table editor goes through the same code and has no test (src/features/database/tableEditorFocus.ts:52, :63)"
   },
   "point.registerRunConfigType:shell": {
     "status": "done",
@@ -7440,12 +7440,12 @@
     "proof": "`workbench::database_extras::tests::run_sql_script_runs_a_picked_file_and_a_template_opens_in_the_console`; runs the statements of a picked file on the data source. Missing: the picker's .sql/.ddl filter (the platform's file prompt takes none)"
   },
   "action:db.queryHistory": {
-    "status": "partial",
-    "proof": "`workbench::database_extras::tests::query_history_lists_the_statements_run_and_pastes_one_into_the_console`, `workbench::tests::proofs6_database_console::delete_in_query_history_removes_the_statement_from_the_stored_history`; lists the statements run on the data source, filters them, pastes one into the console and deletes one from the stored history. Read, not tested: the wait lives in the Database slot, which is rebuilt per project (`workbench/database.rs` `reset_database`), as proven for `db.execute`. Missing: the project change while the data sources load is not driven for this action (`src/features/database/requests.ts:20`)"
+    "status": "done",
+    "proof": "`workbench::database_extras::tests::query_history_lists_the_statements_run_and_pastes_one_into_the_console`, `workbench::tests::proofs6_database_console::delete_in_query_history_removes_the_statement_from_the_stored_history`, `workbench::tests::proofs43_database_results::query_history_waiting_for_the_data_sources_is_dropped_when_the_project_changes`; lists the statements run on the data source, filters them, pastes one into the console and deletes one from the stored history. Asked while the data sources are still being read, in a project the window leaves before they are, it opens no dialog in the project opened in its place, whose own history lists only its own statements"
   },
   "action:db.goToColumn": {
-    "status": "partial",
-    "proof": "`workbench::database_extras::tests::go_to_column_lists_the_columns_of_the_table_editor_with_the_keyboard`, `workbench::tests::proofs43_database_results::submit_revert_and_go_to_column_reach_a_focused_console_result`; lists the columns of the table editor, filters them by typing and moves to the chosen one with the keyboard. Acts on a focused console result grid: filters as typed and Enter selects the column. Missing: confirming the cell being edited before Go to Column is not driven by a test (`src/features/database/tableEditorFocus.ts:92`)"
+    "status": "done",
+    "proof": "`workbench::database_extras::tests::go_to_column_lists_the_columns_of_the_table_editor_with_the_keyboard`, `workbench::tests::proofs43_database_results::submit_revert_and_go_to_column_reach_a_focused_console_result`, `workbench::tests::proofs43_database_results::go_to_column_confirms_the_result_cell_being_edited_first`; lists the columns of the table editor, filters them by typing and moves to the chosen one with the keyboard. Acts on a focused console result grid: filters as typed and Enter selects the column. With a result cell still being edited it confirms the typed value first (the cell shows it as a pending edit, nothing written) and then opens the column list"
   },
   "ipc:db_history": {
     "status": "done",
@@ -7493,7 +7493,7 @@
   },
   "point.registerEditorContribution:database.console": {
     "status": "partial",
-    "proof": "`workbench::database_extras::tests::the_console_toolbar_chooses_the_data_source_of_a_plain_sql_file_and_executes_on_it`, `workbench::database_extras::tests::manual_commit_keeps_changes_pending_until_commit_or_roll_back`, `workbench::database_extras::tests::the_console_banner_and_the_query_plan_tab_follow_the_runs`, `workbench::database_extras::tests::query_history_lists_the_statements_run_and_pastes_one_into_the_console`, `workbench::tests::proofs6_database_console::a_sqlite_console_runs_in_the_default_schema_its_completion_model_names`; a .sql file opened in the editor gets the console toolbar: the data source chooser (none assumed with two sources, the pick kept), Execute and Explain Plan on the bound source, Tx: Manual with Commit and Roll Back, the default schema the completion model names, Browse Query History, and the error banner of a failing run cleared by the next one. Missing: the gutter's check and error marks and the statement timing, completion rows in the editor's lookup, the banner's close button, and the exclusion of read-only and virtual SQL documents are not asserted by these tests."
+    "proof": "`workbench::database_extras::tests::the_console_toolbar_chooses_the_data_source_of_a_plain_sql_file_and_executes_on_it`, `workbench::database_extras::tests::manual_commit_keeps_changes_pending_until_commit_or_roll_back`, `workbench::database_extras::tests::the_console_banner_and_the_query_plan_tab_follow_the_runs`, `workbench::database_extras::tests::query_history_lists_the_statements_run_and_pastes_one_into_the_console`, `workbench::tests::proofs6_database_console::a_sqlite_console_runs_in_the_default_schema_its_completion_model_names`; a .sql file opened in the editor gets the console toolbar: the data source chooser (none assumed with two sources, the pick kept), Execute and Explain Plan on the bound source, Tx: Manual with Commit and Roll Back, the default schema the completion model names, Browse Query History, and the error banner of a failing run cleared by the next one. Missing: the gutter's check and error marks and the statement timing are not drawn natively: the outcome's marks are dropped where the banner is set (the MarkOutcomes command in app-gpui/src/workbench/database.rs; webview src/features/database/console.tsx:100-222), which needs a gutter view; completion rows in the editor's lookup, the banner's close button (database/console_view.rs) and the exclusion of read-only SQL documents (workbench/database_extras.rs) exist and are not asserted by these tests"
   },
   "module:src/ui/Input.tsx": {
     "status": "partial",
@@ -8914,5 +8914,17 @@
   "design:messages.pt.json": {
     "status": "partial",
     "proof": "`platform::i18n::tests::catalogs_are_complete_and_well_formed`; the Portuguese keyed catalogue is embedded and parsed (app-gpui/src/platform/i18n.rs:43-75), every message well formed, an English key and with the English parameters. Missing: no test applies the language in a window and reads one of its keyed messages, or the English text of a key the Portuguese catalogue lacks"
+  },
+  "ipc:run_env_files": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs6_debug::a_debug_start_reads_the_configurations_env_files_and_one_that_cannot_be_read_stops_it`; starting a debug session reads the configuration's .env files through the backend: the debuggee is launched with the file's variables, the configuration's own variable winning over the file's, and a file that cannot be read stops the start with the Cannot start debugging notice naming it and no session (src/features/debugger/launch.ts:48)"
+  },
+  "ipc:db_set_ssh_secret": {
+    "status": "partial",
+    "proof": "`workbench::database_extras::tests::saving_a_data_source_with_an_ssh_password_keeps_it_in_the_saved_passwords`; saving a data source with an SSH password in the data source dialog keeps the password in the saved passwords of the temporary home and nowhere else (src/features/database/store.ts:396). Missing: the connect prompt's answer (src/features/database/Dialogs.tsx:80; native database/store.rs) is asked only after an SSH handshake, which the tests' stand-in does not make; an in-process SSH server exists in ide_ssh behind its testing feature, which app-gpui does not enable"
+  },
+  "ipc:db_trust_ssh_host": {
+    "status": "partial",
+    "proof": "`workbench::database_extras::tests::trust_host_in_the_data_source_dialog_asks_the_backend_for_that_source`; Trust Host and Retry in the data source dialog asks the backend to trust that source's host and shows its answer (src/features/database/SourceDialog.tsx:517). Missing: the connect remedy after an unknown host key (src/features/database/store.ts:497; native database/store.rs) needs a real SSH handshake, which the tests' stand-in does not make"
   }
 }
