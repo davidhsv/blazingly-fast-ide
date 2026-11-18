@@ -10806,8 +10806,6 @@ export type Settings_Deserialize = {
 	agents?: AgentSettings_Deserialize,
 	/**  Agents › MCP Server (global only). */
 	mcpServer?: McpServerSettings,
-	/**  Light / Full IDE mode (`ide.mode`): what starts beyond the editor, git, search and the index. */
-	ide?: IdeSettings,
 	/**  Tools › Agents: Command Execution Policy. */
 	agentSecurity?: AgentSecuritySettings,
 	/**  Appearance & Behavior › Scopes: named file sets other settings refer to. */
@@ -10816,6 +10814,8 @@ export type Settings_Deserialize = {
 	fileColors?: FileColorSettings,
 	/**  Database › Query Execution, Languages & Frameworks › SQL Resolution Scopes. */
 	database?: DatabaseSettings,
+	/**  Light / Full IDE mode (`ide.mode`): what starts beyond the editor, git, search and the index. */
+	ide?: IdeSettings,
 	/**  Plugin settings (`[contributes.settings]`): plugin id → its values by key. */
 	plugins?: { [key in string]: { [key in string]: unknown } },
 };
@@ -10880,8 +10880,6 @@ export type Settings_Serialize = {
 	agents: AgentSettings_Serialize,
 	/**  Agents › MCP Server (global only). */
 	mcpServer: McpServerSettings,
-	/**  Light / Full IDE mode (`ide.mode`): what starts beyond the editor, git, search and the index. */
-	ide: IdeSettings,
 	/**  Tools › Agents: Command Execution Policy. */
 	agentSecurity: AgentSecuritySettings,
 	/**  Appearance & Behavior › Scopes: named file sets other settings refer to. */
@@ -10890,6 +10888,8 @@ export type Settings_Serialize = {
 	fileColors: FileColorSettings,
 	/**  Database › Query Execution, Languages & Frameworks › SQL Resolution Scopes. */
 	database: DatabaseSettings,
+	/**  Light / Full IDE mode (`ide.mode`): what starts beyond the editor, git, search and the index. */
+	ide: IdeSettings,
 	/**  Plugin settings (`[contributes.settings]`): plugin id → its values by key. */
 	plugins: { [key in string]: { [key in string]: unknown } },
 };
