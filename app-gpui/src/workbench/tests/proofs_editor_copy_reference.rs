@@ -87,3 +87,31 @@ async fn the_copy_reference_action_copies_the_qualified_name_without_a_popup(cx:
     assert!(workbench.read_with(cx, |w, _| w.copy_path_popup()).is_none());
     close_backend_project(cx);
 }
+
+/// In a window, Copy Reference follows each language's convention: a dotted module path for a Python method
+/// (`pkg.orders.Orders.place`), the package name for a Go function (`server.Run`), and the package with `#` for a
+/// Kotlin member (`com.acme.Svc#get`).
+#[gpui_kit::test]
+async fn copy_reference_follows_the_python_go_and_kotlin_conventions(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let files = [
+        ("pkg/orders.py", "class Orders:\n    def place(self):\n        pass\n"),
+        ("server/run.go", "package server\n\nfunc Run() {\n}\n"),
+        ("src/Svc.kt", "package com.acme\n\nclass Svc {\n    fun get() {\n    }\n}\n"),
+    ];
+    let (_folder, root, workbench, cx) = trusted_project(cx, &files);
+    cx.update(|window, _| window.activate_window());
+    for (file, token, past, expected) in [
+        ("pkg/orders.py", "place", 1, "pkg.orders.Orders.place"),
+        ("server/run.go", "Run", 1, "server.Run"),
+        ("src/Svc.kt", "get", 1, "com.acme.Svc#get"),
+    ] {
+        edit_at(&workbench, &root.join(file), token, past, cx);
+        let row = resolved_reference(&workbench, cx);
+        assert!(row.starts_with(&format!("Reference | {expected} | ")), "{file}: {row}");
+        choose_reference(&workbench, cx);
+        assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()).as_deref(), Some(expected), "{file}");
+        assert_eq!(editor_hint(&workbench, cx), Some(format!("Copied reference: {expected}")), "{file}");
+    }
+    close_backend_project(cx);
+}

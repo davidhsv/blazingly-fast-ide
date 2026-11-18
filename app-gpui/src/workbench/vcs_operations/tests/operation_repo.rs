@@ -105,3 +105,49 @@ async fn merge_and_pull_without_an_argument_start_on_the_active_editor_s_reposit
     run_action(cx, "vcs.pull", None);
     wait_for_form(&workbench, "Pull to dev", cx);
 }
+
+/// Update Selected of the Git log's Branches pane on the current branch of the nested repository updates that
+/// repository only: it takes the commit its remote has, and the outer repository keeps its HEAD though its own
+/// remote has a commit too.
+#[gpui_kit::test]
+async fn update_selected_on_the_current_branch_updates_that_branch_s_repository_only(cx: &mut TestAppContext) {
+    let remotes = [tempfile::tempdir().expect("a temporary folder"), tempfile::tempdir().expect("a temporary folder")];
+    let [outer_parent, inner_parent] = remotes.each_ref().map(|dir| dir.path().canonicalize().expect("it exists"));
+    for parent in [&outer_parent, &inner_parent] {
+        git_in(parent, &["init", "-q", "--bare", "-b", "main", &parent.join("origin.git").to_string_lossy()]);
+    }
+    let (workbench, cx, _dirs, root) = git_project(cx, |root| {
+        init_repo(root);
+        git_in(root, &["remote", "add", "origin", &outer_parent.join("origin.git").to_string_lossy()]);
+        git_in(root, &["push", "-q", "-u", "origin", "main"]);
+        let inner = root.join("inner");
+        std::fs::create_dir(&inner).expect("the folder is made");
+        init_repo(&inner);
+        git_in(&inner, &["remote", "add", "origin", &inner_parent.join("origin.git").to_string_lossy()]);
+        git_in(&inner, &["push", "-q", "-u", "origin", "main"]);
+    });
+    wait_long(cx, "both repositories are found", |cx| {
+        workbench.read_with(cx, |w, _| w.vcs_state().is_some_and(|state| state.roots.len() == 2))
+    });
+    push_from_another_clone(&outer_parent, "o.txt", "outer upstream");
+    push_from_another_clone(&inner_parent, "c.txt", "third");
+    let inner = root.join("inner");
+    let before = git_in(&root, &["rev-parse", "HEAD"]);
+    let main = workbench.read_with(cx, |w, _| {
+        w.vcs_state().and_then(|state| state.branches.iter().find(|b| !b.remote && b.name == "main").cloned())
+    });
+    let main = main.expect("main is listed");
+    assert!(main.current, "{main:?}");
+    let target = crate::vcs_ops::log_pane_actions::BranchTarget {
+        ref_name: "main".to_owned(),
+        repo: Some(inner.to_string_lossy().into_owned()),
+        branch: Some(main),
+    };
+
+    run_action(cx, "vcs.log.branches.update", Some(serde_json::to_value(target).expect("a target")));
+    let dialog = wait_for_form(&workbench, "Update Project", cx);
+    press(&dialog, OK, cx);
+    wait_long(cx, "the update", |_| git_in(&inner, &["log", "-1", "--format=%s"]) == "third");
+    wait_for_notice(&workbench, "1 file updated in 1 commit", cx);
+    assert_eq!(git_in(&root, &["rev-parse", "HEAD"]), before, "the outer repository is not pulled");
+}

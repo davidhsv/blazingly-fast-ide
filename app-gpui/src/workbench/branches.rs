@@ -1004,7 +1004,9 @@ async fn update_branch(
     let branches = branches_of(&this, cx, repo.clone()).await?;
     let branch = branches.into_iter().find(|branch| !branch.remote && branch.name == name);
     if branch.as_ref().is_some_and(|branch| branch.current) {
-        return this.update_in(cx, |_, window, cx| run_action_later("vcs.update".to_owned(), None, window, cx));
+        // The current branch updates its own repository only (`null`: the selected one), not the whole project.
+        let arg = serde_json::json!({ "repo": repo });
+        return this.update_in(cx, |_, window, cx| run_action_later("vcs.update".to_owned(), Some(arg), window, cx));
     }
     let Some(upstream) = branch.and_then(|branch| branch.upstream).filter(|upstream| !upstream.is_empty()) else {
         let warning = vcs_notice(NotificationLevel::Warning, format!("Branch '{name}' has no tracked branch"));

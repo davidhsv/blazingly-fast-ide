@@ -43,8 +43,8 @@ use crate::workbench::notifications::NotificationLevel;
 use gpui_kit::{
     App, AppContext, AsyncWindowContext, Context, Entity, Focusable, PathPromptOptions, WeakEntity, Window,
 };
-use ide_core::IdeError;
 use ide_core::ipc_path::to_ipc;
+use ide_core::{IdeError, RequestId};
 use ide_host::ops::vcs as git;
 use ide_vcs::{Commit, LineHunk, LogQuery};
 use std::path::PathBuf;
@@ -139,7 +139,7 @@ pub(super) fn build_selection_history_tab(
     // Detached: the tab's own subscriptions go with the tab, before the view is released.
     cx.observe_release(&view, |_, view, cx| {
         if let (Some(request), Some(backend)) = (view.pending_request(), cx.try_global::<Backend>()) {
-            backend.host.cancel_request(request);
+            cancel_history_read(backend, request);
         }
     })
     .detach();
@@ -151,6 +151,14 @@ pub(super) fn build_selection_history_tab(
         viewer.update(cx, |viewer, cx| viewer.follow_editor_settings(&label, cx));
     });
     Some(TabView::new(SELECTION_HISTORY_KIND, input.clone(), &view, cx).with_subscription(events))
+}
+
+/// Cancels `request`, the history read a History for Selection tab no longer waits for.
+fn cancel_history_read(backend: &Backend, request: RequestId) {
+    // The cancelled read leaves nothing a test could see: the tests hear of it here.
+    #[cfg(test)]
+    tests::CANCELLED_READS.with_borrow_mut(|cancelled| cancelled.push(request));
+    backend.host.cancel_request(request);
 }
 
 /// Builds the view of an external Git log tab.
@@ -290,7 +298,7 @@ impl Workbench {
         let open = self.selection_history_view().filter(|view| view.read(cx).data() != &data);
         if let Some(view) = open {
             if let (Some(request), Some(backend)) = (view.read(cx).pending_request(), cx.try_global::<Backend>()) {
-                backend.host.cancel_request(request);
+                cancel_history_read(backend, request);
             }
             view.update(cx, |view, cx| view.reload(data, cx));
         }
@@ -384,6 +392,12 @@ mod tests {
     use gpui_kit::{TestAppContext, VisualTestContext};
     use ide_workspace::settings::SettingsScope;
     use std::path::Path;
+
+    thread_local! {
+        /// The history reads of History for Selection tabs cancelled on this thread, oldest first.
+        pub(super) static CANCELLED_READS: std::cell::RefCell<Vec<RequestId>> =
+            const { std::cell::RefCell::new(Vec::new()) };
+    }
 
     /// `c.txt` before both sides: three lines that each side changes, far enough apart that the merge
     /// keeps three conflicts.
@@ -763,6 +777,79 @@ mod tests {
         assert!(view.read_with(cx, |view, _| view.pending_request().is_none()), "the request is answered");
         // The tab is no text editor: the action is off there.
         assert!(!enabled(SHOW_HISTORY_FOR_SELECTION, cx));
+    }
+
+    /// A repository whose `b.txt` was committed as "one\ntwo\nthree\n" and then had its second line shouted.
+    fn shouted_project(
+        cx: &mut TestAppContext,
+    ) -> (Entity<Workbench>, &mut VisualTestContext, [tempfile::TempDir; 2], PathBuf) {
+        git_project(cx, |root| {
+            init_repo(root);
+            for (text, message) in [("one\ntwo\nthree\n", "add b"), ("one\nTWO\nthree\n", "Shout two")] {
+                std::fs::write(root.join("b.txt"), text).expect("the file is written");
+                git_in(root, &["add", "."]);
+                git_in(root, &["commit", "-q", "-m", message]);
+            }
+        })
+    }
+
+    fn history_tabs(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Vec<String> {
+        let titles = workbench.read_with(cx, |w, _| w.tab_titles());
+        titles.into_iter().map(|title| title.name).filter(|name| name.starts_with("History: ")).collect()
+    }
+
+    /// Show History for Selection asked again for the same lines shows the tab already open for them, now with
+    /// the editor's text as it is: its Local Changes show the newer edit, and no second tab opens.
+    #[gpui_kit::test]
+    async fn show_history_for_selection_asked_again_for_the_same_lines_reloads_its_tab(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = shouted_project(cx);
+        let editor = open_in_editor(&workbench, &root, "b.txt", cx);
+        let after_two = offset_of(&editor, "TWO", cx) + 3;
+        let local_changes = |cx: &mut VisualTestContext| {
+            let view = workbench.read_with(cx, |w, _| w.selection_history_view())?;
+            if view.read_with(cx, |view, _| view.is_loading()) {
+                return None;
+            }
+            view.read_with(cx, |view, _| view.shown().map(|shown| shown.right.clone()))
+        };
+        caret_at(&workbench, &editor, after_two, cx);
+        cx.simulate_input("!");
+        cx.run_until_parked();
+        run_action(cx, SHOW_HISTORY_FOR_SELECTION, None);
+        wait_long(cx, "the history is read", |cx| local_changes(cx).as_deref() == Some("TWO!\n"));
+        assert_eq!(history_tabs(&workbench, cx), ["History: b.txt:2-2"]);
+
+        let editor = open_in_editor(&workbench, &root, "b.txt", cx);
+        caret_at(&workbench, &editor, after_two + 1, cx);
+        cx.simulate_input("?");
+        cx.run_until_parked();
+        run_action(cx, SHOW_HISTORY_FOR_SELECTION, None);
+        wait_long(cx, "the history is read again", |cx| local_changes(cx).as_deref() == Some("TWO!?\n"));
+        assert_eq!(history_tabs(&workbench, cx), ["History: b.txt:2-2"], "the tab of these lines is reused");
+        let view = workbench.read_with(cx, |w, _| w.selection_history_view()).expect("the tab is shown");
+        assert_eq!(view.read_with(cx, |view, _| view.data().text.clone()), "one\nTWO!?\nthree\n");
+    }
+
+    /// Closing a History for Selection tab while its history is still being read cancels that read.
+    #[gpui_kit::test]
+    async fn closing_a_history_for_selection_tab_still_reading_cancels_the_read(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = shouted_project(cx);
+        let editor = open_in_editor(&workbench, &root, "b.txt", cx);
+        caret_at(&workbench, &editor, offset_of(&editor, "TWO", cx), cx);
+        // Neither call lets the backend's answer in: the tab is closed while it waits for it.
+        let run_now = |id: &str, cx: &mut VisualTestContext| {
+            cx.update(|window, cx| crate::platform::actions::execute_action_or_throw(id, None, window, cx))
+                .unwrap_or_else(|error| panic!("{id} runs: {error}"));
+        };
+        run_now(SHOW_HISTORY_FOR_SELECTION, cx);
+        let pending = workbench.read_with(cx, |w, cx| w.selection_history_view().map(|v| v.read(cx).pending_request()));
+        let request = pending.flatten().expect("the tab waits for its history");
+        CANCELLED_READS.with_borrow_mut(Vec::clear);
+
+        run_now("editor.closeTab", cx);
+        cx.run_until_parked();
+        assert!(history_tabs(&workbench, cx).is_empty(), "the tab is closed");
+        assert_eq!(CANCELLED_READS.with_borrow(Clone::clone), [request], "the read it waited for is cancelled");
     }
 
     /// Open External Git Log… asks for folders and opens the log of the picked repository in a tab

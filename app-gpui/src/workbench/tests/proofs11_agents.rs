@@ -683,3 +683,62 @@ async fn keeps_the_transcript_and_running_session_when_a_fresh_session_rerun_is_
     assert_eq!(count(&calls, "session/prompt"), 1, "{calls:?}");
     workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
 }
+
+/// Terminal of a worktree task's menu opens a tab named after the task's folder whose shell starts there; a task
+/// in the project's own checkout has no such row.
+#[gpui_kit::test]
+async fn the_terminal_row_of_a_worktree_tasks_menu_opens_a_shell_in_its_folder(cx: &mut TestAppContext) {
+    let home = start(cx);
+    install_fake_agent(home.path(), cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("README.md", "A project for agents.\n")]);
+    init_repo(&root);
+    cx.update(|_, cx| crate::terminal::test_support::isolate_shells(home.path(), cx));
+    crate::terminal::test_support::plain_shell(home.path());
+    cx.update(|window, _| window.activate_window());
+    let store = workbench.read_with(cx, |w, _| w.agents_store()).expect("the project has its agents");
+    wait_long(cx, "the agents to be listed", |cx| {
+        store.read_with(cx, |store, _| store.loaded && store.provider("fake").is_some_and(|p| p.installed))
+    });
+    let local = finished_task(&workbench, &store, "Local greeting", cx);
+    store.update(cx, |store, cx| {
+        store.draft.isolation = Isolation::Worktree;
+        store.draft.isolation_chosen = true;
+        cx.notify();
+    });
+    let worktree = finished_task(&workbench, &store, "Worktree greeting", cx);
+    let folder = store.read_with(cx, |store, _| store.task(&worktree).map(|t| t.cwd.0.clone())).expect("the task");
+    assert!(folder.is_dir() && folder != root, "{folder:?}");
+    let menu_rows = |workbench: &Entity<Workbench>, cx: &mut VisualTestContext| {
+        let menu = workbench.read_with(cx, |w, _| w.open_menu::<TaskCommand>()).expect("the task menu is open");
+        let lines = menu.read_with(cx, |menu, _| menu.lines());
+        lines[0].iter().map(|line| line.trim_start_matches("> ").to_owned()).collect::<Vec<_>>()
+    };
+
+    open_task(&workbench, &local, cx);
+    open_history(&workbench, cx);
+    right_click_row(cx, &local);
+    let rows = menu_rows(&workbench, cx);
+    assert!(!rows.iter().any(|row| row == "Terminal"), "{rows:?}");
+    cx.simulate_keystrokes("escape");
+    cx.run_until_parked();
+
+    open_task(&workbench, &worktree, cx);
+    open_history(&workbench, cx);
+    right_click_row(cx, &worktree);
+    choose_in_menu(&workbench, "Terminal", cx);
+    wait_long(cx, "the terminal tab", |cx| {
+        workbench.read_with(cx, |w, cx| w.terminal_panel().is_some_and(|p| p.read(cx).active_view().is_some()))
+    });
+    let panel = workbench.read_with(cx, |w, _| w.terminal_panel()).expect("the Terminal is shown");
+    let name = folder.file_name().expect("a name").to_string_lossy().into_owned();
+    assert_eq!(panel.read_with(cx, |panel, _| panel.tab_titles()), [(name.clone(), true)]);
+    let shell = panel.read_with(cx, |panel, _| panel.active_view().cloned()).expect("a tab shows");
+    cx.update(|window, cx| window.focus(&shell.focus_handle(cx), cx));
+    cx.simulate_input("echo at-$(basename \"$PWD\")-$((6*7))");
+    cx.simulate_keystrokes("enter");
+    let expected = format!("at-{name}-42");
+    wait_long(cx, "the shell answers", |cx| {
+        shell.read_with(cx, |view, _| view.emulator().lines().join("\n")).contains(&expected)
+    });
+    workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
+}

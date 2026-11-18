@@ -388,3 +388,78 @@ async fn the_branch_chosen_for_the_log_is_remembered_when_the_project_is_opened_
     assert_eq!(listed, ["feature work", "three", "two", "one"]);
     cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
 }
+
+/// Chooses `feature` in the Branch filter of the log, opening the chooser's Local group when it is closed, and
+/// waits for feature's commits.
+fn choose_feature(log: &Entity<GitLog>, cx: &mut VisualTestContext) {
+    let bar = log.read_with(cx, |log, _| log.filter_bar().cloned()).expect("the log has the filter bar");
+    click_on(cx, "log-filter-chip-branch");
+    let row_of = |cx: &mut VisualTestContext, wanted: &dyn Fn(&BranchFilterRow) -> bool| {
+        bar.update(cx, |bar, cx| bar.branch_lines(cx)).unwrap_or_default().iter().position(wanted)
+    };
+    let is_feature = |row: &BranchFilterRow| matches!(row, BranchFilterRow::Ref { value, .. } if value == "feature");
+    if row_of(cx, &is_feature).is_none() {
+        let is_local = |row: &BranchFilterRow| matches!(row, BranchFilterRow::Group { label, .. } if label == "Local");
+        let local = row_of(cx, &is_local).expect("the chooser lists the local branches");
+        click_on(cx, Box::leak(format!("log-filter-branch-{local}").into_boxed_str()));
+    }
+    let row = row_of(cx, &is_feature).expect("the chooser lists feature");
+    click_on(cx, Box::leak(format!("log-filter-branch-{row}").into_boxed_str()));
+    wait_long(cx, "feature's log", |cx| subjects(log, cx) == ["feature work", "two", "one"]);
+}
+
+/// A remembered branch deleted while the project was closed is dropped: opened again, the log shows the current
+/// branch and its Branch chip reads HEAD.
+#[gpui_kit::test]
+async fn a_remembered_branch_deleted_meanwhile_leaves_the_log_on_the_current_branch(cx: &mut TestAppContext) {
+    let (workbench, cx, _folders, root) = git_project(cx, main_and_feature);
+    let log = open_log(&workbench, 3, cx);
+    choose_feature(&log, cx);
+    let repo = workbench
+        .read_with(cx, |w, _| w.vcs_state().and_then(|vcs| vcs.current_repo_root().map(str::to_owned)))
+        .expect("the project is a repository");
+    let remembered =
+        cx.update(|_, cx| cx.try_global::<UiStorage>().and_then(|storage| remembered_log_branches(storage, &repo)));
+    assert_eq!(remembered.as_deref(), Some(&["feature".to_owned()][..]));
+
+    git_in(&root, &["branch", "-q", "-D", "feature"]);
+    let (chip, listed) = reopened_log(&workbench, &root, (&["HEAD"], 3), cx);
+    assert_eq!(chip.as_deref(), Some("HEAD"), "the deleted branch is dropped");
+    assert_eq!(listed, ["three", "two", "one"]);
+    cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+}
+
+/// In a project of several repositories the log does not settle on a remembered branch: the branch chosen while the
+/// project held one repository is not applied once it holds a second one, and the log shows every branch.
+#[gpui_kit::test]
+async fn a_project_of_several_repositories_opens_its_log_on_every_branch(cx: &mut TestAppContext) {
+    let (workbench, cx, _folders, root) = git_project(cx, main_and_feature);
+    let log = open_log(&workbench, 3, cx);
+    choose_feature(&log, cx);
+
+    run_action(cx, "file.closeProject", None);
+    assert!(workbench.read_with(cx, |w, _| w.project_tree().is_none()), "the project is closed");
+    let inner = root.join("inner");
+    std::fs::create_dir(&inner).expect("the folder is made");
+    prepare(&inner);
+    git_dated(&inner, &["commit", "-q", "--allow-empty", "-m", "inner one"], 20);
+    let path = root.clone();
+    workbench.update_in(cx, |workbench, window, cx| workbench.open_project(path, window, cx));
+    wait_long(cx, "both repositories are read", |cx| {
+        workbench.read_with(cx, |w, _| w.vcs_state().is_some_and(|vcs| vcs.roots.len() == 2 && vcs.branches_loaded))
+    });
+    if !workbench.read_with(cx, |w, _| w.is_tool_window_visible(GIT_TOOL_WINDOW)) {
+        run_action(cx, "toolwindow.git", None);
+    }
+    let log = workbench.read_with(cx, |w, _| w.git_log_view()).expect("the Git window holds the log");
+    wait_long(cx, "every branch is read", |cx| {
+        log.read_with(cx, |log, _| !log.is_loading() && log.filters().branches.is_empty())
+            && subjects(&log, cx).iter().any(|subject| subject == "three")
+    });
+    let listed = subjects(&log, cx);
+    assert!(listed.iter().any(|s| s == "feature work") && listed.iter().any(|s| s == "three"), "{listed:?}");
+    let bar = log.read_with(cx, |log, _| log.filter_bar().cloned()).expect("the log has the filter bar");
+    let chip = bar.read_with(cx, |bar, _| bar.chips().into_iter().find(|(kind, _)| *kind == FilterKind::Branch));
+    assert_eq!(chip.and_then(|(_, value)| value), None, "the chip is empty");
+    cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+}

@@ -2765,14 +2765,66 @@ mod tests {
 
     /// Makes a `fixup!` commit for `target` from a change to a.txt and starts Commit and Rebase.
     fn commit_and_rebase_fixup(workbench: &Entity<Workbench>, root: &Path, target: &str, cx: &mut VisualTestContext) {
+        commit_and_rebase_into(workbench, root, "vcs.log.fixup", target, cx);
+    }
+
+    /// Prepares the commit message with `action` (Fixup… or Squash Into…) for `target`, commits a change to a.txt
+    /// with it and starts Commit and Rebase.
+    fn commit_and_rebase_into(
+        workbench: &Entity<Workbench>,
+        root: &Path,
+        action: &str,
+        target: &str,
+        cx: &mut VisualTestContext,
+    ) {
         std::fs::write(root.join("a.txt"), "fixed\n").expect("the file is written");
         wait_long(cx, "the change is read", |cx| {
             workbench.read_with(cx, |w, _| w.vcs_state().is_some_and(|state| state.status.len() == 1))
         });
-        run_action(cx, "vcs.log.fixup", Some(json!(target)));
+        run_action(cx, action, Some(json!(target)));
         let commit_box = workbench.read_with(cx, |w, _| w.commit_box().cloned()).expect("the commit box");
         wait_long(cx, "the box counts the change", |cx| commit_box.read_with(cx, |b, _| b.input().included == 1));
         commit_box.update(cx, |commit_box, cx| commit_box.commit(false, true, cx));
+    }
+
+    /// Commit and Rebase after Squash Into… a pushed commit of `main`, a protected branch by default: the
+    /// `squash!` commit is made, the rebase into the pushed commit is refused with the protected branch's error
+    /// and the pushed commits stay as they are.
+    #[gpui_kit::test]
+    async fn squash_into_a_pushed_commit_of_a_protected_branch_is_refused(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = pushed_project(cx, "main");
+        show_log(&workbench, 4, cx);
+        let three = rev(&root, "HEAD~1");
+        let before = history(&root);
+        commit_and_rebase_into(&workbench, &root, "vcs.log.squashInto", &three, cx);
+        let dialog = wait_for_prompt(&workbench, cx);
+        let shown = dialog.read_with(cx, |d, _| (d.title().to_owned(), d.message_text().map(str::to_owned)));
+        let refusal = "Pushed commits of the protected branch 'main' cannot be rewritten";
+        assert_eq!(shown, ("Cannot rebase".to_owned(), Some(refusal.to_owned())));
+        dismiss_prompt(&workbench, cx);
+        let after = history(&root);
+        assert_eq!(after[1..], before[..], "only the squash commit is added");
+        assert_eq!(subjects_in(&root)[0], "squash! three");
+    }
+
+    /// Commit and Rebase after Squash Into… a pushed commit of a branch that is not protected asks first, saying
+    /// the commit is on the upstream: declining leaves the `squash!` commit on top of the pushed ones.
+    #[gpui_kit::test]
+    async fn squash_into_a_pushed_commit_asks_first_and_rewrites_nothing_when_declined(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = pushed_project(cx, "feature");
+        show_log(&workbench, 4, cx);
+        let three = rev(&root, "HEAD~1");
+        let before = history(&root);
+        commit_and_rebase_into(&workbench, &root, "vcs.log.squashInto", &three, cx);
+        let dialog = wait_for_prompt(&workbench, cx);
+        let shown = dialog.read_with(cx, |d, _| (d.title().to_owned(), d.message_text().map(str::to_owned)));
+        let warning = "The commit is already pushed to origin/feature. Rebase rewrites published history; pushing \
+                       afterwards needs a force push.";
+        assert_eq!(shown, ("Rebase".to_owned(), Some(warning.to_owned())));
+        dismiss_prompt(&workbench, cx);
+        let after = history(&root);
+        assert_eq!(after[1..], before[..], "the declined rebase leaves the squash commit on top");
+        assert_eq!(subjects_in(&root)[0], "squash! three");
     }
 
     /// A commit already on the branch's upstream (a local bare repository) keeps the history rewriting

@@ -149,6 +149,37 @@ async fn ignores_an_image_after_its_target_is_replaced_during_upload(cx: &mut Te
     assert_eq!(reported, [("Cannot paste clipboard media".to_owned(), Some("upload failed".to_owned()))]);
 }
 
+/// A copied picture pasted with ⌘V whose session ends while the picture is being stored: when the store comes
+/// back, failed here, the terminal neither types anything nor reports the failure of a session it no longer runs.
+#[gpui_kit::test]
+async fn pastes_nothing_when_the_session_ends_while_the_picture_is_stored(cx: &mut TestAppContext) {
+    let (view, cx, failures, dirs) = pasting_shell(cx);
+    // A plain file where the pictures' folder goes: storing the picture fails.
+    let data = dirs[0].path().join("data");
+    std::fs::create_dir_all(&data).expect("the data folder is made");
+    std::fs::write(data.join("terminal-images"), "not a folder\n").expect("the file is written");
+    let id = view.read_with(cx, |view, _| view.id).expect("the shell runs");
+    let picture = Image::from_bytes(ImageFormat::Png, vec![0x89, b'P', b'N', b'G', 4, 5, 6]);
+    clipboard(vec![ClipboardEntry::Image(picture)], cx);
+    print_words(cx);
+    settle(cx, "the words are typed", |cx| joined(&view, cx).contains("printf"));
+    // Neither step lets the stored picture's answer in: the session ends while it is being stored.
+    let window = cx.window_handle();
+    cx.dispatch_keystroke(window, gpui_kit::Keystroke::parse("cmd-v").expect("a keystroke"));
+    assert_eq!(view.read_with(cx, |view, _| view.storing), 1, "the picture is being stored");
+    let ended = crate::backend::BackendEvent {
+        window: None,
+        event: ide_core::IdeEvent::TerminalExited { terminal: id, code: Some(0) },
+    };
+    view.update(cx, |view, cx| view.backend_event(&ended, cx));
+
+    settle(cx, "the store comes back", |cx| view.read_with(cx, |view, _| view.storing == 0));
+    let shown = joined(&view, cx);
+    assert!(shown.contains("[Process completed]"), "{shown}");
+    assert!(!shown.contains(".png"), "no path is typed: {shown}");
+    assert!(failures.borrow().is_empty(), "{:?}", failures.borrow());
+}
+
 // src/features/terminal/paste.test.ts › rejects oversized %s images before reading or uploading
 /// A copied picture over 20 MB is not stored: the paste says so and types nothing.
 #[gpui_kit::test]

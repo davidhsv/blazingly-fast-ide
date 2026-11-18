@@ -1379,6 +1379,87 @@ mod tests {
         f.close(cx);
     }
 
+    /// Waits until the project's index finds a file of each of `names`.
+    fn indexed(names: &[&str], cx: &mut VisualTestContext) {
+        settle(cx, "the index", |cx| {
+            cx.update(|_, cx| {
+                let host = cx.global::<Backend>().host.clone();
+                names.iter().all(|name| {
+                    let found = cx.global::<Backend>().block_on(ide_host::ops::nav::find_files(
+                        &host,
+                        "w1",
+                        (*name).to_owned(),
+                        50,
+                    ));
+                    found.is_ok_and(|found| !found.is_empty())
+                })
+            })
+        });
+    }
+
+    /// Go to Test on a file without tests, with the file templates, opens the chooser titled "Choose Test for
+    /// alone (0 found)" holding Create New Test… alone.
+    #[gpui_kit::test]
+    async fn go_to_test_on_a_file_without_tests_offers_create_new_test_alone_in_a_chooser_of_none_found(
+        cx: &mut TestAppContext,
+    ) {
+        let files =
+            [("src/alone.py", "def one():\n    return 1\n"), ("tests/test_calc.py", "def test_add():\n    pass\n")];
+        let (f, cx) = open(cx, &files, "src/alone.py", None);
+        indexed(&["alone.py", "test_calc.py"], cx);
+        f.run(cx, "navigate.gotoTest");
+        let list = f.popup_list(cx);
+        assert_eq!(list.read_with(cx, |list, _| list.title().to_owned()), "Choose Test for alone (0 found)");
+        let lines = list.read_with(cx, |list, _| list.lines());
+        assert_eq!(lines.len(), 1, "{lines:?}");
+        assert!(lines[0].starts_with("Create New Test…"), "{lines:?}");
+        cx.simulate_keystrokes("escape");
+        settle(cx, "the list popup closes", |cx| {
+            f.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>().is_none())
+        });
+        f.close(cx);
+    }
+
+    /// Go to Test on a Rust file without tests offers Create New Test…, which adds a test module at the end of the
+    /// file, on a line of its own, with the caret in the body of its test; the file's text before it is kept. A file
+    /// that turned read-only while the chooser was open gets nothing.
+    #[gpui_kit::test]
+    async fn go_to_test_s_create_new_test_adds_a_test_module_to_a_rust_file(cx: &mut TestAppContext) {
+        let files = [("src/lexer.rs", "pub fn lex() {}"), ("src/parser.rs", "pub fn parse() {}\n")];
+        let (f, cx) = open(cx, &files, "src/lexer.rs", None);
+        indexed(&["lexer.rs", "parser.rs"], cx);
+        f.run(cx, "navigate.gotoTest");
+        let list = f.popup_list(cx);
+        assert_eq!(list.read_with(cx, |list, _| list.title().to_owned()), "Choose Test for lexer (0 found)");
+        let lines = list.read_with(cx, |list, _| list.lines());
+        assert!(lines.len() == 1 && lines[0].starts_with("Create New Test…"), "{lines:?}");
+        cx.simulate_keystrokes("enter");
+        let expected = "pub fn lex() {}\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n\n    #[test]\n    fn it_works() {\n        \n    }\n}\n";
+        settle(cx, "the test module", |cx| f.text(cx) == expected);
+        let body =
+            expected.find("fn it_works() {\n        ").expect("the test function") + "fn it_works() {\n        ".len();
+        let caret = f.active(cx).read_with(cx, |editor, _| editor.caret());
+        assert_eq!(caret as usize, body, "the caret is in the test's body");
+
+        // An editor that turned read-only while the chooser was open is left as it is.
+        let parser = f.root.join("src/parser.rs");
+        f.workbench.update_in(cx, |w, window, cx| w.open_project_file(parser.clone(), window, cx));
+        settle(cx, "the editor of parser", |cx| f.at(cx).is_some_and(|(path, _)| path == parser));
+        f.run(cx, "navigate.gotoTest");
+        let list = f.popup_list(cx);
+        let lines = list.read_with(cx, |list, _| list.lines());
+        assert!(lines[0].starts_with("Create New Test…"), "{lines:?}");
+        let editor = f.active(cx);
+        editor.update(cx, |editor, cx| editor.set_read_only(true, cx));
+        cx.simulate_keystrokes("enter");
+        settle(cx, "the list popup closes", |cx| {
+            f.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>().is_none())
+        });
+        idle(cx);
+        assert_eq!(f.text(cx), "pub fn parse() {}\n", "nothing is added to a read-only file");
+        f.close(cx);
+    }
+
     /// Next Occurrence steps through the problems of the Problems window and the status bar says
     /// which of how many for a while; ⌥⌘↑ in the editor steps back.
     #[gpui_kit::test]

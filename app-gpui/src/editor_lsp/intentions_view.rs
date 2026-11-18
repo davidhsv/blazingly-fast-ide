@@ -285,6 +285,15 @@ impl ListPopup {
         }
     }
 
+    /// The diff the preview panel shows, line by line with whether each was added or removed, and its note;
+    /// `None` while no diff is shown.
+    pub fn preview_diff(&self) -> Option<(Vec<DiffLine>, Option<String>)> {
+        match self.shown_preview()? {
+            Shown::Preview(ListPreview::Diff { lines, note }) => Some((lines.clone(), note.clone())),
+            Shown::Loading | Shown::Preview(ListPreview::Text(_)) => None,
+        }
+    }
+
     fn mnemonic(&self, index: usize) -> Option<usize> {
         (self.options.numbered && self.query.is_empty() && index < 9).then_some(index + 1)
     }

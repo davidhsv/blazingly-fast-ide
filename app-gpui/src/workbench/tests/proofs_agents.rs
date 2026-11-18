@@ -46,9 +46,14 @@ for line in sys.stdin:
 
 /// A trusted project in an active window whose agent `fake` is [`CAPABLE_AGENT`].
 fn capable_agents_project<'a>(cx: &'a mut TestAppContext, home: &std::path::Path) -> AgentsFixture<'a> {
+    scripted_agents_project(cx, home, CAPABLE_AGENT)
+}
+
+/// A trusted project in an active window whose agent `fake` runs `script`.
+fn scripted_agents_project<'a>(cx: &'a mut TestAppContext, home: &std::path::Path, script: &str) -> AgentsFixture<'a> {
     install_fake_agent(home, cx);
     // The agent's file names this script; nothing has started it yet.
-    std::fs::write(home.join("fake_agent.py"), CAPABLE_AGENT).expect("the agent script is written");
+    std::fs::write(home.join("fake_agent.py"), script).expect("the agent script is written");
     let (folder, _root, workbench, cx) = trusted_project(cx, &[("README.md", "A project for agents.\n")]);
     cx.update(|window, _| window.activate_window());
     let store = workbench.read_with(cx, |w, _| w.agents_store()).expect("the project has its agents");
@@ -131,6 +136,45 @@ async fn an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts(cx:
     assert!(shows(&workbench, "agent: Answer 1", cx), "{:?}", agent_conversation(&workbench, cx));
     let draft = store.read_with(cx, |store, _| store.composer(&task));
     assert!(draft.text.contains("Say hello again"), "{draft:?}");
+    workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
+}
+
+/// An agent that offers to copy its session and then refuses: Fork Conversation from Here and Fork each
+/// report "Couldn't fork the task" with the agent's reason, and no task is added.
+#[gpui_kit::test]
+async fn a_fork_the_agent_refuses_is_reported_as_a_failed_fork(cx: &mut TestAppContext) {
+    let home = start(cx);
+    let refusing = CAPABLE_AGENT.replace(
+        r#"answer(request, {"sessionId": "capable-copy"})"#,
+        r#"send({"jsonrpc": "2.0", "id": request, "error": {"code": -32000, "message": "fork refused"}})"#,
+    );
+    assert_ne!(refusing, CAPABLE_AGENT, "the agent refuses to fork");
+    let (_folder, workbench, store, cx) = scripted_agents_project(cx, home.path(), &refusing);
+    let task = start_agent_task(&workbench, &store, "Say hello", cx);
+    wait_long(cx, "the first reply", |cx| {
+        !agent_working(&store, &task, cx) && shows(&workbench, "agent: Answer 1", cx)
+    });
+    let failures = |cx: &mut VisualTestContext| {
+        workbench.read_with(cx, |w, _| {
+            let items = w.notifications().items();
+            let failed = items.iter().filter(|n| n.title == crate::agents::reply_actions::FORK_FAILED);
+            failed.map(|n| (n.level, n.body.clone().unwrap_or_default())).collect::<Vec<_>>()
+        })
+    };
+
+    run_action(cx, "agents.forkReply", Some(serde_json::json!({ "task": task, "turn": 0 })));
+    wait_long(cx, "the failed branch", |cx| failures(cx).len() == 1);
+    let shown = failures(cx);
+    assert_eq!(shown[0].0, NotificationLevel::Error, "{shown:?}");
+    assert!(shown[0].1.contains("fork refused"), "{shown:?}");
+    assert_eq!(store.read_with(cx, |store, _| store.tasks().len()), 1);
+
+    run_action(cx, "agents.forkTask", Some(serde_json::json!(task)));
+    wait_long(cx, "the failed fork", |cx| failures(cx).len() == 2);
+    let shown = failures(cx);
+    assert_eq!(shown[1].0, NotificationLevel::Error, "{shown:?}");
+    assert!(shown[1].1.contains("fork refused"), "{shown:?}");
+    assert_eq!(store.read_with(cx, |store, _| store.tasks().len()), 1);
     workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
 }
 

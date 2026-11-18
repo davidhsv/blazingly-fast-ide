@@ -285,6 +285,43 @@ async fn a_context_action_that_edits_two_files_changes_both(cx: &mut TestAppCont
     f.close(cx);
 }
 
+/// The preview of a context action that edits the open file shows the change as a diff: the line as it is,
+/// removed, then the line as the action leaves it, added, with a note for the other file it changes.
+#[gpui_kit::test]
+async fn a_context_actions_preview_shows_its_change_as_a_diff(cx: &mut TestAppContext) {
+    use crate::editor_lsp::workspace_edit::DiffLine;
+    let files = [("a.mock", "let foo = 1\n"), ("b.mock", "foo()\n")];
+    let (f, cx) = open_with(cx, &files, "a.mock", json!({}));
+    let (a, b) = (f.root.join("a.mock"), f.root.join("b.mock"));
+    let rename = json!({
+        "title": "Rename to bar everywhere",
+        "kind": "refactor.rewrite",
+        "edit": { "changes": {
+            format!("file://{}", a.display()): [{ "range": range(0, 4, 7), "newText": "bar" }],
+            format!("file://{}", b.display()): [{ "range": range(0, 0, 3), "newText": "bar" }],
+        } },
+    });
+    f.server.answer(json!({ "textDocument/codeAction": [rename] }));
+    f.put_caret(cx, 5);
+    f.run(cx, "code.showIntentions");
+    let intelligence = f.intelligence(cx);
+    settle(cx, "the intentions list", |cx| intelligence.read_with(cx, |this, _| this.intentions().is_some()));
+    let list = intelligence.read_with(cx, |this, _| this.intentions()).expect("the intentions");
+    settle(cx, "the intention's diff", |cx| list.read_with(cx, |list, _| list.preview_diff().is_some()));
+    let (lines, note) = list.read_with(cx, |list, _| list.preview_diff()).expect("a diff");
+    let changed: Vec<&DiffLine> = lines.iter().filter(|line| !matches!(line, DiffLine::Context(_))).collect();
+    assert_eq!(
+        changed,
+        [&DiffLine::Removed("let foo = 1".to_owned()), &DiffLine::Added("let bar = 1".to_owned())],
+        "{lines:?}"
+    );
+    assert_eq!(note.as_deref(), Some("Also changes 1 other file"));
+    cx.simulate_keystrokes("escape");
+    settle(cx, "the list closes", |cx| intelligence.read_with(cx, |this, _| this.intentions().is_none()));
+    assert_eq!(f.text(cx), "let foo = 1\n", "a preview changes nothing");
+    f.close(cx);
+}
+
 /// A quick fix of an inspection's problem has a → menu: → opens it on the first control, ↓ moves in
 /// it, ← closes it again; choosing Disable inspection there turns the inspection off and leaves the
 /// fix itself unapplied.
