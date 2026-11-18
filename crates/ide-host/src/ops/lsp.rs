@@ -1727,9 +1727,17 @@ pub async fn lsp_call_hierarchy(
     let cancel = host.begin_request(request);
     let result = match project.lsp.call_hierarchy(doc, pos, direction, cancel.clone()).await {
         // No server answers (Blaze mode, or none for the language): callers / callees by text.
+        // In Deep mode, with nothing callable there either, the server's answer says why there
+        // is no hierarchy (no server for the language).
         Err(e) if e.kind == ErrorKind::Unavailable && !cancel.is_cancelled() => {
+            let deep = project.settings.effective().ide.mode.is_full();
             let syntax = host.syntax();
-            blocking(move || super::text_usages::call_hierarchy(&project, &syntax, doc, pos, direction, &cancel)).await
+            match blocking(move || super::text_usages::call_hierarchy(&project, &syntax, doc, pos, direction, &cancel))
+                .await
+            {
+                Err(text) if deep && text.kind == ErrorKind::NotFound => Err(e),
+                result => result,
+            }
         }
         result => result,
     };
