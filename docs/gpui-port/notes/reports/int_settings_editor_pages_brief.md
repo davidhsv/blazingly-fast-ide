@@ -46,7 +46,9 @@ If the whole draft cannot land within your budget, land page by page in the orde
 
 ## Changed since
 
-BEFORE LAUNCH (for the manager; delete this paragraph then): say HEAD, what landed since the draft (`e3af47146`), and refresh `$S/undeclared_now.txt`.
+HEAD is the commit `git log -1` shows (the worktree is clean except docs the manager is editing: do not touch `docs/`). Since the draft (`e3af47146`) landed, among others: the Editor Tabs settings, the remote folder chooser, wiring batch 1 (the TODO preview is an editable editor now; breakpoints move with edits), three tests-only harvests, the Services tree's folder nodes (`app-gpui/src/run_testing/services.rs`), and a fix of the tool window stripe buttons (a click's action is deferred out of the listener: a listener of a view must never run an action whose handler updates that same view; use `window.defer` as `app-gpui/src/workbench/mod.rs` does for the stripe button). The undeclared files to leave alone are listed in `$S/undeclared_now.txt` (refreshed at this HEAD; your own draft's files are in it: those you declare). The suite at this HEAD: 8,436 tests.
+
+The owner uses release builds of this branch daily now. In your report, add a section "Mouse paths not tested": every clickable thing your slice adds or wires (buttons, rows, menu rows, links) for which no test clicks it.
 
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 
