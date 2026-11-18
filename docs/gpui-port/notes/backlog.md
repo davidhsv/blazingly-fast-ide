@@ -1072,3 +1072,14 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - Found by the reader, owed: links in a hover do nothing (`editor/intelligence.rs:1214` ignores documentation-link clicks).
 - REMOTE CHOOSER VERIFIED and committed (code e8bf3a1fd, D175; 1,192/3,782, no row raised: third slice in a row without a raised row). Cargo free. NEXT cargo: WIRING BATCH 1 (`$S/int_wiring_batch1_brief.md`, scratch `$S/dwb1/`, verify `verify_dwb1`, rows `parity_d176.py`, inventory `clean52`, D176).
 - RUNNING (no cargo): writer of the test results tree (new files `app-gpui/src/run/test_tree_pending*`, `workbench/tests/proofs45_test_tree_pending.rs`, notes `$S/drafts/test_tree_integration.md`). Read and grep its files before `git add`.
+
+## 2026-11-18 ~04:30 STRATEGY CHANGE (D176, after an advisor review)
+
+- Rate since D160: six slices raised 0, 13, 0, 8, 0, 0 rows; the plan needs ~10 per slice. From now on EVERY BRIEF NAMES ITS TARGET ROWS and the "Missing:" clause each test closes; zero-row work rides inside a row-bearing slice (except defects and safety); two zero-row slices in a row → stop and re-rank.
+- Inventory hole fixed: 25 settings pages of `src/features/settings/pages/editor/` had no row; total is now 3,807 (1,192 at parity). Commit 0b0ad9528.
+- Tauri side unchanged since the merge of upstream v0.1.46 (8aab59f85 is the last commit touching `src`, `src-tauri`, `crates`).
+- RUNNING: cargo integrator WIRING BATCH 1 (`$S/int_wiring_batch1_brief.md`, scratch `$S/dwb1/`; when done: report → `$S/reports/int_wiring_batch1.md`, verify `verify_dwb1`, rows `parity_d177.py`, inventory `clean53`, D177).
+- RUNNING readers (no cargo): (1) triage of the 25 new settings rows + the ~25 undeclared pending test files → `$S/drafts/rows_settings_and_pending.md` (ends with a Python snippet for parity.json: check each cited test before running it); (2) ranking of all remaining rows into ~30 row-driven slices + a tests-only harvest → `$S/drafts/rows_ranking.md`, `$S/rank/slices.json`.
+- Draft waiting: test results tree (committed undeclared 4a4811397; notes `$S/drafts/test_tree_integration.md`; names ~12 rows; its brief must pin, per row, what raises a pure-model spec row under D160).
+- Agents list and visual 2 briefs: before launch, say which rows and clauses; if none, they wait.
+- When an integrator dies with "Connection lost mid-response": SendMessage to its agent id resumes it with context (worked twice).
