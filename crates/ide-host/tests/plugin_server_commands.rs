@@ -99,7 +99,10 @@ async fn a_command_the_server_leaves_to_the_client_runs_the_plugin_that_claims_i
         runtime: tokio::runtime::Handle::current(),
         project_environment: false,
     }));
-    // Language servers start only in a trusted project.
+    // Language servers start only in a trusted project, in Deep mode.
+    host.global_settings
+        .set(ide_workspace::settings::SettingsScope::Global, "ide.mode", serde_json::json!("full"))
+        .unwrap();
     host.set_project_trust(&root, true, false).await.unwrap();
     host.open_project("main", &root).unwrap();
     let plugins = Arc::new(

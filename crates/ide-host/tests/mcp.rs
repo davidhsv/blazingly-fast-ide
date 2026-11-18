@@ -38,6 +38,10 @@ impl Harness {
             runtime: tokio::runtime::Handle::current(),
             project_environment: false,
         }));
+        // Deep mode: the language-server tools answer from the servers, not by text.
+        host.global_settings
+            .set(ide_workspace::settings::SettingsScope::Global, "ide.mode", serde_json::json!("full"))
+            .unwrap();
         host.open_project("main", &root).unwrap();
         Self { host, root, tmp, events }
     }
