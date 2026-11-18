@@ -761,7 +761,7 @@
   },
   "unit:src/features/terminal/paste.test.ts": {
     "status": "partial",
-    "proof": "`terminal::paste::tests`, `terminal::encode::tests`, `terminal::view::tests::proofs23_paste::keeps_existing_copied_files_on_their_original_quoted_paths_during_paste`, `terminal::view::tests::proofs23_paste::stores_raw_local_clipboard_media_through_paste`, `terminal::view::tests::proofs23_paste::rejects_oversized_images_before_reading_or_uploading`, `terminal::view::tests::proofs23_paste::ignores_an_image_after_its_target_is_replaced_during_upload`; 20 of 24 cases. Missing: the target replaced during an upload is checked by calling the view's answer method with a stale target, not by replacing it mid-upload; a target disposed during an upload has no test; the two read-phase cases have none (the clipboard is read at once natively)"
+    "proof": "`terminal::paste::tests`, `terminal::encode::tests`, `terminal::view::tests::proofs23_paste::keeps_existing_copied_files_on_their_original_quoted_paths_during_paste`, `terminal::view::tests::proofs23_paste::stores_raw_local_clipboard_media_through_paste`, `terminal::view::tests::proofs23_paste::rejects_oversized_images_before_reading_or_uploading`, `terminal::view::tests::proofs23_paste::ignores_an_image_after_its_target_is_replaced_during_upload`, `terminal::view::tests::proofs23_paste::pastes_nothing_when_the_session_ends_while_the_picture_is_stored`; 20 of 24 cases. A session that ends while the picture is being stored gets nothing pasted and no failure report. Missing: a target disposed during an upload has no test (nothing is left to observe once the view is dropped); the two read-phase cases have no native counterpart (the clipboard is read at once natively)"
   },
   "unit:src/features/terminal/persist.test.ts": {
     "status": "done",
@@ -889,7 +889,7 @@
   },
   "unit:src/features/vcs/__tests__/deleteFiles.test.ts": {
     "status": "partial",
-    "proof": "`vcs_ops::change_ops::tests`; all 3 cases, but the deletion itself is asserted as the plan returned, not carried out"
+    "proof": "`vcs_ops::change_ops::tests`; all 3 cases, but the deletion itself is asserted as the plan returned, not carried out. Missing: Delete… is absent from the Changes view: no menu row, no ⌫ key, no confirmation and nothing handles the delete command (src/features/vcs/CommitView.tsx:294, :318, :379, :804; src/features/vcs/changeOps.tsx:128)"
   },
   "unit:src/features/vcs/__tests__/confirmations.test.ts": {
     "status": "done",
@@ -1992,8 +1992,8 @@
     "proof": "`vcs_more::log_loading::tests`, `workbench::tests::proofs42_gitlog_real_repo::the_log_reads_a_page_ahead_and_page_down_moves_twenty_rows`; 14 of 22 cases; added upstream and not covered: 'opens a new Update Info tab per update, each repository limited to its own range', 'reveals a commit directly via seek while keeping branch filter and showDetails preference', 'does not rebuild the displayed graph for each of %i loaded commits', 'reveals a commit beyond thirty fallback pages when seek does not find it', 'finds an old parent beyond thirty pages with one graph snapshot per check' and 3 more; before the merge this row was model only: its tests are of code the app did not reach. The page read ahead is proven through the window"
   },
   "unit:src/features/vcs/__tests__/logBranchMemory.test.ts": {
-    "status": "partial",
-    "proof": "`vcs_more::log_branch_memory::tests`, `workbench::tests::proofs42_gitlog_real_repo::the_log_opens_on_the_current_branch_and_its_branch_chip_reads_head`, `workbench::tests::proofs42_gitlog_real_repo::with_every_branch_shown_the_newest_rows_draw_their_node_and_their_subject`, `workbench::tests::proofs42_gitlog_real_repo::the_branch_chosen_for_the_log_is_remembered_when_the_project_is_opened_again`; branch filter memory and its resolution are tested on the model, and the app now reaches them: the log settles on HEAD when nothing is remembered, remembers a chosen branch and a cleared chip per repository, and both survive closing and reopening the project. Missing: the cases of a project of several repositories and of a remembered branch that was deleted are not driven through the window"
+    "status": "done",
+    "proof": "`vcs_more::log_branch_memory::tests`, `workbench::tests::proofs42_gitlog_real_repo::the_log_opens_on_the_current_branch_and_its_branch_chip_reads_head`, `workbench::tests::proofs42_gitlog_real_repo::with_every_branch_shown_the_newest_rows_draw_their_node_and_their_subject`, `workbench::tests::proofs42_gitlog_real_repo::the_branch_chosen_for_the_log_is_remembered_when_the_project_is_opened_again`, `workbench::tests::proofs42_gitlog_real_repo::a_remembered_branch_deleted_meanwhile_leaves_the_log_on_the_current_branch`, `workbench::tests::proofs42_gitlog_real_repo::a_project_of_several_repositories_opens_its_log_on_every_branch`; branch filter memory and its resolution are tested on the model, and the app now reaches them: the log settles on HEAD when nothing is remembered, remembers a chosen branch and a cleared chip per repository, and both survive closing and reopening the project. Through the window: a remembered branch deleted meanwhile is dropped and the log stays on the current branch, and a project of several repositories restores nothing and opens on every branch"
   },
   "unit:src/features/vcs/__tests__/logFilters.test.ts": {
     "status": "partial",
@@ -3861,7 +3861,7 @@
   },
   "ipc:fs_rename": {
     "status": "partial",
-    "proof": "`workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`; renames go through the refactoring; this plain call is the fallback, not run by a test"
+    "proof": "`workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`; renames go through the refactoring; this plain call is the fallback, not run by a test. Missing: no native window issues the plain call (nothing builds the rename request; renames go through the refactoring), and the desktop webview calls it only from its in-memory refactor backend (src/features/project-tree/fileRefactor.ts:81, :87, :99): to settle whether this row has anything to port"
   },
   "ipc:lsp_references": {
     "status": "done",
@@ -3885,7 +3885,7 @@
   },
   "ipc:vcs_commits_changes": {
     "status": "partial",
-    "proof": "`workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`; called for a selection of several commits; the test selects one"
+    "proof": "`workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`; called for a selection of several commits; the test selects one. Missing: the Git log has no selection of several commits (one selected row, no shift or ⌘ selection; `workbench/log_window.rs` feeds the details from it), so the call for several commits is reached by model tests only (src/features/vcs/GitLog.tsx:2498-2508)"
   },
   "ipc:vcs_log_users": {
     "status": "done",
@@ -4828,8 +4828,8 @@
     "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet"
   },
   "action:agents.forkTask": {
-    "status": "partial",
-    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`, `agents::reply_actions::tests::reports_a_failed_fork_as_a_failed_fork`; with an agent that can fork, Fork adds a third task copied from the first. The failure text is \"Couldn't fork the task\", tested on the reply actions. Missing: the failure is not driven through the action in a window (`src/features/agents/taskActions.ts:307`)"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`, `agents::reply_actions::tests::reports_a_failed_fork_as_a_failed_fork`, `workbench::tests::proofs_agents::a_fork_the_agent_refuses_is_reported_as_a_failed_fork`; with an agent that can fork, Fork adds a third task copied from the first. The failure text is \"Couldn't fork the task\", tested on the reply actions. A fork the agent refuses, driven through the task menu's action, is reported as a failed fork and adds no task"
   },
   "action:agents.retractMessage": {
     "status": "done",
@@ -5032,8 +5032,8 @@
     "proof": "`workbench::log_actions::tests::the_branches_pane_actions_act_on_the_selected_branch`"
   },
   "action:vcs.log.branches.update": {
-    "status": "partial",
-    "proof": "`workbench::log_actions::tests::the_branches_pane_actions_act_on_the_selected_branch`, `workbench::vcs_operations::tests::operation_repo::update_with_a_repository_pulls_that_repository_only`; what the cited tests drive still holds: the branches pane actions act on the selected branch. Update given a repository updates only that one. Missing: the branch menu's own call with its repository is not driven by a test (`src/features/vcs/branchOps.ts:534`)"
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::the_branches_pane_actions_act_on_the_selected_branch`, `workbench::vcs_operations::tests::operation_repo::update_with_a_repository_pulls_that_repository_only`, `workbench::vcs_operations::tests::operation_repo::update_selected_on_the_current_branch_updates_that_branch_s_repository_only`; what the cited tests drive still holds: the branches pane actions act on the selected branch. Update given a repository updates only that one. Update on the current branch from the Branches pane updates that branch's repository only (it updated every repository of the project until 2026-11-18)"
   },
   "action:vcs.log.changes.compareBeforeWithLocal": {
     "status": "partial",
@@ -5056,8 +5056,8 @@
     "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`"
   },
   "action:vcs.log.changes.jumpToSource": {
-    "status": "partial",
-    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`, `workbench::log_actions::tests::changes_keys::in_the_changed_files_show_diff_s_key_shows_the_commit_s_diff_and_f4_jumps_to_source`; what the cited tests drive still holds: the changed files actions act on the files of the selected commit. F4 in the changed files jumps to the source of the selected file. Missing: ⌘↓ shares the handler and is not driven by a test (`src/ui/Tree.tsx:540`)"
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`, `workbench::log_actions::tests::changes_keys::in_the_changed_files_show_diff_s_key_shows_the_commit_s_diff_and_f4_jumps_to_source`, `workbench::log_actions::tests::changes_keys::in_the_changed_files_cmd_down_jumps_to_the_selected_file_s_source`; what the cited tests drive still holds: the changed files actions act on the files of the selected commit. F4 in the changed files jumps to the source of the selected file. ⌘↓ in the changed files jumps to the selected file's source"
   },
   "action:vcs.log.changes.revert": {
     "status": "done",
@@ -5164,8 +5164,8 @@
     "proof": "`workbench::log_actions::tests::squash_commits_melds_the_selected_commits_with_the_typed_message`; the log has no multi-selection, so several commits reach the action only as its argument"
   },
   "action:vcs.log.squashInto": {
-    "status": "partial",
-    "proof": "`workbench::log_actions::tests::fixup_and_squash_into_prepare_the_commit_message`, `workbench::log_actions::tests::the_commit_menu_offers_history_rewriting_for_a_pushed_commit_too`; what the cited tests drive still holds: fixup and squash into prepare the commit message; the Git Log menu offers it on a pushed commit too; missing: no test drives Squash Into on a range that reaches the upstream (the question and the protected-branch refusal are read to be the ones Fixup goes through, not tested)"
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::fixup_and_squash_into_prepare_the_commit_message`, `workbench::log_actions::tests::the_commit_menu_offers_history_rewriting_for_a_pushed_commit_too`, `workbench::log_actions::tests::squash_into_a_pushed_commit_of_a_protected_branch_is_refused`, `workbench::log_actions::tests::squash_into_a_pushed_commit_asks_first_and_rewrites_nothing_when_declined`; what the cited tests drive still holds: fixup and squash into prepare the commit message; the Git Log menu offers it on a pushed commit too. Squash Into a pushed commit is refused on a protected branch, and elsewhere asks first and rewrites nothing when declined"
   },
   "action:vcs.log.undoCommit": {
     "status": "done",
@@ -5476,8 +5476,8 @@
     "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`; the last reply is replaced by a new one (Answer 2 by Answer 3) and the message it answers is listed once"
   },
   "action:agents.forkReply": {
-    "status": "partial",
-    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`, `agents::reply_actions::tests::reports_a_failed_fork_as_a_failed_fork`; Fork Conversation from Here opens a new task, docked, holding the first turn only. The failure text is \"Couldn't fork the task\", tested on the reply actions. Missing: the failure is not driven through the action in a window (`src/features/agents/replyActions.ts:149`)"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`, `agents::reply_actions::tests::reports_a_failed_fork_as_a_failed_fork`, `workbench::tests::proofs_agents::a_fork_the_agent_refuses_is_reported_as_a_failed_fork`; Fork Conversation from Here opens a new task, docked, holding the first turn only. The failure text is \"Couldn't fork the task\", tested on the reply actions. A fork the agent refuses, driven through the action in the agents window, is reported as \"Couldn't fork the task\" with the error, and no task is added"
   },
   "ipc:agent_fork": {
     "status": "partial",
@@ -5568,8 +5568,8 @@
     "proof": "`editor::intelligence::tests::proofs_editor_lsp::the_server_status_item_lists_the_projects_server_and_restart_starts_it_again`; the item's restart starts the server again (a second initialize) and it comes back ready, through ide_host::ops::lsp::lsp_restart"
   },
   "module:src/editor/lsp/workspaceEdit.ts": {
-    "status": "partial",
-    "proof": "`editor::intelligence::tests::proofs_editor_lsp::a_context_action_that_edits_two_files_changes_both`, `workbench::editor_language::tests::proofs20_generate::the_rename_preview_says_how_many_occurrences_in_how_many_files_it_changes`; an edit of two files is previewed with Also changes 1 other file and applied to the open file and to the unopened one. the rename preview of a window says how many occurrences in how many files it changes. Missing: the diff an intention's preview shows is not asserted through a window"
+    "status": "done",
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::a_context_action_that_edits_two_files_changes_both`, `workbench::editor_language::tests::proofs20_generate::the_rename_preview_says_how_many_occurrences_in_how_many_files_it_changes`, `editor::intelligence::tests::proofs_editor_lsp::a_context_actions_preview_shows_its_change_as_a_diff`; an edit of two files is previewed with Also changes 1 other file and applied to the open file and to the unopened one. the rename preview of a window says how many occurrences in how many files it changes. A context action's preview shows its change as a diff, removed and added lines, through a window"
   },
   "unit:src/editor/lsp/Popups.test.tsx": {
     "status": "partial",
@@ -5597,7 +5597,7 @@
   },
   "module:src/editor/core/copyReference.ts": {
     "status": "partial",
-    "proof": "`workbench::tests::proofs_editor_copy_reference::copy_reference_copies_the_qualified_name_of_the_declaration_at_the_caret`, `workbench::tests::proofs_editor_copy_reference::the_copy_reference_action_copies_the_qualified_name_without_a_popup`, `editor_commands::copy_reference::tests`; in a window the Java and Rust references and the path:line fallback are copied and announced; the other languages' conventions are tested on the model only"
+    "proof": "`workbench::tests::proofs_editor_copy_reference::copy_reference_copies_the_qualified_name_of_the_declaration_at_the_caret`, `workbench::tests::proofs_editor_copy_reference::the_copy_reference_action_copies_the_qualified_name_without_a_popup`, `editor_commands::copy_reference::tests`, `workbench::tests::proofs_editor_copy_reference::copy_reference_follows_the_python_go_and_kotlin_conventions`; in a window the Java and Rust references and the path:line fallback are copied and announced; the Python, Go and Kotlin conventions are copied in a window too. Missing: Scala's convention is tested on the model only (it follows Kotlin's code path)"
   },
   "unit:src/features/search/__tests__/dialogs.test.tsx": {
     "status": "partial",
@@ -6228,12 +6228,12 @@
     "proof": "`workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `workbench::editor_language::tests::proofs25_quick_definition::quick_definition_shows_the_whole_declaration_from_the_syntax_tree_in_colour`, `workbench::editor_language::tests::proofs25_quick_definition::quick_definition_in_the_edited_file_leaves_its_document_open`, `workbench::editor_language::tests::proofs41_stale_and_matching::quick_definition_drops_an_answer_that_arrives_after_the_text_changed`; run through the registry it shows the definition's file, line and lines in a popup with the keyboard, ← / → switch between several, and F4 opens it with the caret on it. An answer that arrives after the document changed is dropped and its popup never shown"
   },
   "action:code.quickTypeDefinition": {
-    "status": "partial",
-    "proof": "`workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `workbench::editor_language::tests::proofs5_editor::quick_type_definition_shows_the_type_definitions_lines_and_f4_opens_it`; run through the registry it shows the found type definition's file, line and lines in a popup with the keyboard, F4 opens it with the caret on it, and with none it says No type definition found. Missing: it shares the declaration's span and colours with Quick Definition, but no test shows a type definition in a file with a grammar"
+    "status": "done",
+    "proof": "`workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `workbench::editor_language::tests::proofs5_editor::quick_type_definition_shows_the_type_definitions_lines_and_f4_opens_it`, `workbench::editor_language::tests::proofs25_quick_definition::quick_type_definition_shows_the_whole_declaration_from_the_syntax_tree_in_colour`; run through the registry it shows the found type definition's file, line and lines in a popup with the keyboard, F4 opens it with the caret on it, and with none it says No type definition found. In a file with a grammar the popup shows the type's whole declaration from the syntax tree, in colour"
   },
   "action:navigate.gotoTest": {
-    "status": "partial",
-    "proof": "`workbench::editor_language::tests::opens_the_only_test_of_a_class`, `workbench::editor_extras::tests::go_to_test_offers_create_new_test_only_with_the_file_templates`, `editor_refactor::goto_test::tests::offers_create_new_test_in_the_mirrored_test_package_when_there_is_none`, `editor_refactor::goto_test::tests::rust_the_in_file_test_module_and_integration_tests`; run through the registry from src/calc.py it opens tests/test_calc.py, and from the test the subject again; with two tests it offers both in a chooser; Create New Test… is offered with the file templates and opens the New File dialog on the test kind. Missing: the chooser of a file without tests: the model offers Create New Test… alone (`editor_refactor::goto_test::tests::offers_create_new_test_in_the_mirrored_test_package_when_there_is_none`), but no test asserts its title \"Choose Test for X (0 found)\" (built at app-gpui/src/editor_refactor/goto_test.rs:205-206 as src/editor/navigation/gotoTest.ts:129 builds it) or draws it in the app (the app test opens a file without tests only after taking the file templates away, where no chooser opens); the Rust test module insertion: app-gpui/src/workbench/editor_language.rs:1381-1392 inserts the same text with the same newline rule, caret and read-only guard as src/editor/navigation/index.ts:155-168, but no test runs it (only the chooser row that asks for it is asserted)"
+    "status": "done",
+    "proof": "`workbench::editor_language::tests::opens_the_only_test_of_a_class`, `workbench::editor_extras::tests::go_to_test_offers_create_new_test_only_with_the_file_templates`, `editor_refactor::goto_test::tests::offers_create_new_test_in_the_mirrored_test_package_when_there_is_none`, `editor_refactor::goto_test::tests::rust_the_in_file_test_module_and_integration_tests`, `workbench::editor_extras::tests::go_to_test_on_a_file_without_tests_offers_create_new_test_alone_in_a_chooser_of_none_found`, `workbench::editor_extras::tests::go_to_test_s_create_new_test_adds_a_test_module_to_a_rust_file`; run through the registry from src/calc.py it opens tests/test_calc.py, and from the test the subject again; with two tests it offers both in a chooser; Create New Test… is offered with the file templates and opens the New File dialog on the test kind. On a file without tests the chooser is drawn with its \"(0 found)\" title and Create New Test… alone, and choosing it adds a test module to a Rust file with the caret in its body"
   },
   "action:navigate.nextMethod": {
     "status": "done",
@@ -6316,8 +6316,8 @@
     "proof": "`workbench::editor_language::tests::reformat_code_applies_the_servers_edits_and_reports_the_formatted_lines`, `workbench::editor_language::tests::reformat_with_a_named_formatter_runs_that_formatter`, `editor_lsp::format::tests`, `workbench::editor_extras::tests::reformat_file_reformats_the_scope_chosen_in_the_dialog`, `workbench::editor_extras::tests::proofs15_reformat::reformat_file_with_optimize_imports_organizes_the_imports_before_formatting`, `workbench::editor_language::tests::proofs15_implement::implement_methods_range_formats_inserted_lines_that_are_not_under_a_brace`; formatDocument through the server and the named formatters, with the formatted-lines hint, the Reformat File… dialog's scope and its Optimize imports run before the formatting, and formatLines of generated code (inserted lines not under a brace are range-formatted). Missing: plugin-contributed formatters (so Optimize imports is always offered)"
   },
   "module:src/editor/navigation/gotoTest.ts": {
-    "status": "partial",
-    "proof": "`workbench::editor_language::tests::opens_the_only_test_of_a_class`, `workbench::editor_extras::tests::go_to_test_offers_create_new_test_only_with_the_file_templates`, `editor_refactor::goto_test::tests::opens_the_only_test_of_a_class`, `editor_refactor::goto_test::tests::goes_back_from_a_test_to_its_subject`, `editor_refactor::goto_test::tests::shows_a_chooser_with_create_new_test_for_several_tests_mirrored_package_first`, `editor_refactor::goto_test::tests::offers_create_new_test_in_the_mirrored_test_package_when_there_is_none`, `editor_refactor::goto_test::tests::does_not_take_a_non_test_file_of_a_test_like_name_as_a_test`, `editor_refactor::goto_test::tests::go_python_ts_conventions_next_to_the_file`, `editor_refactor::goto_test::tests::rust_the_in_file_test_module_and_integration_tests`, `editor_refactor::goto_test::tests::hints_when_a_test_has_no_subject`, `editor_refactor::goto_test::tests::puts_new_tests_next_to_the_file_without_source_test_roots`; from a subject to its only test and back, the chooser of several tests with the mirrored package first, the Go, Python and TS conventions, the Rust in-file module and integration tests, the hint for a test without a subject, where Create New Test… puts the test, and Create New Test… opening the New File dialog on the test kind. Missing: the chooser of a file without tests: the model offers Create New Test… alone (`editor_refactor::goto_test::tests::offers_create_new_test_in_the_mirrored_test_package_when_there_is_none`), but no test asserts its title \"Choose Test for X (0 found)\" (built at app-gpui/src/editor_refactor/goto_test.rs:205-206 as src/editor/navigation/gotoTest.ts:129 builds it) or draws it in the app (the app test opens a file without tests only after taking the file templates away, where no chooser opens); the Rust test module insertion: app-gpui/src/workbench/editor_language.rs:1381-1392 inserts the same text with the same newline rule, caret and read-only guard as src/editor/navigation/index.ts:155-168, but no test runs it (only the chooser row that asks for it is asserted)"
+    "status": "done",
+    "proof": "`workbench::editor_language::tests::opens_the_only_test_of_a_class`, `workbench::editor_extras::tests::go_to_test_offers_create_new_test_only_with_the_file_templates`, `editor_refactor::goto_test::tests::opens_the_only_test_of_a_class`, `editor_refactor::goto_test::tests::goes_back_from_a_test_to_its_subject`, `editor_refactor::goto_test::tests::shows_a_chooser_with_create_new_test_for_several_tests_mirrored_package_first`, `editor_refactor::goto_test::tests::offers_create_new_test_in_the_mirrored_test_package_when_there_is_none`, `editor_refactor::goto_test::tests::does_not_take_a_non_test_file_of_a_test_like_name_as_a_test`, `editor_refactor::goto_test::tests::go_python_ts_conventions_next_to_the_file`, `editor_refactor::goto_test::tests::rust_the_in_file_test_module_and_integration_tests`, `editor_refactor::goto_test::tests::hints_when_a_test_has_no_subject`, `editor_refactor::goto_test::tests::puts_new_tests_next_to_the_file_without_source_test_roots`, `workbench::editor_extras::tests::go_to_test_on_a_file_without_tests_offers_create_new_test_alone_in_a_chooser_of_none_found`, `workbench::editor_extras::tests::go_to_test_s_create_new_test_adds_a_test_module_to_a_rust_file`; from a subject to its only test and back, the chooser of several tests with the mirrored package first, the Go, Python and TS conventions, the Rust in-file module and integration tests, the hint for a test without a subject, where Create New Test… puts the test, and Create New Test… opening the New File dialog on the test kind. On a file without tests the chooser is drawn with its \"(0 found)\" title and Create New Test… alone, and choosing it adds a test module to a Rust file with the caret in its body"
   },
   "module:src/editor/navigation/structureNav.ts": {
     "status": "partial",
@@ -6660,8 +6660,8 @@
     "proof": "`workbench::project_view_actions::tests::proofs7_tree_options::sort_by_modification_time_lists_the_newest_file_first`; run through the registry it says it is on (Sort by Name off) and the tree lists b.txt, c.md, a.md, newest first, an order neither the name nor the type gives; Sort by Name then puts the names back in order"
   },
   "action:terminal.openAt": {
-    "status": "partial",
-    "proof": "`workbench::terminal_actions::tests::open_in_terminal_on_a_folder_opens_a_shell_there_named_after_it`, `workbench::terminal_actions::tests::the_terminal_actions_need_a_project`, `agents::task_actions::tests::offers_terminal_for_worktree_or_off_root_tasks_and_hides_it_for_local_checkout_tasks_at_the_project_root`; run through the registry with a folder it opens a tab named after the folder whose shell starts there, beside the tabs already open; without a project it is refused. The task menu's row reads Terminal and is offered only for a task with its own terminal, proven on the menu's model. Missing: the row in the agents window's task menu is not driven through a window (`src/features/agents/taskActions.ts:399`)"
+    "status": "done",
+    "proof": "`workbench::terminal_actions::tests::open_in_terminal_on_a_folder_opens_a_shell_there_named_after_it`, `workbench::terminal_actions::tests::the_terminal_actions_need_a_project`, `agents::task_actions::tests::offers_terminal_for_worktree_or_off_root_tasks_and_hides_it_for_local_checkout_tasks_at_the_project_root`, `workbench::tests::proofs11_agents::the_terminal_row_of_a_worktree_tasks_menu_opens_a_shell_in_its_folder`; run through the registry with a folder it opens a tab named after the folder whose shell starts there, beside the tabs already open; without a project it is refused. The task menu's row reads Terminal and is offered only for a task with its own terminal, proven on the menu's model. The Terminal row of a worktree task's menu in the agents window opens a shell in the task's folder, the tab named after it; a local task's menu has no such row"
   },
   "action:terminal.runCommand": {
     "status": "done",
@@ -6680,8 +6680,8 @@
     "proof": "`workbench::terminal_actions::tests::the_splits_lay_their_shells_side_by_side_or_stacked_and_unsplit_joins_them`, `terminal::panel::tests::proofs23_groups::split_down_stacks_a_group_with_its_own_header_under_a_line_dragged_up_and_down`; run through the registry it puts a new shell below the active tab, stacked under a line dragged up and down, with a header of its own"
   },
   "action:terminal.splitAndMoveDown": {
-    "status": "partial",
-    "proof": "`workbench::terminal_actions::tests::the_splits_lay_their_shells_side_by_side_or_stacked_and_unsplit_joins_them`; run through the registry it moves a tab of a group with more than one into a new group drawn below, and leaves a group's only tab where it is. Missing: no test reads the new group's own header after this action (the code is Split Down's)"
+    "status": "done",
+    "proof": "`workbench::terminal_actions::tests::the_splits_lay_their_shells_side_by_side_or_stacked_and_unsplit_joins_them`, `workbench::terminal_actions::tests::proofs15_terminal::split_and_move_down_gives_the_moved_tab_a_group_below_with_its_own_header`; run through the registry it moves a tab of a group with more than one into a new group drawn below, and leaves a group's only tab where it is. The moved tab gets a group below with its own header, the window title staying on the first group's"
   },
   "action:terminal.splitAndMoveRight": {
     "status": "done",
@@ -7929,7 +7929,7 @@
   },
   "action:vcs.showHistoryForSelection": {
     "status": "partial",
-    "proof": "`workbench::vcs_text_actions::tests::show_history_for_selection_lists_the_commits_that_changed_the_selected_lines`, `workbench::vcs_text_actions::tests::show_history_for_selection_is_enabled_only_with_a_text_editor_active`, `workbench::vcs_text_actions::tests::the_change_actions_are_enabled_only_in_a_project_under_version_control`; opens a tab listing the commits that changed the selected lines, with Local Changes first and each commit's block against the one before; on only with a text editor active in a project under version control. Missing: asking again for the same lines, the notice for a document that is not a file, and cancelling the read when the tab closes have no test"
+    "proof": "`workbench::vcs_text_actions::tests::show_history_for_selection_lists_the_commits_that_changed_the_selected_lines`, `workbench::vcs_text_actions::tests::show_history_for_selection_is_enabled_only_with_a_text_editor_active`, `workbench::vcs_text_actions::tests::the_change_actions_are_enabled_only_in_a_project_under_version_control`, `workbench::vcs_text_actions::tests::show_history_for_selection_asked_again_for_the_same_lines_reloads_its_tab`, `workbench::vcs_text_actions::tests::closing_a_history_for_selection_tab_still_reading_cancels_the_read`; opens a tab listing the commits that changed the selected lines, with Local Changes first and each commit's block against the one before; on only with a text editor active in a project under version control. Asked again for the same lines it reloads its open tab, and closing a tab still reading cancels the read. Missing: the notice for a document that is not a file (src/features/vcs/selectionHistoryKind.ts:37-47): hypothesis, no native window path puts a virtual document in an editor tab, so it cannot be reached"
   },
   "action:vcs.log.openExternal": {
     "status": "partial",
@@ -7944,8 +7944,8 @@
     "proof": "`workbench::vcs_text_actions::tests::open_external_git_log_shows_the_log_of_the_picked_repository`; a log tab for a repository outside the project. Missing: a plain commit list only"
   },
   "unit:src/features/vcs/__tests__/selectionHistory.test.tsx": {
-    "status": "partial",
-    "proof": "`vcs::selection_history_view::tests::selected_lines_of_a_text`, `vcs::selection_history_view::tests::cuts_the_block_out_of_the_text_as_git_prints_it`, `vcs::selection_history_view::tests::lists_local_changes_only_when_the_block_differs_from_head`, `vcs::selection_history_view::tests::asks_for_the_selected_lines_of_the_editors_text_and_diffs_each_commits_block`, `vcs::selection_history_view::tests::says_why_there_is_nothing_to_show`, `vcs::selection_history_view::tests::shows_gits_error_and_cancels_a_request_still_running_when_closed`; 5 of 6 cases on the tab's view. Missing: the request still running is cancelled by the view's own method; that closing the tab calls it has no test"
+    "status": "done",
+    "proof": "`vcs::selection_history_view::tests::selected_lines_of_a_text`, `vcs::selection_history_view::tests::cuts_the_block_out_of_the_text_as_git_prints_it`, `vcs::selection_history_view::tests::lists_local_changes_only_when_the_block_differs_from_head`, `vcs::selection_history_view::tests::asks_for_the_selected_lines_of_the_editors_text_and_diffs_each_commits_block`, `vcs::selection_history_view::tests::says_why_there_is_nothing_to_show`, `vcs::selection_history_view::tests::shows_gits_error_and_cancels_a_request_still_running_when_closed`, `workbench::vcs_text_actions::tests::closing_a_history_for_selection_tab_still_reading_cancels_the_read`; 5 of 6 cases on the tab's view. Closing the tab while its request still runs cancels the request"
   },
   "ipc:vcs_block_history": {
     "status": "done",
