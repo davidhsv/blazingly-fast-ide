@@ -450,6 +450,12 @@ pub(super) enum TabFile {
 /// content wants the hex view instead, without a document. A probe that fails leaves the file
 /// to the text editor, which says what is wrong with it.
 pub(super) async fn open_tab_file(host: &Host, label: &str, path: PathBuf, probe: bool) -> IdeResult<TabFile> {
+    // A tab of an untitled buffer opens it again by its key: one more reference for the new editor.
+    let key = path.to_string_lossy();
+    if crate::editor_model::untitled::is_untitled_path(&key) {
+        let key = key.into_owned();
+        return ide_host::ops::doc::open_untitled(host, label, Some(key)).await.map(TabFile::Text);
+    }
     if probe {
         match ide_host::ops::bytes::fs_probe(host, label, path.clone()).await {
             Ok(found) if wants_hex_view(&found) => {
@@ -705,7 +711,12 @@ impl Workbench {
                 id
             }
             None => {
-                let input = EditorInput { kind: FILE_KIND.to_owned(), key: key.clone(), path: Some(key), data: None };
+                // A recorded untitled key (Back, Recent Files) keeps its kind, or the session would store it.
+                let input = if crate::editor_model::untitled::is_untitled_path(&key) {
+                    crate::editor_model::untitled::untitled_input(&key)
+                } else {
+                    EditorInput { kind: FILE_KIND.to_owned(), key: key.clone(), path: Some(key), data: None }
+                };
                 let Some(id) = tabs.open_tab(&pane, input, opening.options.clone()) else { return };
                 id
             }

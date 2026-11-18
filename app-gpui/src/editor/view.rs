@@ -61,6 +61,7 @@ pub(crate) mod right_margin;
 mod save_cleanup;
 mod string_literals;
 mod token_style;
+mod untitled;
 
 /// The font code is drawn with: the first installed family of `families` (empty names skipped)
 /// followed by the theme's `--font-mono` list, the others after it for characters it lacks;
@@ -339,6 +340,8 @@ pub struct Editor {
     line_ending: LineEnding,
     encoding: String,
     has_bom: bool,
+    /// Whether Reload with Encoding can read the document's source again ([`DocumentInfo::can_reload_encoding`]).
+    can_reload_encoding: bool,
     editorconfig: Option<EditorConfigProps>,
     rope: Rope,
     version: u32,
@@ -486,6 +489,7 @@ impl Editor {
             line_ending: info.line_ending,
             encoding: info.encoding.clone(),
             has_bom: info.has_bom,
+            can_reload_encoding: info.can_reload_encoding,
             editorconfig: info.editorconfig.clone(),
             rope,
             version,

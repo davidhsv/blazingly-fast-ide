@@ -62,6 +62,22 @@ pub(super) fn listed(dir: &std::path::Path) -> Vec<String> {
     names
 }
 
+/// Waits for the save dialog, checks that it opens in `dir`, and answers it with `answer` (`None`:
+/// cancelled).
+pub(super) fn answer_save_dialog(cx: &mut VisualTestContext, dir: &std::path::Path, answer: Option<PathBuf>) {
+    settle(cx, |cx| cx.did_prompt_for_new_path());
+    let expected = dir.to_path_buf();
+    cx.simulate_new_path_selection(move |offered| {
+        assert_eq!(offered, expected, "the folder the save dialog opens in");
+        answer
+    });
+}
+
+/// Waits until no close or leave of the window is being decided.
+pub(super) fn close_decided(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) {
+    settle(cx, |cx| workbench.read_with(cx, |w, _| !w.close_requests.deciding()));
+}
+
 pub(super) fn close_backend(cx: &mut VisualTestContext) {
     let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
     host.close_project("w1");
@@ -207,10 +223,8 @@ async fn asks_about_a_dirty_untitled_buffer_when_its_last_tab_closes(cx: &mut Te
 
     run_action(cx, "editor.closeTab", None);
     cx.simulate_prompt_answer("Save");
-    cx.run_until_parked();
     let kept = root.join("kept.txt");
-    let target = kept.clone();
-    cx.simulate_new_path_selection(move |_| Some(target));
+    answer_save_dialog(cx, &root, Some(kept.clone()));
     wait_long(cx, "the buffer to be written and its tab closed", |cx| {
         std::fs::read_to_string(&kept).is_ok_and(|text| text == "draft\n") && all_inputs(&workbench, cx).is_empty()
     });
@@ -253,11 +267,42 @@ async fn closing_one_of_two_tabs_of_an_untitled_buffer_asks_nothing(cx: &mut Tes
     assert!(cx.pending_prompt().is_none(), "another tab shows the buffer");
     settle(cx, |cx| all_inputs(&workbench, cx).len() == 1);
     let texts: Vec<String> = workbench.read_with(cx, |w, cx| w.editors().iter().map(|e| e.read(cx).text()).collect());
-    assert_eq!(texts, ["draft"]);
+    // The tab left is autosaved as any tab left is: the save cleanup runs (the final line break) and
+    // nothing is written.
+    assert_eq!(texts, ["draft\n"]);
+    assert!(backend_buffers(cx).iter().all(|(_, _, dirty)| *dirty), "still unsaved");
 
     new_untitled(&workbench, "untitled:Untitled-2", cx);
     run_action(cx, "editor.closeTab", None);
     assert!(cx.pending_prompt().is_none(), "an empty buffer closes quietly");
     settle(cx, |cx| backend_buffers(cx).len() == 1);
+    close_backend(cx);
+}
+
+/// Reopen Closed Tab after an untitled buffer was closed without saving brings its tab back with an
+/// empty buffer of the same name: the name is opened again as an untitled buffer, never read as a
+/// file.
+#[gpui_kit::test]
+async fn reopening_a_closed_untitled_tab_gives_an_empty_buffer_of_that_name(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, _root, workbench, cx) = trusted_project(cx, &[("main.rs", "fn main() {}\n")]);
+    cx.update(|window, _| window.activate_window());
+    new_untitled(&workbench, "untitled:Untitled-1", cx);
+    type_untitled(&workbench, "draft", cx);
+    run_action(cx, "editor.closeTab", None);
+    cx.simulate_prompt_answer("Don't Save");
+    settle(cx, |cx| all_inputs(&workbench, cx).is_empty() && backend_buffers(cx).is_empty());
+
+    run_action(cx, "editor.reopenClosedTab", None);
+    settle(cx, |cx| {
+        active_input(&workbench, cx) == Some(untitled_input("untitled:Untitled-1"))
+            && workbench.read_with(cx, |w, cx| {
+                w.editor().is_some_and(|e| e.read(cx).path().to_string_lossy() == "untitled:Untitled-1")
+            })
+    });
+    let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+    editor.read_with(cx, |editor, _| assert!(editor.text().is_empty() && !editor.is_dirty() && editor.is_untitled()));
+    assert_eq!(backend_buffers(cx), [("untitled:Untitled-1".to_owned(), String::new(), false)]);
+    assert!(notification_titles(&workbench, cx).is_empty(), "{:?}", notification_titles(&workbench, cx));
     close_backend(cx);
 }

@@ -2,7 +2,7 @@
 //! window without a file, rooted at the home folder (the test's own), with the new buffer as its tab
 //! holding the keyboard; Save As opens at the home folder there, and the saved file stays a tab.
 
-use super::proofs48_untitled::{active_input, all_inputs, close_backend};
+use super::proofs48_untitled::{active_input, all_inputs, answer_save_dialog, close_backend};
 use super::*;
 use crate::editor_model::untitled::untitled_input;
 
@@ -37,15 +37,18 @@ async fn new_untitled_file_in_a_window_showing_nothing_turns_it_into_light_edit(
 
     run_action(cx, "file.save", None);
     let saved = home.path().join("notes/new.txt");
-    let target = saved.clone();
-    cx.simulate_new_path_selection(move |_| Some(target));
-    wait_long(cx, "the buffer to be written", |cx| {
+    answer_save_dialog(cx, home.path(), Some(saved.clone()));
+    // The backend reports the document clean before its answer reaches the window: the wait covers
+    // the tab taking the file too.
+    wait_long(cx, "the buffer to be written and its tab to be the file's", |cx| {
         std::fs::read_to_string(&saved).is_ok_and(|text| text == "draft\n")
             && !editor.read_with(cx, |e, _| e.is_dirty())
+            && all_inputs(&workbench, cx).iter().all(|input| input.kind == "file")
     });
     let inputs = all_inputs(&workbench, cx);
     assert_eq!(inputs.len(), 1);
-    assert_eq!((inputs[0].kind.as_str(), inputs[0].path.as_deref()), ("file", saved.to_str()));
+    let tab_file = inputs[0].path.as_deref().map(|path| std::path::Path::new(path).canonicalize().ok());
+    assert_eq!((inputs[0].kind.as_str(), tab_file), ("file", Some(saved.canonicalize().ok())));
     assert!(workbench.read_with(cx, |w, _| light_edit(w)), "the window still edits loose files");
     close_backend(cx);
 }

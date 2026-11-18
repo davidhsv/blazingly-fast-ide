@@ -238,8 +238,8 @@ impl Workbench {
     }
 }
 
-/// Asks where to save the untitled buffer `editor` shows and saves it there: the folder and name of
-/// [`save_as_start`], the save cleanup, then the backend's Save As. Resolves to whether the buffer is
+/// Asks where to save the untitled buffer `editor` shows and saves it there: the save cleanup, the
+/// dialog at the folder and name of [`save_as_start`], then the backend's Save As. Resolves to whether the buffer is
 /// a file now; false when the dialog was cancelled, the buffer went away meanwhile, or the backend
 /// refused (a file open in another tab, a folder that cannot be made), which is told as "Cannot save
 /// file" with the reason while the buffer keeps its text.
@@ -249,6 +249,7 @@ pub(super) async fn save_untitled(
     cx: &mut AsyncWindowContext,
 ) -> anyhow::Result<bool> {
     let picked = this.update(cx, |workbench, cx| {
+        Editor::clean_up_document(editor, cx);
         let (dir, name) = workbench.untitled_save_start(editor, cx);
         cx.prompt_for_new_path(&dir, Some(name.as_str()))
     })?;

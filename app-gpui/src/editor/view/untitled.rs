@@ -4,6 +4,7 @@
 //! backend). Also the byte order mark of a UTF-8 document, which the encoding item's menu adds or
 //! removes and the next save writes.
 
+use super::save_cleanup::document_editors;
 use super::*;
 use crate::editor_model::untitled::is_untitled_path;
 
@@ -19,25 +20,31 @@ impl Editor {
         self.can_reload_encoding
     }
 
-    /// Writes the untitled buffer `editor` shows to `path` (Save As): cleaned up first as any save
-    /// is, through `editor` or another editor of the document that cleans up, then written by the
-    /// backend, which creates missing folders, re-keys the document and detects its language from
-    /// the new path. The answer is the document as the file it now is; [`Editor::retarget_document`]
-    /// gives it to the editors.
+    /// The save cleanup of the document `editor` shows, through `editor` or another editor of the
+    /// document that cleans up: an untitled buffer's explicit save runs it before the save dialog
+    /// opens, as any save runs it before writing, so a cancelled dialog leaves the buffer cleaned.
+    pub fn clean_up_document(editor: &Entity<Editor>, cx: &mut App) {
+        let doc = editor.read(cx).doc;
+        let cleaner = if editor.read(cx).cleans_on_save {
+            Some(editor.clone())
+        } else {
+            document_editors(doc, cx).into_iter().find(|other| other.read(cx).cleans_on_save)
+        };
+        if let Some(cleaner) = cleaner {
+            cleaner.update(cx, |cleaner, cx| cleaner.clean_up_before_save(cx));
+        }
+    }
+
+    /// Writes the untitled buffer `editor` shows to `path` (Save As) through the backend, which
+    /// creates missing folders, re-keys the document and detects its language from the new path.
+    /// The answer is the document as the file it now is; [`Editor::retarget_document`] gives it to
+    /// the editors.
     pub fn save_document_as(
         editor: &Entity<Editor>,
         path: PathBuf,
         cx: &mut App,
     ) -> impl Future<Output = anyhow::Result<IdeResult<DocumentInfo>>> + Send + 'static + use<> {
         let doc = editor.read(cx).doc;
-        let cleaner = if editor.read(cx).cleans_on_save {
-            Some(editor.clone())
-        } else {
-            editors_of(doc, cx).into_iter().find(|other| other.read(cx).cleans_on_save)
-        };
-        if let Some(cleaner) = cleaner {
-            cleaner.update(cx, |cleaner, cx| cleaner.clean_up_before_save(cx));
-        }
         let (host, window) = (editor.read(cx).host.clone(), editor.read(cx).window_label.clone());
         cx.global::<Backend>().call(async move { ide_host::ops::doc::save_as(&host, &window, doc, path).await })
     }
@@ -45,7 +52,7 @@ impl Editor {
     /// Save As made document `doc` the file `info` describes: every editor of it takes the file's
     /// path and what comes with it, and is clean.
     pub fn retarget_document(doc: DocId, info: &DocumentInfo, cx: &mut App) {
-        for editor in editors_of(doc, cx) {
+        for editor in document_editors(doc, cx) {
             editor.update(cx, |editor, cx| editor.retarget(info, cx));
         }
     }
@@ -87,14 +94,4 @@ impl Editor {
             .map_err(|error| IdeError::internal(error.to_string()))
         })
     }
-}
-
-/// The editors that show `doc`.
-fn editors_of(doc: DocId, cx: &App) -> Vec<Entity<Editor>> {
-    cx.try_global::<DocumentEditors>()
-        .and_then(|shown| shown.0.get(&doc))
-        .into_iter()
-        .flatten()
-        .filter_map(WeakEntity::upgrade)
-        .collect()
 }

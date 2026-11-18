@@ -36,7 +36,7 @@ impl Editor {
 
     /// Applies the cleanup to an unsaved, writable document. When the backend has moved on since the
     /// text was read, the text is refreshed and the cleanup computed again.
-    fn clean_up_before_save(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn clean_up_before_save(&mut self, cx: &mut Context<Self>) {
         if !self.dirty || self.read_only {
             return;
         }
@@ -132,7 +132,7 @@ impl Editor {
 }
 
 /// The editors that show `doc`.
-fn document_editors(doc: DocId, cx: &App) -> Vec<Entity<Editor>> {
+pub(super) fn document_editors(doc: DocId, cx: &App) -> Vec<Entity<Editor>> {
     cx.try_global::<DocumentEditors>()
         .and_then(|shown| shown.0.get(&doc))
         .into_iter()

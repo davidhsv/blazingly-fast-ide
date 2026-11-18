@@ -32,6 +32,7 @@ use crate::debugger::effects::DEBUG_TOOL_WINDOW;
 mod diff_tab;
 mod diff_tools;
 mod diff_window;
+mod disk_sync_window;
 mod edit_actions;
 mod editor_core;
 mod editor_extras;
@@ -43,6 +44,7 @@ mod editor_structure;
 mod editor_templates;
 mod emmet;
 pub mod empty_editor;
+mod encoding_bom;
 mod github;
 mod http_client;
 mod idle_save;
@@ -90,6 +92,7 @@ use structure_window::STRUCTURE_TOOL_WINDOW;
 mod terminal_actions;
 mod terminal_groups;
 mod todo_window;
+mod untitled_tabs;
 mod vcs_operations;
 mod vcs_text_actions;
 mod zoom_actions;
@@ -284,6 +287,8 @@ pub enum StatusCommand {
     Reload(String),
     /// Keep the text and save it in this encoding.
     Convert(String),
+    /// Add (`true`) or remove the UTF-8 byte order mark.
+    Bom(bool),
 }
 
 /// A popup over the window and where the keyboard goes when it closes.
@@ -323,6 +328,8 @@ pub struct Workbench {
     task_timer: Option<gpui_kit::Task<()>>,
     /// Saves the documents once the window has been idle for System Settings' seconds ([`idle_save`]).
     idle_save: Option<gpui_kit::Task<()>>,
+    /// Synchronize files on frame activation: the debounced disk check of the window ([`disk_sync_window`]).
+    disk_sync: disk_sync_window::DiskSyncSlot,
     listener: u64,
     /// The editor that was active before the last tab change: it is saved when another takes over.
     previous_editor: Option<gpui_kit::WeakEntity<Editor>>,
@@ -651,6 +658,7 @@ pub fn register_actions(cx: &mut App) {
     bookmarks_window::register_actions(registry);
     project_files::register_actions(registry);
     editor_core::register_actions(registry);
+    untitled_tabs::register_actions(registry);
     editor_templates::register_actions(registry);
     todo_window::register_actions(registry);
     project_view_actions::register_actions(registry);
@@ -1160,9 +1168,11 @@ impl Workbench {
                 let active = window.is_window_active();
                 driver.update(cx, |driver, cx| driver.set_window_focused(active, cx));
             }
-            // Another window may have opened or forgotten a project meanwhile.
+            // Another window may have opened or forgotten a project meanwhile; files may have changed on
+            // disk while the window was in the background.
             if window.is_window_active() {
                 workbench.sync_welcome(window, cx);
+                workbench.disk_sync_focused(window, cx);
             }
         })
         .detach();
@@ -1230,6 +1240,7 @@ impl Workbench {
             notifications: Notifications::default(),
             task_timer: None,
             idle_save: None,
+            disk_sync: Default::default(),
             listener: listener.unwrap_or_default(),
             previous_editor: None,
             close_requests: Default::default(),
@@ -1542,7 +1553,7 @@ impl Workbench {
                     .tab_view(&tab.id)
                     .map(|view| view.title.clone())
                     .or_else(|| tab_views::title_of(&tab.input))
-                    .unwrap_or_else(|| path.rsplit('/').next().unwrap_or(path).to_owned());
+                    .unwrap_or_else(|| crate::editor_model::untitled::display_name(path).to_owned());
                 TabTitle {
                     name,
                     hint: hints.get(path).cloned(),
@@ -1863,6 +1874,16 @@ impl Workbench {
             if !editor.read(cx).is_dirty() {
                 continue;
             }
+            // An untitled buffer has no file to write itself to: closing the last tab of one with text
+            // always asks, whatever autosave says; while another tab of it is open that tab keeps the text.
+            if editor.read(cx).is_untitled() {
+                let doc = editor.read(cx).doc();
+                if !editors.values().any(|other| other.read(cx).doc() == doc) {
+                    closing.push(editor.clone());
+                    untitled_tabs::ask_closing_untitled(editor, window, cx);
+                }
+                continue;
+            }
             closing.push(editor.clone());
             let decision = (!auto_save).then(|| {
                 let path = editor.read(cx).path().to_string_lossy().into_owned();
@@ -1966,7 +1987,11 @@ impl Workbench {
             return;
         };
         let pane = tabs.active_pane.clone();
-        let input = EditorInput { kind: "file".to_owned(), key: path.clone(), path: Some(path), data: None };
+        let input = if editor.read(cx).is_untitled() {
+            crate::editor_model::untitled::untitled_input(&path)
+        } else {
+            EditorInput { kind: "file".to_owned(), key: path.clone(), path: Some(path), data: None }
+        };
         let reopened = tabs.open_tab(&pane, input, OpenTabOptions::default());
         if let Some(id) = &reopened {
             // A tab for the same file opened meanwhile has its own editor: the unsaved one wins,
@@ -2068,12 +2093,18 @@ impl Workbench {
         }
     }
 
-    /// File › Save All for the text documents (the notebooks save themselves, see
-    /// `notebook::register_actions`): a failure is told as "Could not save" with its reason.
-    pub(crate) fn save_all_documents(&mut self, cx: &mut Context<Self>) {
+    /// File › Save All for the text documents, then Save As for each untitled buffer with text (the
+    /// notebooks save themselves, see `notebook::register_actions`): a failure is told as "Could not
+    /// save" with its reason.
+    pub(crate) fn save_all_documents(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let saving = self.save_documents(cx);
-        cx.spawn(async move |workbench, cx| {
-            let Some(failure) = saving.await else { return };
+        cx.spawn_in(window, async move |workbench, cx| {
+            let failure = saving.await;
+            // Then each untitled buffer with text asks where it goes, one dialog after the other.
+            if let Err(error) = untitled_tabs::save_untitled_buffers(&workbench, cx).await {
+                tracing::warn!("the untitled buffers were not saved: {error:#}");
+            }
+            let Some(failure) = failure else { return };
             let _ = workbench.update(cx, |workbench, cx| {
                 let title = cx.default_global::<crate::platform::i18n::Localization>().0.tx("Could not save");
                 let mut request = NotificationRequest::new(NotificationLevel::Error, title);
@@ -2273,7 +2304,8 @@ impl Workbench {
         .collect()
     }
 
-    /// The File Encoding item's menu: reload the file in another encoding, or convert it to one.
+    /// The File Encoding item's menu: reload the file in another encoding, convert it to one, or add or
+    /// remove a UTF-8 file's byte order mark.
     pub fn encoding_menu(&self, cx: &App) -> Vec<MenuItem<StatusCommand>> {
         use crate::vcs_ops::menu::MenuEntry;
         let Some(editor) = self.editor().map(|editor| editor.read(cx)) else { return Vec::new() };
@@ -2304,13 +2336,17 @@ impl Workbench {
                 submenu,
             })
         };
-        vec![
-            // Reloading would lose what is not saved; a read-only file cannot be written in another encoding.
-            group("Reload with Encoding", dirty, others(true)),
+        // Reloading would lose what is not saved and needs a source to read again; a read-only file
+        // cannot be written in another encoding.
+        let mut rows = vec![
+            group("Reload with Encoding", dirty || !editor.can_reload_encoding(), others(true)),
             group("Convert to Encoding", status.read_only, others(false)),
-            MenuItem::Separator,
-            MenuItem::action_with("file.settings", "editor.fileEncodings".into()).labelled("File Encodings Settings…"),
-        ]
+        ];
+        rows.extend(self.bom_rows(editor, &status, cx));
+        rows.push(MenuItem::Separator);
+        let settings = MenuItem::action_with("file.settings", "editor.fileEncodings".into());
+        rows.push(settings.labelled("File Encodings Settings…"));
+        rows
     }
 
     /// Carries out a row of a status bar item's menu on the file being edited; a refusal is told
@@ -2323,6 +2359,10 @@ impl Workbench {
                     self.notify_refusal("Cannot change line separators", error, cx);
                 }
                 cx.notify();
+                return;
+            }
+            StatusCommand::Bom(has_bom) => {
+                self.change_bom(&editor, has_bom, cx);
                 return;
             }
             StatusCommand::Reload(encoding) => ("Cannot reload with encoding", true, encoding),
@@ -2356,7 +2396,14 @@ impl Workbench {
         let file = self
             .editor()
             .map(|editor| editor.read(cx).path().to_path_buf())
-            .or_else(|| self.active_tab_view().and_then(|view| view.input.path.as_deref()).map(PathBuf::from));
+            .or_else(|| self.active_tab_view().and_then(|view| view.input.path.as_deref()).map(PathBuf::from))
+            // An untitled buffer is named, not a path: `untitled:Untitled-1` is titled Untitled-1.
+            .map(|file| match file.to_str() {
+                Some(path) if crate::editor_model::untitled::is_untitled_path(path) => {
+                    PathBuf::from(crate::editor_model::untitled::untitled_name(path))
+                }
+                _ => file,
+            });
         let default = cx
             .try_global::<crate::platform::i18n::Localization>()
             .map_or_else(|| "app.title.default".to_owned(), |l| l.0.t("app.title.default", &[]));
@@ -2984,7 +3031,7 @@ impl Workbench {
             .map(|tab| {
                 let path = tab.input.path.as_deref().unwrap_or(&tab.input.key);
                 let title = tab_views::title_of(&tab.input)
-                    .unwrap_or_else(|| path.rsplit('/').next().unwrap_or(path).to_owned());
+                    .unwrap_or_else(|| crate::editor_model::untitled::display_name(path).to_owned());
                 OpenEditorTab {
                     input: tab.input.clone(),
                     icon: tab_views::icon_of(&tab.input),
@@ -4024,7 +4071,7 @@ impl Workbench {
         let path = tabs
             .pane(&reopened.pane_id)
             .and_then(|pane| pane.tab(&reopened.tab_id))
-            .filter(|tab| tab.input.kind == tab_views::FILE_KIND)
+            .filter(|tab| crate::editor_model::untitled::is_text_kind(&tab.input.kind))
             .and_then(|tab| tab.input.path.clone());
         self.tabs_changed(true, window, cx);
         if let Some(path) = path {
@@ -4046,7 +4093,7 @@ impl Workbench {
         for pane in &tabs.panes {
             let Some(tab) = pane.active_tab() else { continue };
             let focus = focus && pane.id == tabs.active_pane;
-            if tab.input.kind == tab_views::FILE_KIND {
+            if crate::editor_model::untitled::is_text_kind(&tab.input.kind) {
                 if editors.contains_key(&tab.id) || loading.contains(&tab.id) {
                     continue;
                 }
@@ -4232,47 +4279,7 @@ impl Workbench {
                 match text {
                     Ok((info, version, rope)) => {
                         let editor = cx.new(|cx| Editor::with_text(host, &label, &info, version, rope, cx));
-                        if still_open {
-                            workbench.install_intelligence(&editor, window, cx);
-                        }
-                        // A tab closed while its file was opening has no use for the editor;
-                        // dropping it releases the document.
-                        if let (
-                            true,
-                            Content::Project { editors, restored_views, .. }
-                            | Content::Editor { editors, restored_views, .. },
-                        ) = (still_open, &mut workbench.content)
-                        {
-                            // The file is where it was left when the project was last open.
-                            let path = editor.read(cx).path().to_string_lossy().into_owned();
-                            if let Some(view) = restored_views.remove(&path) {
-                                editor.update(cx, |editor, cx| {
-                                    editor.select(view.anchor, view.head, cx);
-                                    if let Some(line) = view.top_line {
-                                        editor.scroll_to_line(line, cx);
-                                    }
-                                });
-                            }
-                            let focused = tab_id.clone();
-                            let took_focus =
-                                cx.on_focus_in(&editor.focus_handle(cx), window, move |workbench, window, cx| {
-                                    workbench.editor_took_focus(&focused, window, cx);
-                                });
-                            editors.insert(tab_id.clone(), editor.clone());
-                            if let Content::Project { editor_focus, .. } | Content::Editor { editor_focus, .. } =
-                                &mut workbench.content
-                            {
-                                editor_focus.insert(tab_id.clone(), took_focus);
-                            }
-                            workbench.wrap_markdown(&tab_id, &editor, window, cx);
-                        }
-                        workbench.serve_reveal(cx);
-                        if still_open {
-                            workbench.watch_debug_editor(&editor, window, cx);
-                            workbench.watch_plugin_gutter(&editor, window, cx);
-                            workbench.http_editor_opened(&editor, window, cx);
-                            workbench.editor_gutter_opened(&editor, window, cx);
-                        }
+                        workbench.install_tab_editor(&tab_id, editor, still_open, window, cx);
                     }
                     Err(message) => {
                         tracing::error!("cannot open the file: {message}");
@@ -4783,6 +4790,11 @@ mod tests {
     mod proofs45_test_tree;
     mod proofs47_services_folders;
     mod proofs47_stripe_clicks;
+    mod proofs48_bom;
+    mod proofs48_disk_sync;
+    mod proofs48_light_edit_untitled;
+    mod proofs48_save_as;
+    mod proofs48_untitled;
     mod proofs4_run;
     mod proofs4_shell;
     mod proofs4_vcs;

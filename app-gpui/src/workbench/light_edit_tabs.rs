@@ -78,7 +78,12 @@ impl Workbench {
         let path = editor.read(cx).path().to_string_lossy().into_owned();
         let mut live = TabsState::new();
         let pane = live.active_pane.clone();
-        let input = EditorInput { kind: FILE_KIND.to_owned(), key: path.clone(), path: Some(path.clone()), data: None };
+        // The first tab of a window that turned into LightEdit for File › New is an untitled buffer's.
+        let input = if editor.read(cx).is_untitled() {
+            crate::editor_model::untitled::untitled_input(&path)
+        } else {
+            EditorInput { kind: FILE_KIND.to_owned(), key: path.clone(), path: Some(path.clone()), data: None }
+        };
         let tab_id = live.open_tab(&pane, input, OpenTabOptions::default());
         let saved = if other_light_edit_window(window, cx) {
             None
@@ -226,7 +231,7 @@ impl Workbench {
     /// known before its document has opened.
     pub(super) fn light_edit_title(&self) -> Option<String> {
         let path = self.light_edit_active_path()?;
-        Some(path.rsplit(['/', '\\']).next().unwrap_or(&path).to_owned())
+        Some(crate::editor_model::untitled::display_name(&path).to_owned())
     }
 
     /// Stores the tabs of a window that edits loose files, as the LightEdit session: where each
@@ -531,13 +536,20 @@ mod tests {
         close_all(cx);
     }
 
-    /// An empty pane of a window that edits loose files offers Open File and says that files can be
-    /// dropped; Open File runs its action.
+    /// An empty pane of a window that edits loose files offers New File and Open File and says that
+    /// files can be dropped; New File and Open File run their actions.
     #[gpui_kit::test]
-    async fn an_empty_light_edit_pane_offers_open_file_and_dropping(cx: &mut TestAppContext) {
+    async fn an_empty_light_edit_pane_offers_new_file_open_file_and_dropping(cx: &mut TestAppContext) {
         let _home = start(cx);
         let rows = cx.update(|cx| empty_editor::light_edit_hint_rows(cx));
         let shown: Vec<(&str, Option<&str>)> = rows.iter().map(|row| (row.label.as_str(), row.runs)).collect();
-        assert_eq!(shown, [("Open File", Some("file.openFile")), ("Drop files here to open them", None)]);
+        assert_eq!(
+            shown,
+            [
+                ("New File", Some("file.newUntitled")),
+                ("Open File", Some("file.openFile")),
+                ("Drop files here to open them", None)
+            ]
+        );
     }
 }

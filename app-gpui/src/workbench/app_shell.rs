@@ -582,7 +582,15 @@ async fn decide(
             CloseStep::PrepareClose => cx.update(|_, cx| decision.prepared(None, i18n(cx)))?,
             CloseStep::SaveAll => {
                 let saving = this.update(cx, |workbench, cx| workbench.save_all(cx))?;
-                decision.saved(saving.await)
+                match saving.await {
+                    // Then each untitled buffer with text asks for its file; one left without a file keeps
+                    // the window, and nothing failed.
+                    Ok(()) => match super::untitled_tabs::save_untitled_buffers(this, cx).await? {
+                        true => decision.saved(Ok(())),
+                        false => decision.save_cancelled(),
+                    },
+                    failed => decision.saved(failed),
+                }
             }
             // Nothing was prepared: Don't Save leaves the documents to close with the window.
             CloseStep::DiscardPrepared => decision.discarded(Ok(())),

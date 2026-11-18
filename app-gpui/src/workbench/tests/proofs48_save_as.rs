@@ -3,7 +3,9 @@
 //! project counts the buffer and stays while its Save As is cancelled. The save dialog is answered
 //! with the test context's stand-in for the system's chooser, inside the temporary project.
 
-use super::proofs48_untitled::{active_input, close_backend, listed, new_untitled, type_untitled};
+use super::proofs48_untitled::{
+    active_input, answer_save_dialog, close_backend, close_decided, listed, new_untitled, type_untitled,
+};
 use super::*;
 use crate::editor::tabs::EditorInput;
 use crate::editor_model::untitled::untitled_input;
@@ -11,6 +13,10 @@ use crate::editor_model::untitled::untitled_input;
 fn file_input(path: &std::path::Path) -> EditorInput {
     let path = path.to_string_lossy().into_owned();
     EditorInput { kind: "file".to_owned(), key: path.clone(), path: Some(path), data: None }
+}
+
+fn editor_is_dirty(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> bool {
+    workbench.read_with(cx, |w, cx| w.editor().is_some_and(|editor| editor.read(cx).is_dirty()))
 }
 
 /// The stored values of the UI state, for what the session holds.
@@ -39,17 +45,21 @@ async fn autosave_never_writes_an_untitled_buffer_explicit_save_asks_for_a_path_
     cx.deactivate_window();
     cx.run_until_parked();
     assert!(cx.pending_prompt().is_none());
+    // Autosave runs the save cleanup on the buffer (the final line break) but has nowhere to write it.
+    settle(cx, |cx| editor.read_with(cx, |editor, _| editor.text() == "draft\n"));
     assert!(editor.read_with(cx, |editor, _| editor.is_dirty()), "autosave leaves it unsaved");
     assert_eq!(listed(&root), ["main.rs"]);
     cx.update(|window, _| window.activate_window());
 
     run_action(cx, "file.save", None);
     let hello = root.join("new/dir/hello.rs");
-    let target = hello.clone();
-    cx.simulate_new_path_selection(move |_| Some(target));
-    wait_long(cx, "the buffer to be written as hello.rs", |cx| {
+    answer_save_dialog(cx, &root, Some(hello.clone()));
+    // The backend reports the document clean before its answer reaches the window: the wait covers
+    // the tab taking the file too.
+    wait_long(cx, "the buffer to be written as hello.rs and its tab to be the file's", |cx| {
         std::fs::read_to_string(&hello).is_ok_and(|text| text == "draft\n")
             && !editor.read_with(cx, |editor, _| editor.is_dirty())
+            && active_input(&workbench, cx).is_some_and(|input| input.kind == "file")
     });
     assert_eq!(active_input(&workbench, cx), Some(file_input(&hello)));
     editor.read_with(cx, |editor, _| {
@@ -74,7 +84,7 @@ async fn autosave_never_writes_an_untitled_buffer_explicit_save_asks_for_a_path_
 // src/editor/core/untitled.test.ts › untitled editor input › keeps the buffer open and dirty when the
 // save dialog is cancelled
 /// Save All with the save dialog cancelled: the tab is still the untitled buffer's, with its text and
-/// unsaved, and nothing is written.
+/// unsaved, and nothing is written; the next Save All asks again.
 #[gpui_kit::test]
 async fn keeps_the_buffer_open_and_dirty_when_the_save_dialog_is_cancelled(cx: &mut TestAppContext) {
     let _home = start(cx);
@@ -84,13 +94,24 @@ async fn keeps_the_buffer_open_and_dirty_when_the_save_dialog_is_cancelled(cx: &
     type_untitled(&workbench, "draft", cx);
 
     run_action(cx, "file.save", None);
-    cx.simulate_new_path_selection(|_| None);
+    answer_save_dialog(cx, &root, None);
     cx.run_until_parked();
     assert_eq!(active_input(&workbench, cx), Some(untitled_input("untitled:Untitled-1")));
     let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
-    assert!(editor.read_with(cx, |editor, _| editor.is_dirty() && editor.text() == "draft"));
+    // The save cleanup ran before the dialog opened, as before any save.
+    assert!(editor.read_with(cx, |editor, _| editor.is_dirty() && editor.text() == "draft\n"));
     assert_eq!(listed(&root), ["main.rs"]);
     assert!(notification_titles(&workbench, cx).is_empty(), "cancelling is not a failure");
+
+    // The buffer is still untitled: the next save asks again, and only the file chosen then is written.
+    run_action(cx, "file.save", None);
+    let kept = root.join("kept.txt");
+    answer_save_dialog(cx, &root, Some(kept.clone()));
+    wait_long(cx, "the buffer to be written as kept.txt and its tab to be the file's", |cx| {
+        std::fs::read_to_string(&kept).is_ok_and(|text| text == "draft\n")
+            && active_input(&workbench, cx).is_some_and(|input| input.kind == "file")
+    });
+    assert_eq!(listed(&root), ["kept.txt", "main.rs"], "the cancelled dialog wrote nothing");
     close_backend(cx);
 }
 
@@ -108,15 +129,16 @@ async fn save_as_onto_a_file_open_in_another_tab_is_refused_and_keeps_the_buffer
     type_untitled(&workbench, "draft", cx);
 
     run_action(cx, "file.save", None);
-    let target = notes.clone();
-    cx.simulate_new_path_selection(move |_| Some(target));
+    answer_save_dialog(cx, &root, Some(notes.clone()));
     wait_for_notice(&workbench, "Cannot save file", cx);
     let body = workbench.read_with(cx, |w, _| {
         w.notifications().items().iter().find(|n| n.title == "Cannot save file").and_then(|n| n.body.clone())
     });
     assert!(body.is_some_and(|body| body.contains("already open")), "the notice says why");
     assert_eq!(active_input(&workbench, cx), Some(untitled_input("untitled:Untitled-1")));
-    assert_eq!(editor_text(&workbench, cx).as_deref(), Some("draft"));
+    // The save's cleanup (the final line break) runs before the backend answers, as before any save.
+    assert_eq!(editor_text(&workbench, cx).as_deref(), Some("draft\n"));
+    assert!(editor_is_dirty(&workbench, cx), "the buffer keeps its unsaved text");
     assert_eq!(std::fs::read_to_string(&notes).expect("readable"), "notes\n");
     close_backend(cx);
 }
@@ -141,20 +163,19 @@ async fn stays_open_when_an_untitled_buffers_save_as_is_cancelled(cx: &mut TestA
     let project = root.file_name().expect("a name").to_string_lossy().into_owned();
     assert_eq!(body, format!("1 file has unsaved changes in {project}. Save before closing?"));
     cx.simulate_prompt_answer("Save All");
-    cx.run_until_parked();
-    cx.simulate_new_path_selection(|_| None);
-    cx.run_until_parked();
+    answer_save_dialog(cx, &root, None);
+    close_decided(&workbench, cx);
     assert!(workbench.read_with(cx, |w, _| w.project_tree().is_some()), "the window stays");
     assert!(notification_titles(&workbench, cx).is_empty(), "{:?}", notification_titles(&workbench, cx));
-    assert_eq!(editor_text(&workbench, cx).as_deref(), Some("draft"));
+    // Cleaned up before the dialog, as before any save; still unsaved.
+    assert_eq!(editor_text(&workbench, cx).as_deref(), Some("draft\n"));
+    assert!(editor_is_dirty(&workbench, cx));
 
     assert!(!cx.simulate_close());
     cx.run_until_parked();
     cx.simulate_prompt_answer("Save All");
-    cx.run_until_parked();
     let kept = root.join("kept.txt");
-    let target = kept.clone();
-    cx.simulate_new_path_selection(move |_| Some(target));
+    answer_save_dialog(cx, &root, Some(kept.clone()));
     wait_long(cx, "the buffer to be written and the window to leave the project", |cx| {
         std::fs::read_to_string(&kept).is_ok_and(|text| text == "draft\n")
             && workbench.read_with(cx, |w, _| w.project_tree().is_none() && w.welcome().is_some())
@@ -175,9 +196,8 @@ async fn close_project_counts_an_untitled_buffer_and_stays_when_its_save_as_is_c
     let (title, _) = cx.pending_prompt().expect("leaving asks about the buffer");
     assert_eq!(title, "Unsaved Changes");
     cx.simulate_prompt_answer("Save All");
-    cx.run_until_parked();
-    cx.simulate_new_path_selection(|_| None);
-    cx.run_until_parked();
+    answer_save_dialog(cx, &root, None);
+    close_decided(&workbench, cx);
     assert!(workbench.read_with(cx, |w, _| w.project_tree().is_some()), "the project stays");
 
     run_action(cx, "file.closeProject", None);

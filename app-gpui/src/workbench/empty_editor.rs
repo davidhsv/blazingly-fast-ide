@@ -32,8 +32,9 @@ pub struct HintRow {
     pub runs: Option<&'static str>,
 }
 
-/// A window that edits loose files has no project to navigate: only opening files works there.
-const LIGHT_EDIT_HINTS: [Hint; 2] = [
+/// A window that edits loose files has no project to navigate: only opening and creating files works there.
+const LIGHT_EDIT_HINTS: [Hint; 3] = [
+    Hint { label: "New File", action: Some("file.newUntitled"), fallback: None },
     Hint { label: "Open File", action: Some("file.openFile"), fallback: None },
     Hint { label: "Drop files here to open them", action: None, fallback: None },
 ];

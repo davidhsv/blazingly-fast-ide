@@ -90,7 +90,7 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
                 .window_editors()
                 .iter()
                 .map(|editor| editor.read(cx))
-                .filter(|editor| !editor.is_dirty())
+                .filter(|editor| !editor.is_dirty() && !editor.is_untitled())
                 .map(|editor| editor.path().to_string_lossy().into_owned())
                 .collect();
             workbench.reload_from_disk(&clean, cx);
@@ -302,6 +302,10 @@ impl Workbench {
             let Some(editor) = editors.iter().find(|editor| editor.read(cx).path().to_string_lossy() == **path) else {
                 continue;
             };
+            // An untitled buffer has no file to read again.
+            if editor.read(cx).is_untitled() {
+                continue;
+            }
             if editor.read(cx).is_dirty() {
                 let name = path.rsplit('/').next().unwrap_or(path);
                 let request = NotificationRequest {

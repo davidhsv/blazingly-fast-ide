@@ -186,6 +186,7 @@ pub fn spec(os: Os) -> Vec<Entry> {
         act("workspace.manage", "Manage Workspace…"),
         act("file.new", "New…"),
         act("file.newScratchFile", "New Scratch File…"),
+        act("file.newUntitled", "New Untitled File"),
         act("file.openProject", "Open…"),
         act("project.attach", "Attach Project…"),
         act("file.openFile", "Open File…"),

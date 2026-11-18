@@ -727,6 +727,12 @@ impl Host {
         self.open_light_in(window, dir, None)
     }
 
+    /// [`Host::open_light_empty`] rooted at `dir`: an app running under a home of its own passes that
+    /// home, so that nothing indexes or watches the user's.
+    pub fn open_light_empty_in(&self, window: &str, dir: PathBuf) -> IdeResult<Arc<Project>> {
+        self.open_light_in(window, dir, None)
+    }
+
     fn open_light_in(&self, window: &str, dir: PathBuf, watch_dir: Option<&Path>) -> IdeResult<Arc<Project>> {
         let opening = self.opening(window);
         let _opening = opening.lock();

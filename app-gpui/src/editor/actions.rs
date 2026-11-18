@@ -63,7 +63,7 @@ pub fn register(cx: &mut App) {
     registry.handle("file.save", |_, window, cx| {
         let workbench =
             workbench::for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no documents"))?;
-        workbench.update(cx, |workbench, cx| workbench.save_all_documents(cx));
+        workbench.update(cx, |workbench, cx| workbench.save_all_documents(window, cx));
         Ok(())
     });
     super::command_actions::register(cx);

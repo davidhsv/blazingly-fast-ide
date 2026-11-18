@@ -55,16 +55,14 @@ pub fn retarget_tabs(tabs: &mut TabsState, old_key: &str, path: &str) -> bool {
 
 /// Where Save As opens for the untitled buffer `key`, and the name it suggests (without an
 /// extension: the file type is the user's to pick). The folder is the project's root; without a
-/// project, the folder of the most recently used file tab (the active pane's first, by recent use);
-/// else `home`.
+/// project, the folder of the most recently used file tab of the first pane that has one; else
+/// `home`, since the system's save dialog needs a folder to open in.
 pub fn save_as_start(root: Option<&Path>, tabs: &TabsState, home: &Path, key: &str) -> (PathBuf, String) {
     let name = untitled_name(key).to_owned();
     if let Some(root) = root {
         return (root.to_path_buf(), name);
     }
-    let active = tabs.panes.iter().filter(|pane| pane.id == tabs.active_pane);
-    let others = tabs.panes.iter().filter(|pane| pane.id != tabs.active_pane);
-    let recent_file = active.chain(others).find_map(|pane| {
+    let recent_file = tabs.panes.iter().find_map(|pane| {
         pane.mru.iter().find_map(|id| {
             let tab = pane.tab(id)?;
             let path = tab.input.path.as_deref().filter(|_| tab.input.kind == "file")?;

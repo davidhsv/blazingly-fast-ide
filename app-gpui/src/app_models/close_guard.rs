@@ -233,6 +233,12 @@ impl CloseDecision {
         self.decided(false, Some(error))
     }
 
+    /// Save All ended with an untitled buffer still unsaved (its Save As was cancelled or refused, which
+    /// was told already): the window stays and nothing is reported.
+    pub fn save_cancelled(&mut self) -> CloseStep {
+        self.decided(false, None)
+    }
+
     /// Save All finished.
     pub fn saved(&mut self, result: Result<(), String>) -> CloseStep {
         match result {

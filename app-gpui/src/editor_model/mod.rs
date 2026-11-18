@@ -15,5 +15,6 @@ pub mod python_members;
 pub mod removal;
 pub mod semantic_php;
 pub mod semantic_tokens;
+pub mod untitled;
 pub mod virtual_input;
 pub mod workspace_history;

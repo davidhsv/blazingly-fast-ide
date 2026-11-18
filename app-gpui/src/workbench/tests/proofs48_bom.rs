@@ -22,6 +22,13 @@ fn open_encoding_menu(workbench: &Entity<Workbench>, cx: &mut VisualTestContext)
     menu.read_with(cx, |menu, _| menu.rows().iter().map(|row| (row.label.clone(), row.disabled)).collect())
 }
 
+/// Clicks the byte order mark row of the open encoding menu: the third row, drawn after Reload with
+/// Encoding, Convert to Encoding and a separator.
+fn click_bom_row(cx: &mut VisualTestContext) {
+    let at = cx.debug_bounds("menu-row-0-3").expect("the byte order mark row is drawn").center();
+    cx.simulate_click(at, gpui_kit::Modifiers::default());
+}
+
 fn encoding_item(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> String {
     workbench.read_with(cx, |w, cx| w.status_items(cx)).get(2).cloned().unwrap_or_default()
 }
@@ -46,10 +53,9 @@ async fn the_encoding_menu_adds_and_removes_the_utf8_bom_and_the_save_writes_it(
     assert_eq!(encoding_item(&workbench, cx), "UTF-8");
 
     let rows = open_encoding_menu(&workbench, cx);
-    assert!(rows.contains(&("Add UTF-8 BOM".to_owned(), false)), "{rows:?}");
+    assert_eq!(rows[2], ("Add UTF-8 BOM".to_owned(), false), "{rows:?}");
     assert!(!rows.iter().any(|(label, _)| label == "Remove UTF-8 BOM"));
-    // A typed letter selects the row it starts.
-    cx.simulate_keystrokes("a enter");
+    click_bom_row(cx);
     settle(cx, |cx| encoding_item(&workbench, cx) == "UTF-8 BOM" && editor.read_with(cx, |e, _| e.is_dirty()));
     assert_eq!(std::fs::read(&notes).expect("readable"), b"hi\n", "nothing is written before the save");
     run_action(cx, "file.save", None);
@@ -59,11 +65,11 @@ async fn the_encoding_menu_adds_and_removes_the_utf8_bom_and_the_save_writes_it(
     });
 
     let rows = open_encoding_menu(&workbench, cx);
-    assert!(rows.contains(&("Remove UTF-8 BOM".to_owned(), false)), "{rows:?}");
-    cx.simulate_keystrokes("r enter");
+    assert_eq!(rows[2], ("Remove UTF-8 BOM".to_owned(), false), "{rows:?}");
+    click_bom_row(cx);
     settle(cx, |cx| encoding_item(&workbench, cx) == "UTF-8");
     run_action(cx, "file.save", None);
-    settle(cx, |cx| std::fs::read(&notes).is_ok_and(|bytes| bytes == b"hi\n"));
+    settle(cx, |_| std::fs::read(&notes).is_ok_and(|bytes| bytes == b"hi\n"));
     close_backend(cx);
 }
 
@@ -76,9 +82,10 @@ async fn with_autosave_on_adding_the_bom_writes_the_file_at_once(cx: &mut TestAp
     autosave(true, cx);
     let notes = root.join("notes.txt");
     open_and_wait(&workbench, &notes, cx);
-    open_encoding_menu(&workbench, cx);
-    cx.simulate_keystrokes("a enter");
-    settle(cx, |cx| std::fs::read(&notes).is_ok_and(|bytes| bytes == [BOM, b"hi\n"].concat()));
+    let rows = open_encoding_menu(&workbench, cx);
+    assert_eq!(rows[2], ("Add UTF-8 BOM".to_owned(), false), "{rows:?}");
+    click_bom_row(cx);
+    settle(cx, |_| std::fs::read(&notes).is_ok_and(|bytes| bytes == [BOM, b"hi\n"].concat()));
     assert_eq!(encoding_item(&workbench, cx), "UTF-8 BOM");
     close_backend(cx);
 }
